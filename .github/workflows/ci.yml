@@ -21,6 +21,9 @@ jobs:
       - name: Show toolchain
         run: moon version --all
 
+      - name: Update registry
+        run: moon update
+
       - name: Check
         working-directory: moonbit
         run: moon check
