@@ -29,3 +29,7 @@ poc/f6_native_export_closure/logs/
 .vscode/
 .idea/
 .DS_Store
+
+# MoonBit compiler side products from PoCs
+poc/f5_prefix_plus/p.ast
+poc/f5_prefix_plus/p.typechecked
