@@ -198,6 +198,7 @@ moon test --target native
 | [python-reference 分支](https://github.com/I3eg1nner/moonc-fuzz/tree/python-reference) | Python 参考实现与归档 pilot |
 | `findings/codex_review_5.md` | 外部 review 及逐条修正 |
 | `findings/codex_defect_review.md` | Codex 对每个缺陷的独立复验与修正 |
+| `findings/upstream_issues.md` | 已提交的 7 个 upstream issue 与 PoC 映射 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
 | `examples/trace2funcs.sh` | 最小可运行示例 |
 
