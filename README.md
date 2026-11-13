@@ -1,10 +1,14 @@
 # moonc-fuzz
 
+[![ci](https://github.com/I3eg1nner/moonc-fuzz/actions/workflows/ci.yml/badge.svg)](https://github.com/I3eg1nner/moonc-fuzz/actions/workflows/ci.yml)
+
 面向闭源 MoonBit 编译器 `moonc` 的黑盒/灰盒测试工具，主分支实现为
 MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不参与
 主分支构建或验收。
 
 - 仓库：<https://github.com/I3eg1nner/moonc-fuzz>
+- 包：<https://mooncakes.io/docs/I3eg1nner/mbtfuzz>（`moon add I3eg1nner/mbtfuzz`）
+- 许可证：Apache-2.0
 - 固定工具链：`moon 0.1.20261104 (940aa18)`、`moonc v0.10.20+65efd5b93`、
   `moonrun 0.1.20261104`
 - 当前覆盖结果：`camlMoonc*` 函数符号 7,916 / 26,611 = 29.75%
@@ -26,6 +30,14 @@ MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不
 
 ## 2. 快速开始
 
+需要 `moon`/`moonc`，版本不低于 0.10.16；本文数据固定在 0.10.20。
+
+```bash
+curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+```
+
+完整仓库包含复现脚本、PoC 和第三方 fixture：
+
 ```bash
 git clone https://github.com/I3eg1nner/moonc-fuzz.git
 cd moonc-fuzz
@@ -35,6 +47,12 @@ cd moonc-fuzz
 cd moonbit
 moon test
 moon run cmd/accept -- /path/to/moonc-fuzz
+```
+
+最小可运行示例（`nm -n` + QEMU `-d exec` 日志 → 函数集 JSON）：
+
+```bash
+./examples/trace2funcs.sh
 ```
 
 `cmd/accept` 依次检查：工具链 pin、`moon build`、`moon test`、`moon check`、
@@ -130,7 +148,8 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
   `regress`、`f6matrix`、`accept`。
 
-当前 54 个测试通过，`moon check` 无警告。`cmd/regress` 覆盖 12 例缺陷；
+当前 75 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。
@@ -180,3 +199,9 @@ moon test --target native
 | `findings/codex_review_5.md` | 外部 review 及逐条修正 |
 | `findings/codex_defect_review.md` | Codex 对每个缺陷的独立复验与修正 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
+| `examples/trace2funcs.sh` | 最小可运行示例 |
+
+## 10. 许可证
+
+Apache-2.0，见 `LICENSE`。仓库内的第三方 fixture（如
+`WeiR-h/moonldif@0.7.6`）按各自许可证使用，且不提交到本仓库。

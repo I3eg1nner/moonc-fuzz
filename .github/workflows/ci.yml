@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+      - name: Show toolchain
+        run: moon version --all
+
+      - name: Check
+        working-directory: moonbit
+        run: moon check
+
+      - name: Build
+        working-directory: moonbit
+        run: moon build
+
+      - name: Test
+        working-directory: moonbit
+        run: moon test
+
+      - name: Format
+        working-directory: moonbit
+        run: moon fmt --check
+
+      - name: Minimal example
+        run: ./examples/trace2funcs.sh
