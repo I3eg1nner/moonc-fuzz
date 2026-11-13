@@ -52,34 +52,50 @@ moonbit/        MoonBit 主实现：trace/cov/mutate/exec/corpus/oracle + cmd/*
 poc/            每个缺陷的最小复现和版本说明
 templates/      25 个可运行程序，用于跨后端差分
 findings/       技术报告、验证记录、外部 review
+issues/         对外 issue 草稿
 scripts/        资产下载、一键复现
 run.sh          MoonBit fuzz 入口
 ```
 
 ## 4. 缺陷
 
-所有结果均针对上述固定版本。每个 PoC 的完整命令和预期输出见
-`poc/<id>/README.md`，索引见 `poc/README.md`。
+11 个 PoC（含 F6 外部包）在固定版本上全部复现。独立复验（2026-11-13）未发现
+假阳性，并排除了四类误报来源：文件不存在、cwd 错误、缺 core library、
+`_build` 缓存；F2 和 F6 另在全新副本上重跑。同一轮复验修正了 8 处数字或措辞
+过度声明（见 `d1447bd`），`scripts/reproduce_all.sh` 也从“打印 rc”改为带断言
+的 13 项检查。
 
-| ID | 最小输入 | 结果 | 说明 |
-|---|---|---|---|
-| F1 | 101 B `moon.pkg` | SIGSEGV，rc 139 | 显式 `moonc syncheck moon.pkg`；根因未证明 |
-| F1b | 672 B `moon.pkg` | SIGSEGV | 与 F1 栈顶相同；根因未证明 |
-| F2 | 38 B 源码 | `moon check` rc 1，ICE | `Invalid_argument("Char.chr")`；`syncheck` 单独返回 0 |
-| F2b | `\` + U+200B | syncheck 0；build-package 199 | F2 同类异常；T2 阶段 witness |
-| F3 | 19 B 源码 | 6 GiB cap 下 rc 134 | 5.2–5.7 GiB 后 abort；uncapped 8.2 GiB / 20 s 为早期观察，本次未复跑 |
-| F4 | 40 B `.mbt.md` | rc 199 | `Basic_utf8_decode.MalFormed` |
-| F4b | 6.7 KB `.mbt.md` | rc 199 | 字节 fuzz 得到的同一解码异常类 witness |
-| F5 | 前缀 `+` | parse 0；check 2；fmt 后 reparse 2 | formatter 输出不可词法化的 `~+` |
-| F6 | 10 行单包 | `moon build --target native` rc 255 | 导出签名可达闭包类型时 link ICE |
-| P1 | 2,048 段插值 | 15.3 s vs 纯串 0.004 s | 1024→2048 实测 9.7×；两点不证明复杂度阶数 |
+每个 PoC 的完整命令和预期输出见 `poc/<id>/README.md`，索引见 `poc/README.md`。
 
-F1 的已确认影响面仅限显式 `syncheck`；同目录下对合法源文件执行
-`build-package`/`check` 不崩溃。F6 是诊断/工具链缺陷，不是 miscompile：
-`.core` 可生成，包级 `moon build --target native src` 成功，native/js 包级
-测试均通过；模块级 native build 和测试链接失败。
+| ID | 最小输入 | 结果 | 复现 | 口径 |
+|---|---|---|---|---|
+| F1 | 101 B `moon.pkg` | SIGSEGV，rc 139 | 3/3 | 限定：显式 `syncheck`，根因未证 |
+| F1b | 672 B `moon.pkg` | SIGSEGV | 3/3 | 同帧 witness，不单列根因 |
+| F2 | 38 B 源码 | `moon check` rc 1，ICE | 3/3 | 可直接引用 |
+| F2b | `\` + U+200B | syncheck 0；build-package 199 | 3/3 | 阶段分裂 witness |
+| F3 | 19 B 源码 | 6 GiB cap 下 5.66 GiB、rc 134 | 2/2 | 可直接引用：有界资源耗尽 |
+| F4 | 40 B `.mbt.md` | rc 199 | 3/3 | 可直接引用：解码 ICE |
+| F4b | 6.7 KB `.mbt.md` | rc 199 | 3/3 | 同异常类 witness |
+| F5 | 前缀 `+` | parse 0；check 2；fmt 后 reparse 2 | 5/5 | 限定：语法往返 |
+| F6 | 10 行单包 | `moon build --target native` rc 255 | 3/3 | 限定：链接期诊断缺陷 |
+| P1 | 2,048 段插值 | 15.1 s vs 纯串 7 ms | 3+5 | 限定：两点实测，不推阶数 |
 
-F1b/F2b/F4b 是额外 witness，暂按栈/签名归入 F1/F2/F4，不声称新的根因类。
+对外口径按证据强度分三档：
+
+- **可直接引用**：F2 的 T1/T2 阶段分裂与 ICE、F3 在固定上限下的内存耗尽、
+  F4 的 `.mbt.md` 解码 ICE、P1 的实测曲线。
+- **发布前限定措辞**：F1 仅限显式 `moonc syncheck moon.pkg`；F1b/F2b/F4b 是
+  同签名 witness，不声称独立根因；F5 限语法往返，不是语义错误；F6 是链接期
+  诊断缺陷，不是 miscompile。
+- **仍需补实验**：根因身份与独立缺陷数、F3 无上限时的终止性、P1 的复杂度
+  阶数、F5 的全矩阵。
+
+F1 的已确认影响面仅限显式 `syncheck`：同一文件交给 `moon build`/`moon check`
+时，`moon` 用自己的配置解析器，正常报解析错误（rc 255）。F6 外部包的 `.core`
+可生成，包级 `moon build --target native src` 成功，native/js 包级测试均通过；
+模块级 native build 和测试链接失败。
+
+F1b/F2b/F4b 是额外 witness，暂按栈或异常签名归入 F1/F2/F4，不声称新的根因类。
 
 ## 5. 覆盖率与对拍
 
@@ -150,6 +166,7 @@ moon test --target native
 | 文件 | 内容 |
 |---|---|
 | `poc/README.md` | 缺陷 PoC 索引、命令、预期结果 |
+| `issues/README.md` | 上游 issue 草稿的提交位置、去重和顺序 |
 | `findings/validation.md` | F1–F6/P1 多次复现表 |
 | `findings/cov_audit.md` | 符号化、重放、并集口径审计 |
 | `findings/thirdparty.md` | 12 包 × 5 target 测试与 triage |
