@@ -15,5 +15,6 @@ Repeat with 2048.  On the recorded host (2026-11-12) the medians were:
 | 1024 | 1,576 ms | 7.5 ms |
 | 2048 | 15,072 ms | 6.2 ms |
 
-The exact defect claim is **superlinear growth ~10x per doubling**, not a
-single absolute time.  A plain string of the same size is the control.
+The observed growth from 1024 to 2048 is about 9.7x.  A plain string of
+comparable size is the control.  Two points do not establish an asymptotic
+complexity class; the claim is limited to the measured inputs.

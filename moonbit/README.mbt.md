@@ -64,7 +64,7 @@ Python.
   101 MB check trace (0.48 s vs 1.80 s).
 - `cov`: set-algebra fixtures and the 6,547-function union match Python.
 - `oracle`: all 25 `templates/*.mbt` reach `run` on wasm and js with equal output.
-- `regress`: 12/12, including the 12-line F6 native-export repro.
+- `regress`: 12/12, including the 10-line F6 native-export repro.
 - Campaigns: 126k mbt, 223k moon.pkg, 83k .mbt.md, 111k .mbti, 140k moon.mod.
   F1b/F2b/F4b are extra witnesses grouped with F1/F2/F4, not new root causes.
 

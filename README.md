@@ -41,7 +41,7 @@ moon run cmd/accept -- /path/to/moonc-fuzz
 覆盖并集、25 个模板的 wasm/js 差分、负控制。任一项失败即非零退出。
 
 仓库不提交 `out/`、`seeds/`、`assets/`、`moonbit/_build/` 和 12 MB 的
-`WeiR-h/moonldif@0.7.6`。F6 另有 12 行最小复现，不依赖下载。
+`WeiR-h/moonldif@0.7.6`。F6 另有 10 行最小复现，不依赖下载。
 
 ## 3. 目录
 
@@ -63,15 +63,15 @@ run.sh          默认入口（MoonBit；`./run.sh py` 走 Python）
 | ID | 最小输入 | 结果 | 说明 |
 |---|---|---|---|
 | F1 | 101 B `moon.pkg` | SIGSEGV，rc 139 | 显式 `moonc syncheck moon.pkg`；根因未证明 |
-| F1b | 672 B `moon.pkg` | SIGSEGV | 与 F1 栈顶相同，暂归同一根因 |
-| F2 | 9 B 源码 | `moon check` rc 1，ICE | `Invalid_argument("Char.chr")`；`syncheck` 单独返回 0 |
-| F2b | `\` + U+200B | syncheck 0；build-package 199 | 同一 F2 根因的 T2 witness |
-| F3 | 19 B 源码 | 6 GiB cap 下 rc 134 | 5.2–5.7 GiB 后 abort；uncapped 8.2 GiB / 20 s |
-| F4 | 22 B `.mbt.md` | rc 199 | `Basic_utf8_decode.MalFormed` |
-| F4b | 6.7 KB `.mbt.md` | rc 199 | 字节 fuzz 得到的同根因 witness |
+| F1b | 672 B `moon.pkg` | SIGSEGV | 与 F1 栈顶相同；根因未证明 |
+| F2 | 38 B 源码 | `moon check` rc 1，ICE | `Invalid_argument("Char.chr")`；`syncheck` 单独返回 0 |
+| F2b | `\` + U+200B | syncheck 0；build-package 199 | F2 同类异常；T2 阶段 witness |
+| F3 | 19 B 源码 | 6 GiB cap 下 rc 134 | 5.2–5.7 GiB 后 abort；uncapped 8.2 GiB / 20 s 为早期观察，本次未复跑 |
+| F4 | 40 B `.mbt.md` | rc 199 | `Basic_utf8_decode.MalFormed` |
+| F4b | 6.7 KB `.mbt.md` | rc 199 | 字节 fuzz 得到的同一解码异常类 witness |
 | F5 | 前缀 `+` | parse 0；check 2；fmt 后 reparse 2 | formatter 输出不可词法化的 `~+` |
-| F6 | 12 行单包 | `moon build --target native` rc 255 | 导出签名可达闭包类型时 link ICE |
-| P1 | 2,048 段插值 | 约 15 s vs 纯串 6 ms | 每倍增约 10×，属性能异常 |
+| F6 | 10 行单包 | `moon build --target native` rc 255 | 导出签名可达闭包类型时 link ICE |
+| P1 | 2,048 段插值 | 15.3 s vs 纯串 0.004 s | 1024→2048 实测 9.7×；两点不证明复杂度阶数 |
 
 F1 的已确认影响面仅限显式 `syncheck`；同目录下对合法源文件执行
 `build-package`/`check` 不崩溃。F6 是诊断/工具链缺陷，不是 miscompile：
@@ -154,4 +154,5 @@ moon test --target native
 | `findings/evidence_package.md` | 论文级证据包与声明边界 |
 | `findings/migration_moonbit.md` | Python → MoonBit 迁移证据与验收 |
 | `findings/codex_review_5.md` | 外部 review 及逐条修正 |
+| `findings/codex_defect_review.md` | Codex 对每个缺陷的独立复验与修正 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |

@@ -48,12 +48,12 @@ bucket is reported explicitly.
 | id | class | minimal input | 5-run result |
 |---|---|---|---|
 | F1 | SIGSEGV in `moon.pkg` parser | 101 B | 5/5 SIGSEGV |
-| F2 | lexer ICE `Invalid_argument("Char.chr")` | 9 B | 5/5 ICE (`moon check` rc=1) |
-| F3 | parser memory blow-up | 19 B | 5/5 reach 5.2–5.7 GiB under 6 GiB cap; uncapped 8.2 GiB in 20 s |
-| F4 | `.mbt.md` invalid UTF-8 ICE | 22 B | 5/5 rc=199 |
-| F5 | prefix `+` → unlexable `~+`; formatter output not re-parseable | 27 B | 5/5: parse 0 / check 2 / fmt+reparse 2 |
-| P1 | `moonfmt` interpolation ~10× per doubling | 13 KB | 5-run medians 1,576 ms (k=1024), 15,072 ms (k=2048); plain-string controls 7.5/6.2 ms |
-| F6 | native test-mode link ICE on exported closure-containing types | `WeiR-h/moonldif@0.7.6` | 5/5 + 3/3 `Machine_error(unsupported … reject_export_type_containing_unsupported_callback)`; module-wide native build fails the same way, package-scoped `src` build succeeds; minimized to a 12-line single-package repro (`poc/f6_native_export_closure_min/`), controls build |
+| F2 | lexer ICE `Invalid_argument("Char.chr")` | 38 B | 5/5 ICE (`moon check` rc=1) |
+| F3 | parser memory blow-up | 19 B | 5/5 reach 5.2–5.7 GiB under 6 GiB cap; uncapped 8.2 GiB/20 s is an earlier observation, not re-run in review |
+| F4 | `.mbt.md` invalid UTF-8 ICE | 40 B | 5/5 rc=199 |
+| F5 | prefix `+` → unlexable `~+`; formatter output not re-parseable | 66 B | 5/5: parse 0 / check 2 / fmt+reparse 2 |
+| P1 | `moonfmt` interpolation ~9.7× from 1024 to 2048 | 13 KB | 5-run medians 1,576 ms (k=1024), 15,072 ms (k=2048); plain-string controls 7.5/6.2 ms |
+| F6 | native export/link ICE on closure-containing exported types | `WeiR-h/moonldif@0.7.6` | 5/5 + 3/3 `Machine_error(unsupported … reject_export_type_containing_unsupported_callback)`; module-wide native build fails the same way, package-scoped `src` build succeeds; minimized to a 10-line single-package repro (`poc/f6_native_export_closure_min/`), controls build |
 
 POC directories `poc/f1…f5`; validation table `findings/validation.md`.
 F2/F4 are error-path ICEs; F1/F3 are tiny-input robustness failures; F5/P1 are

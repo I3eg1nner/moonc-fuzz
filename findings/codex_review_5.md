@@ -19,7 +19,7 @@ references, archived pilots and plotting.
 | 1 | Oracle builds/links keep `rc=-999`, `same` ignores stage/stderr; two failures can compare equal | Added `oracle.outcomes_agree`; a successful run is compared by rc+stdout, two failures by failure class only. Injected-fault tests added. |
 | 2 | Formatter nonzero exits and second-pass failures ignored | Fuzzer now records formatter timeout, reparse failure and non-idempotence; 27 万+ T1-OK campaigns found no new formatter class. |
 | 3 | Finding storage drops raw stdout/stderr; text inputs always `case.mbt`; signatures collapse signals | `meta_json` now stores `stderr_tail`/`stdout_tail` and diff findings store `wasm_detail`/`js_detail`; JSON is escaped. |
-| 4 | Regression does not fail the process; F6 optional | `cmd/regress` now exits 1 on any failure and has 12 mandatory rows; F6 uses a 12-line fixture with no third-party download. |
+| 4 | Regression does not fail the process; F6 optional | `cmd/regress` now exits 1 on any failure and has 12 mandatory rows; F6 uses a 10-line fixture with no third-party download. |
 | 5 | P1 only one size; F5 diagnostic/F4b absent | P1 now measures k=512/1024/2048 (5/5/3 runs), ratios 25.4 / 317.4 / 3015.4, gate >5. F5 diagnostic and F4b added. |
 
 ## Acceptance gate added

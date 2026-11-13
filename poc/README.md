@@ -18,7 +18,7 @@ Set `MOONC`/`MOON`/`MOONFMT` or use `$HOME/.moon/bin/...`.
 | F2b | [`f2b_zwsp_escape_t2_ice/`](f2b_zwsp_escape_t2_ice/) | build-package command in README | rc 199, `Char.chr` |
 | F3 | [`f3_parser_oom/`](f3_parser_oom/) | `prlimit --as=6442450944 -- moonc syncheck cmd/main.mbt` | OOM / SIGABRT under cap |
 | F4 | [`f4_invalid_utf8/`](f4_invalid_utf8/) | `moonc syncheck doc.mbt.md` | rc 199, `Basic_utf8_decode.MalFormed` |
-| F4b | [`f4b_invalid_utf8_2/`](f4b_invalid_utf8_2/) | `moonc syncheck doc.mbt.md` | rc 199, same decoder |
+| F4b | [`f4b_invalid_utf8_2/`](f4b_invalid_utf8_2/) | `moonc syncheck doc.mbt.md` | rc 199, same decoder exception class |
 | F5 | [`f5_prefix_plus/`](f5_prefix_plus/) | `moonc syncheck u.mbt`; `moonfmt`; re-syncheck | 0; then rc 2 `E3001` |
 | F6-min | [`f6_native_export_closure_min/`](f6_native_export_closure_min/) | `moon build --target native` | rc 255, export-closure ICE |
 | F6 | [`f6_native_export_closure/`](f6_native_export_closure/) | `scripts/fetch_assets.sh`, then native test | rc 1, same signature |

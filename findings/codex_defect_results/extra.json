@@ -1,0 +1,69 @@
+[
+  {
+    "tag": "f5ReadmeCheck",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moon",
+      "check",
+      "u.mbt"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.048774
+  },
+  {
+    "tag": "f5PkgCheck-plus",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/extra/f5pkg-plus",
+    "cmd": [
+      "moon",
+      "check"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.049264
+  },
+  {
+    "tag": "f5PkgCheck-minus",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/extra/f5pkg-minus",
+    "cmd": [
+      "moon",
+      "check"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.06529
+  },
+  {
+    "tag": "f4bRepair",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/extra/f4bValid",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007074
+  },
+  {
+    "tag": "f2bOwnCheck",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/extra/f2bOwnModule",
+    "cmd": [
+      "moon",
+      "check"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.047039
+  }
+]

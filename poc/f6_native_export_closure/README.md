@@ -24,5 +24,5 @@ Machine_error(kind=unsupported;
 Controls: `moon test --target native src` passes 66/66; `moon test --target js`
 passes 66/66.  Module-wide `moon build --target native` also fails with the same
 signature; this is not test-mode-only, and it is a diagnostic/tooling defect,
-not a miscompile.  The minimal 12-line repro is
+not a miscompile.  The minimal 10-line repro is
 [`../f6_native_export_closure_min/`](../f6_native_export_closure_min/).

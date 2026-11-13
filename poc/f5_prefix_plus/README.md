@@ -10,6 +10,9 @@ moonc syncheck u1.mbt           # 2, E3001 unrecognized character "~"
 moon check u.mbt                # "The value identifier ~+ is unbound"
 ```
 
+The matrix below is recorded in `findings/syntax_boundary.md`; this PoC only
+re-verifies the committed sample, not the full matrix.
+
 Matrix (`out/f5_matrix.json`): `+1` folds to `1` and typechecks; `+(1)`, `+y`,
 `+(y)`, `x ++ y`, `x + ++y` all fail typecheck with unbound `~+` and format to
 unparseable `~+(...)`; unary minus controls (`-y`, `-(y)`, `-1`, `x + -y`) are

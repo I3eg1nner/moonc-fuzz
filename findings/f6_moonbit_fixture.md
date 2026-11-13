@@ -150,10 +150,10 @@ The non-test module build reaches the same check, so this is not test-mode-only.
     `src` tests (66/66) succeed; JS build and JS tests (66/66) succeed.
   * Native `bridge` is never linked and no native test binary is produced, so
     there is no wrong-code or wrong-result evidence.
-  * Correct behaviour would be a normal user-facing diagnostic such as
-    "native cannot export type `PagingCursor`: it contains a closure" with rc 2,
-    instead of the "This is a bug in the compiler" banner with rc 1 (test) /
-    rc 255 (`moon build`).
+  * A normal user-facing diagnostic such as "native cannot export type
+    `PagingCursor`: it contains a closure" is expected, instead of the
+    "This is a bug in the compiler" banner with rc 1 (test) / rc 255
+    (`moon build`).  The exact exit code is not prescribed by this test.
 * Scope correction for `poc/f6_native_export_closure/README.md` and
   `findings/thirdparty.md`: "`moon build --target native` succeeds" should be
   restated as "`moon build --target native src` succeeds; the module-wide
@@ -205,8 +205,9 @@ Minimization matrix:
 
 Trigger: a `foreign_library` package exports a function whose signature reaches
 a closure type, including behind a private field.  Correct behaviour is a clean
-unsupported-target diagnostic (rc=2), not an ICE.  This remains a diagnostic /
-tooling defect, not a miscompile.  The MoonBit regression gate now uses this
+unsupported-target diagnostic is expected, not an ICE; the exact exit code is
+not prescribed by this test.  This remains a diagnostic / tooling defect, not a
+miscompile.  The MoonBit regression gate now uses this
 minimal fixture, so F6 coverage no longer depends on a third-party download.
 
 ## Native export boundary matrix (2026-11-13)

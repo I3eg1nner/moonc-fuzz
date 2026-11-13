@@ -1,4 +1,4 @@
-# F6-min: native export of a closure-containing type (single package, 12 lines)
+# F6-min: native export of a closure-containing type (single package, 10 lines)
 
 Pinned: `moonc v0.10.20+65efd5b93` / `moon 0.1.20261104`.
 
@@ -31,5 +31,6 @@ Minimization steps:
 
 So the trigger is: a `foreign_library` package exports (`#export_name`) a
 function whose parameter/return type reaches a closure type, even behind a
-private field.  Correct behaviour is a clean unsupported-target diagnostic
-(rc=2), not an ICE.  This is a diagnostic/tooling defect, not a miscompile.
+private field.  A clean unsupported-target diagnostic is expected instead of an
+ICE; this PoC does not prescribe the exact exit code.  This is a
+diagnostic/tooling defect, not a miscompile.

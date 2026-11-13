@@ -1,0 +1,1317 @@
+[
+  {
+    "tag": "f1_moon_pkg_segv",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f1_moon_pkg_segv",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": -11,
+    "shell_rc": 139,
+    "signal": 11,
+    "seconds": 0.089638
+  },
+  {
+    "tag": "f1_moon_pkg_segv",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f1_moon_pkg_segv",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": -11,
+    "shell_rc": 139,
+    "signal": 11,
+    "seconds": 0.089313
+  },
+  {
+    "tag": "f1_moon_pkg_segv",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f1_moon_pkg_segv",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": -11,
+    "shell_rc": 139,
+    "signal": 11,
+    "seconds": 0.088587
+  },
+  {
+    "tag": "f1b_pkg_map_segv",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f1b_pkg_map_segv",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": -11,
+    "shell_rc": 139,
+    "signal": 11,
+    "seconds": 0.087601
+  },
+  {
+    "tag": "f1b_pkg_map_segv",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f1b_pkg_map_segv",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": -11,
+    "shell_rc": 139,
+    "signal": 11,
+    "seconds": 0.089667
+  },
+  {
+    "tag": "f1b_pkg_map_segv",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f1b_pkg_map_segv",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": -11,
+    "shell_rc": 139,
+    "signal": 11,
+    "seconds": 0.089299
+  },
+  {
+    "tag": "f4_invalid_utf8",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f4_invalid_utf8",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.008365
+  },
+  {
+    "tag": "f4_invalid_utf8",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f4_invalid_utf8",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.007566
+  },
+  {
+    "tag": "f4_invalid_utf8",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f4_invalid_utf8",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.007171
+  },
+  {
+    "tag": "f4b_invalid_utf8_2",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f4b_invalid_utf8_2",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.008009
+  },
+  {
+    "tag": "f4b_invalid_utf8_2",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f4b_invalid_utf8_2",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.007122
+  },
+  {
+    "tag": "f4b_invalid_utf8_2",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f4b_invalid_utf8_2",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.007527
+  },
+  {
+    "tag": "f2fresh0",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f2fresh0",
+    "cmd": [
+      "moon",
+      "check"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.048818
+  },
+  {
+    "tag": "f2fresh1",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f2fresh1",
+    "cmd": [
+      "moon",
+      "check"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.049157
+  },
+  {
+    "tag": "f2fresh2",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f2fresh2",
+    "cmd": [
+      "moon",
+      "check"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.047541
+  },
+  {
+    "tag": "f2syn",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f2_lex_escape_ice",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "cmd/main.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007388
+  },
+  {
+    "tag": "f2syn",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f2_lex_escape_ice",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "cmd/main.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007684
+  },
+  {
+    "tag": "f2syn",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f2_lex_escape_ice",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "cmd/main.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007224
+  },
+  {
+    "tag": "f2bSyn",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f2b_zwsp_escape_t2_ice",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "main.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.006887
+  },
+  {
+    "tag": "f2bSyn",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f2b_zwsp_escape_t2_ice",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "main.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007491
+  },
+  {
+    "tag": "f2bSyn",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f2b_zwsp_escape_t2_ice",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "main.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.006699
+  },
+  {
+    "tag": "f2bBuild",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f2b_zwsp_escape_t2_ice",
+    "cmd": [
+      "moonc",
+      "build-package",
+      "main.mbt",
+      "-o",
+      "/tmp/mbt-verify/f2b.core",
+      "-pkg",
+      "f2b/p",
+      "-pkg-type",
+      "executable",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/builtin/builtin.mi:moonbitlang/core/builtin",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/prelude/prelude.mi:prelude",
+      "-pkg-sources",
+      "f2b/p:.",
+      "-target",
+      "wasm",
+      "-g",
+      "-O0",
+      "-workspace-path",
+      ".",
+      "-all-pkgs",
+      "/data/audit/mbtfuzz/harness/all_pkgs.json"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.016965
+  },
+  {
+    "tag": "f2bBuild",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f2b_zwsp_escape_t2_ice",
+    "cmd": [
+      "moonc",
+      "build-package",
+      "main.mbt",
+      "-o",
+      "/tmp/mbt-verify/f2b.core",
+      "-pkg",
+      "f2b/p",
+      "-pkg-type",
+      "executable",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/builtin/builtin.mi:moonbitlang/core/builtin",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/prelude/prelude.mi:prelude",
+      "-pkg-sources",
+      "f2b/p:.",
+      "-target",
+      "wasm",
+      "-g",
+      "-O0",
+      "-workspace-path",
+      ".",
+      "-all-pkgs",
+      "/data/audit/mbtfuzz/harness/all_pkgs.json"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.016577
+  },
+  {
+    "tag": "f2bBuild",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f2b_zwsp_escape_t2_ice",
+    "cmd": [
+      "moonc",
+      "build-package",
+      "main.mbt",
+      "-o",
+      "/tmp/mbt-verify/f2b.core",
+      "-pkg",
+      "f2b/p",
+      "-pkg-type",
+      "executable",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/builtin/builtin.mi:moonbitlang/core/builtin",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/prelude/prelude.mi:prelude",
+      "-pkg-sources",
+      "f2b/p:.",
+      "-target",
+      "wasm",
+      "-g",
+      "-O0",
+      "-workspace-path",
+      ".",
+      "-all-pkgs",
+      "/data/audit/mbtfuzz/harness/all_pkgs.json"
+    ],
+    "rc": 199,
+    "shell_rc": 199,
+    "signal": null,
+    "seconds": 0.017015
+  },
+  {
+    "tag": "f2bControl",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f2bValid",
+    "cmd": [
+      "moonc",
+      "build-package",
+      "main.mbt",
+      "-o",
+      "/tmp/mbt-verify/f2b.core",
+      "-pkg",
+      "f2b/p",
+      "-pkg-type",
+      "executable",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/builtin/builtin.mi:moonbitlang/core/builtin",
+      "-i",
+      "/home/user/.moon/lib/core/_build/wasm/release/bundle/prelude/prelude.mi:prelude",
+      "-pkg-sources",
+      "f2b/p:.",
+      "-target",
+      "wasm",
+      "-g",
+      "-O0",
+      "-workspace-path",
+      ".",
+      "-all-pkgs",
+      "/data/audit/mbtfuzz/harness/all_pkgs.json"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.0208
+  },
+  {
+    "tag": "f2Control",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f2Valid",
+    "cmd": [
+      "moon",
+      "check"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.064817
+  },
+  {
+    "tag": "f1-48-False",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1-48-False",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007118
+  },
+  {
+    "tag": "f1-48-True",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1-48-True",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007406
+  },
+  {
+    "tag": "f1-49-False",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1-49-False",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007091
+  },
+  {
+    "tag": "f1-49-True",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1-49-True",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007768
+  },
+  {
+    "tag": "f1bControl",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1bControl",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007313
+  },
+  {
+    "tag": "f4Control",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f4Valid",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "doc.mbt.md"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.006549
+  },
+  {
+    "tag": "f5Syn",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "u.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.006715
+  },
+  {
+    "tag": "f5Syn",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "u.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007372
+  },
+  {
+    "tag": "f5Syn",
+    "run": 3,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "u.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007004
+  },
+  {
+    "tag": "f5Fmt0",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonfmt",
+      "u.mbt",
+      "-o",
+      "/tmp/mbt-verify/f5-0.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003722
+  },
+  {
+    "tag": "f5Reparse0",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "/tmp/mbt-verify/f5-0.mbt"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007644
+  },
+  {
+    "tag": "f5Fmt1",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonfmt",
+      "u.mbt",
+      "-o",
+      "/tmp/mbt-verify/f5-1.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003253
+  },
+  {
+    "tag": "f5Reparse1",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "/tmp/mbt-verify/f5-1.mbt"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.006639
+  },
+  {
+    "tag": "f5Fmt2",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonfmt",
+      "u.mbt",
+      "-o",
+      "/tmp/mbt-verify/f5-2.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003747
+  },
+  {
+    "tag": "f5Reparse2",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f5_prefix_plus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "/tmp/mbt-verify/f5-2.mbt"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.007247
+  },
+  {
+    "tag": "f5ControlSyn",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f5Minus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "u.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007567
+  },
+  {
+    "tag": "f5ControlFmt",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f5Minus",
+    "cmd": [
+      "moonfmt",
+      "u.mbt",
+      "-o",
+      "/tmp/mbt-verify/f5Minus/v.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.00336
+  },
+  {
+    "tag": "f5ControlReparse",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f5Minus",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "v.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007963
+  },
+  {
+    "tag": "f6minFresh0",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6minFresh0",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native"
+    ],
+    "rc": 255,
+    "shell_rc": 255,
+    "signal": null,
+    "seconds": 0.404593
+  },
+  {
+    "tag": "f6minFresh1",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6minFresh1",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native"
+    ],
+    "rc": 255,
+    "shell_rc": 255,
+    "signal": null,
+    "seconds": 0.407456
+  },
+  {
+    "tag": "f6minFresh2",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6minFresh2",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native"
+    ],
+    "rc": 255,
+    "shell_rc": 255,
+    "signal": null,
+    "seconds": 0.412235
+  },
+  {
+    "tag": "f6-noexport",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6-noexport",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.45547
+  },
+  {
+    "tag": "f6-noclosure",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6-noclosure",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.464698
+  },
+  {
+    "tag": "f1exact-49-False",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1exact-49-False",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.008976
+  },
+  {
+    "tag": "f1exact-49-True",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1exact-49-True",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.009185
+  },
+  {
+    "tag": "f1exact-50-False",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1exact-50-False",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": -11,
+    "shell_rc": 139,
+    "signal": 11,
+    "seconds": 0.088196
+  },
+  {
+    "tag": "f1exact-50-True",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f1exact-50-True",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 2,
+    "shell_rc": 2,
+    "signal": null,
+    "seconds": 0.008821
+  },
+  {
+    "tag": "gdb-f1_moon_pkg_segv",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f1_moon_pkg_segv",
+    "cmd": [
+      "gdb",
+      "-q",
+      "-batch",
+      "-ex",
+      "run",
+      "-ex",
+      "bt 8",
+      "--args",
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.39862
+  },
+  {
+    "tag": "gdb-f1b_pkg_map_segv",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f1b_pkg_map_segv",
+    "cmd": [
+      "gdb",
+      "-q",
+      "-batch",
+      "-ex",
+      "run",
+      "-ex",
+      "bt 8",
+      "--args",
+      "moonc",
+      "syncheck",
+      "moon.pkg"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.371289
+  },
+  {
+    "tag": "f6external0",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external0",
+    "cmd": [
+      "moon",
+      "test",
+      "--target",
+      "native"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.897654
+  },
+  {
+    "tag": "f6external1",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external1",
+    "cmd": [
+      "moon",
+      "test",
+      "--target",
+      "native"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.870737
+  },
+  {
+    "tag": "f6external2",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external2",
+    "cmd": [
+      "moon",
+      "test",
+      "--target",
+      "native"
+    ],
+    "rc": 1,
+    "shell_rc": 1,
+    "signal": null,
+    "seconds": 0.857471
+  },
+  {
+    "tag": "f6srcTest",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external0",
+    "cmd": [
+      "moon",
+      "test",
+      "--target",
+      "native",
+      "src"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.543727
+  },
+  {
+    "tag": "f6srcBuild",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external0",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native",
+      "src"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.099532
+  },
+  {
+    "tag": "f6bridgeBuild",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external0",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native",
+      "src/bridge"
+    ],
+    "rc": 255,
+    "shell_rc": 255,
+    "signal": null,
+    "seconds": 0.398724
+  },
+  {
+    "tag": "f6rootBuild",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external0",
+    "cmd": [
+      "moon",
+      "build",
+      "--target",
+      "native"
+    ],
+    "rc": 255,
+    "shell_rc": 255,
+    "signal": null,
+    "seconds": 0.160095
+  },
+  {
+    "tag": "f6js",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f6external0",
+    "cmd": [
+      "moon",
+      "test",
+      "--target",
+      "js"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 2.288783
+  },
+  {
+    "tag": "f3",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/f3_parser_oom",
+    "cmd": [
+      "/usr/bin/time",
+      "-v",
+      "prlimit",
+      "--as=6442450944",
+      "--",
+      "moonc",
+      "syncheck",
+      "cmd/main.mbt"
+    ],
+    "rc": 134,
+    "shell_rc": 134,
+    "signal": null,
+    "seconds": 16.737623
+  },
+  {
+    "tag": "f3",
+    "run": 2,
+    "cwd": "/data/audit/mbtfuzz/poc/f3_parser_oom",
+    "cmd": [
+      "/usr/bin/time",
+      "-v",
+      "prlimit",
+      "--as=6442450944",
+      "--",
+      "moonc",
+      "syncheck",
+      "cmd/main.mbt"
+    ],
+    "rc": 134,
+    "shell_rc": 134,
+    "signal": null,
+    "seconds": 14.74249
+  },
+  {
+    "tag": "f3Control",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/f3Control",
+    "cmd": [
+      "prlimit",
+      "--as=6442450944",
+      "--",
+      "moonc",
+      "syncheck",
+      "main.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.008712
+  },
+  {
+    "tag": "p1gen1024",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/p1_fmt_interp",
+    "cmd": [
+      "bash",
+      "generate.sh",
+      "1024",
+      "/tmp/mbt-verify/p1/i1024.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.009448
+  },
+  {
+    "tag": "p1syn1024",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "i1024.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007497
+  },
+  {
+    "tag": "p1interp1024",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "i1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 1.608974
+  },
+  {
+    "tag": "p1interp1024",
+    "run": 2,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "i1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 1.584913
+  },
+  {
+    "tag": "p1interp1024",
+    "run": 3,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "i1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 1.580072
+  },
+  {
+    "tag": "p1plain1024",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.005263
+  },
+  {
+    "tag": "p1plain1024",
+    "run": 2,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.005274
+  },
+  {
+    "tag": "p1plain1024",
+    "run": 3,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.005591
+  },
+  {
+    "tag": "p1reparse1024",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.010555
+  },
+  {
+    "tag": "p1gen2048",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz/poc/p1_fmt_interp",
+    "cmd": [
+      "bash",
+      "generate.sh",
+      "2048",
+      "/tmp/mbt-verify/p1/i2048.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.016233
+  },
+  {
+    "tag": "p1syn2048",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "i2048.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.012028
+  },
+  {
+    "tag": "p1interp2048",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "i2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 15.28868
+  },
+  {
+    "tag": "p1interp2048",
+    "run": 2,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "i2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 15.441895
+  },
+  {
+    "tag": "p1interp2048",
+    "run": 3,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "i2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 15.347758
+  },
+  {
+    "tag": "p1plain2048",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.006114
+  },
+  {
+    "tag": "p1plain2048",
+    "run": 2,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.004908
+  },
+  {
+    "tag": "p1plain2048",
+    "run": 3,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.004934
+  },
+  {
+    "tag": "p1reparse2048",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonc",
+      "syncheck",
+      "out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.01252
+  }
+]

@@ -1,0 +1,183 @@
+[
+  {
+    "tag": "toolchain",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz",
+    "cmd": [
+      "moon",
+      "version",
+      "--all"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.017468
+  },
+  {
+    "tag": "mooncVersion",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz",
+    "cmd": [
+      "moonc",
+      "-v"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.007156
+  },
+  {
+    "tag": "plainExact1024",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.005184
+  },
+  {
+    "tag": "plainExact1024",
+    "run": 2,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.004387
+  },
+  {
+    "tag": "plainExact1024",
+    "run": 3,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p1024.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003208
+  },
+  {
+    "tag": "plainExact2048",
+    "run": 1,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003859
+  },
+  {
+    "tag": "plainExact2048",
+    "run": 2,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003822
+  },
+  {
+    "tag": "plainExact2048",
+    "run": 3,
+    "cwd": "/tmp/mbt-verify/p1",
+    "cmd": [
+      "moonfmt",
+      "p2048.mbt",
+      "-o",
+      "/tmp/mbt-verify/p1/plain-out.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003432
+  },
+  {
+    "tag": "scriptHelper",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz",
+    "cmd": [
+      "bash",
+      "-c",
+      "run() { echo \"== $*\"; \"$@\"; echo \"rc=$?\"; }; run false"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.002009
+  },
+  {
+    "tag": "gitDiff",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz",
+    "cmd": [
+      "git",
+      "diff",
+      "--stat"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.00388
+  },
+  {
+    "tag": "gitStatus",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz",
+    "cmd": [
+      "git",
+      "status",
+      "--short"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.004638
+  },
+  {
+    "tag": "inputHashes",
+    "run": 1,
+    "cwd": "/data/audit/mbtfuzz",
+    "cmd": [
+      "sha256sum",
+      "/data/audit/mbtfuzz/poc/f6_native_export_closure_min/moon.pkg",
+      "/data/audit/mbtfuzz/poc/f1_moon_pkg_segv/moon.pkg",
+      "/data/audit/mbtfuzz/poc/f1b_pkg_map_segv/moon.pkg",
+      "/data/audit/mbtfuzz/poc/f6_native_export_closure_min/main.mbt",
+      "/data/audit/mbtfuzz/poc/f2b_zwsp_escape_t2_ice/main.mbt",
+      "/data/audit/mbtfuzz/poc/f2_lex_escape_ice/cmd/main.mbt",
+      "/data/audit/mbtfuzz/poc/f3_parser_oom/cmd/main.mbt",
+      "/data/audit/mbtfuzz/poc/f4_invalid_utf8/doc.mbt.md",
+      "/data/audit/mbtfuzz/poc/f4b_invalid_utf8_2/doc.mbt.md",
+      "/data/audit/mbtfuzz/poc/f5_prefix_plus/u.mbt"
+    ],
+    "rc": 0,
+    "shell_rc": 0,
+    "signal": null,
+    "seconds": 0.003058
+  }
+]

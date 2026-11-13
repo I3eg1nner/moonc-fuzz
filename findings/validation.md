@@ -8,8 +8,8 @@ where relevant, a 6 GiB `RLIMIT_AS` so a reproduction cannot take down the host.
 |---|---|---|---|
 | **F1** | `cd poc/f1_moon_pkg_segv && moonc syncheck moon.pkg` | **5/5 SIGSEGV** (`rc=-11`) | peak RSS ≈14.3 MiB; input 101 B |
 | **F2** | `cd poc/f2_lex_escape_ice && moon check` | **5/5 ICE banner**, `rc=1` | `Invalid_argument("Char.chr")`; the `moon` driver maps the ICE to rc 1 (not 199). `moonc syncheck` alone is parser-only and returns 0, so the driver path is required |
-| **F3** | `cd poc/f3_parser_oom && moonc syncheck cmd/main.mbt` with RLIMIT_AS 6 GiB | **5/5 hit 5.2–5.7 GiB**, `rc=timeout` or `SIGABRT(-6)` | uncapped control: 8.2 GiB in 20 s and still growing (19 B input) |
-| **F4** | `cd poc/f4_invalid_utf8 && moonc syncheck doc.mbt.md` | **5/5 ICE**, `rc=199` | `Basic_utf8_decode.MalFormed`; 22 B |
+| **F3** | `cd poc/f3_parser_oom && moonc syncheck cmd/main.mbt` with RLIMIT_AS 6 GiB | **5/5 hit 5.2–5.7 GiB**, `rc=timeout` or `SIGABRT(-6)` | uncapped control: 8.2 GiB in 20 s and still growing (19 B input); earlier observation, not re-run in the independent review |
+| **F4** | `cd poc/f4_invalid_utf8 && moonc syncheck doc.mbt.md` | **5/5 ICE**, `rc=199` | `Basic_utf8_decode.MalFormed`; 40 B |
 | **F5-a** | `cd poc/f5_prefix_plus && moonc syncheck u.mbt` | **5/5 rc=0** | prefix `+` parses |
 | **F5-b** | `moonc check -no-mi -pkg f5/p -i prelude.mi u.mbt` | **5/5 rc=2** | `The value identifier ~+ is unbound` |
 | **F5-c** | `moonfmt u.mbt -o u1.mbt && moonc syncheck u1.mbt` | **5/5**: formatted output contains `~+`, re-parse rc=2 (`E3001`) | printer emits an unlexable internal name |

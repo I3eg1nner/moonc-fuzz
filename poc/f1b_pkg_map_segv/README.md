@@ -1,4 +1,4 @@
-# F1b: second malformed-`moon.pkg` segfault trigger (same root cause as F1)
+# F1b: second malformed-`moon.pkg` segfault trigger
 
 Pinned: `moonc v0.10.20+65efd5b93` / `moon 0.1.20261104`.
 
@@ -19,8 +19,9 @@ camlMoonc__parse_map_elem_72891
 camlMoonc__parse_map_72879
 ```
 
-So this is a **new witness / input shape for the F1 family**, not a new root
-cause: the malformed-package error path still segfaults.  The minimized input is
+This supports "another input shape in the same error-reporting path".  The
+shared top frames do not prove one underlying root cause from a black-box run;
+the grouping is provisional.  The minimized input is
 a truncated `import { ... } for "wbtest"` block followed by an unterminated
 `options(... targets: { ... })` map.  The last map entry is required for the
 crash; dropping it turns the result into a clean rc=2 parse error.

@@ -10,4 +10,5 @@ echo $?          # 134 (SIGABRT), stderr: Fatal error: out of memory
 
 Input: `fn r(){y(for in ]\n[` (19 B).  With a 6 GiB address-space cap it hits
 5.2–5.7 GiB and aborts.  **Do not run uncapped** on a shared host: the
-uncapped control reached 8.2 GiB in 20 s and was still growing.
+uncapped control was observed earlier at 8.2 GiB in 20 s and was still
+growing; that control was not re-run for this review.

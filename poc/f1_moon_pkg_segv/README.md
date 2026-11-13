@@ -8,8 +8,9 @@ moonc syncheck moon.pkg
 echo $?          # 139 / SIGSEGV
 ```
 
-Input is 101 B of ASCII, no trailing newline: `s(` followed by 49 `1` tokens.
-`49` tokens triggers; 48 is a clean rc=2.  Stack top:
+Input is 101 B of ASCII, no trailing newline: `s(` followed by 50 `1` tokens.
+`50` tokens triggers; 48 and 49 are clean rc=2.  A trailing newline also
+suppresses the crash.  Stack top:
 
 ```
 camlMoonc__next_segment_head_71310

@@ -71,14 +71,14 @@ and 60 report rows in a temporary differential run by the subagent.
 
 These are execution counts, not distinct semantic tests.
 
-## New witnesses (not new root causes)
+## New witnesses (grouped; not claimed as new classes)
 
-* **F1b**: 672 B malformed `moon.pkg` map, SIGSEGV; same top frames as F1
+* **F1b**: 672 B malformed `moon.pkg` map, SIGSEGV; same top frames as F1; root identity not proven
   (`next_segment_head` / `report_failed_to_parse`).
 * **F2b**: `\` + U+200B accepted by `syncheck`, `build-package` ICE
   `Invalid_argument("Char.chr")`.
 * **F4b**: second invalid-UTF-8 `.mbt.md`, `Basic_utf8_decode.MalFormed`.
-* **F6-min**: F6 reduced from 12 MB / 689 files to a 12-line single
+* **F6-min**: F6 reduced from 12 MB / 689 files to a 10-line single
   `foreign_library` package; `moon build --target native` suffices.  A matrix
   (private/public/array/option/alias/enum/generic/nested, plus two controls)
   shows the trigger is exported-signature reachability of a closure type;
