@@ -1,9 +1,10 @@
 # Codex independent defect verification
 
 Date: 2026-11-13.  Access: `HTTPS_PROXY=http://127.0.0.1:7890`, Codex
-`workspace-write` sandbox, no tracked source edits by the reviewer.  Prompt:
-`/tmp/codex_defect_prompt.md`; raw answer: `/tmp/codex_defect_review.txt`.
-Raw command records: `findings/codex_defect_results/`.
+`workspace-write` sandbox, no tracked source edits by the reviewer.
+Prompt: `findings/codex_defect_prompt.md`; raw answer:
+`findings/codex_defect_review_raw.md`; raw command records:
+`findings/codex_defect_results/`.
 
 Installed toolchain observed by the reviewer:
 
