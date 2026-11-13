@@ -373,7 +373,7 @@ async fn worker(
   let builtin = join(bundle, "builtin/builtin.mi")
   let prelude = join(bundle, "prelude/prelude.mi")
   let all_pkgs = join(join(cfg.root, "harness"), "all_pkgs.json")
-  let pkg = "minie135/tpl/cmd/main"
+  let pkg = "I3eg1nner/tpl/cmd/main"
   while @async.now() < end {
     s.it += 1
     let base = rng.choice(seeds)

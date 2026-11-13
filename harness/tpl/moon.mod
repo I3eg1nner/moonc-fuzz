@@ -9,7 +9,7 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "minie135/tpl"
+name = "I3eg1nner/tpl"
 
 version = "0.1.0"
 
