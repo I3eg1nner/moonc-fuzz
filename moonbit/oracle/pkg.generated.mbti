@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "minie135/mbtfuzz/oracle"
+package "I3eg1nner/mbtfuzz/oracle"
 
 import {
-  "minie135/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/exec",
 }
 
 // Values

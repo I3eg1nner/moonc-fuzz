@@ -1,6 +1,6 @@
 import {
   "moonbitlang/x/fs",
-  "minie135/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/exec",
 }
 
 options(

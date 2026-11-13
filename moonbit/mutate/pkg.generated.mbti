@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "minie135/mbtfuzz/mutate"
+package "I3eg1nner/mbtfuzz/mutate"
 
 // Values
 pub fn async_mut(String, Rng) -> String

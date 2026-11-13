@@ -2,9 +2,9 @@ import {
   "moonbitlang/core/async",
   "moonbitlang/core/env",
   "moonbitlang/x/fs",
-  "minie135/mbtfuzz/exec",
-  "minie135/mbtfuzz/corpus",
-  "minie135/mbtfuzz/mutate",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/corpus",
+  "I3eg1nner/mbtfuzz/mutate",
 }
 
 options(

@@ -1,7 +1,7 @@
 import {
   "moonbitlang/core/env",
   "moonbitlang/x/fs",
-  "minie135/mbtfuzz/cov" @covlib,
+  "I3eg1nner/mbtfuzz/cov" @covlib,
 }
 
 pkgtype(kind: "executable")

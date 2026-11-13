@@ -2,7 +2,7 @@ import {
   "moonbitlang/core/async",
   "moonbitlang/core/env",
   "moonbitlang/x/fs",
-  "minie135/mbtfuzz/oracle",
+  "I3eg1nner/mbtfuzz/oracle",
 }
 
 options(

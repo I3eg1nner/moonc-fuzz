@@ -9,13 +9,13 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "minie135/mbtfuzz"
+name = "I3eg1nner/mbtfuzz"
 
 version = "0.1.0"
 
 readme = "README.mbt.md"
 
-repository = ""
+repository = "https://github.com/I3eg1nner/moonc-fuzz"
 
 license = "Apache-2.0"
 

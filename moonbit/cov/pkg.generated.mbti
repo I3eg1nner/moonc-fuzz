@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "minie135/mbtfuzz/cov"
+package "I3eg1nner/mbtfuzz/cov"
 
 // Values
 pub fn aggregate(Array[Array[String]]) -> (Array[String], Array[Int32], Array[Int32])

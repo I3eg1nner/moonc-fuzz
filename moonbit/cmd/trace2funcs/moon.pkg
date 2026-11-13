@@ -1,7 +1,7 @@
 import {
   "moonbitlang/core/env",
   "moonbitlang/x/fs",
-  "minie135/mbtfuzz/trace",
+  "I3eg1nner/mbtfuzz/trace",
 }
 
 pkgtype(kind: "executable")

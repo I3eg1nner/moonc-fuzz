@@ -1,8 +1,8 @@
 import {
   "moonbitlang/core/async",
   "moonbitlang/x/fs",
-  "minie135/mbtfuzz/exec",
-  "minie135/mbtfuzz/corpus",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/corpus",
 }
 
 options(
