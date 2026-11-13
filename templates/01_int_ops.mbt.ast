@@ -1,0 +1,49 @@
+((Ptop_funcdef
+  ((name ((binder_name compute))) (decl_params (())) (quantifiers ())
+   (return_type ((Ptype_name ((lid String)) ()))) (error_type No_error_typ)
+   (vis Vis_default))
+  (Decl_body
+   (Pexpr_let (Ppat_var ((binder_name a))) (Pexpr_constant 2147483647)
+    (Pexpr_let (Ppat_var ((binder_name b)))
+     (Pexpr_infix ((var_name +)) (Pexpr_ident ((var_name a)))
+      (Pexpr_constant 1))
+     (Pexpr_let (Ppat_var ((binder_name c))) (Pexpr_constant -2147483648)
+      (Pexpr_let (Ppat_var ((binder_name d)))
+       (Pexpr_infix ((var_name -)) (Pexpr_ident ((var_name c)))
+        (Pexpr_constant 1))
+       (Pexpr_let (Ppat_var ((binder_name e)))
+        (Pexpr_infix ((var_name *)) (Pexpr_constant 1000000)
+         (Pexpr_constant 1000000))
+        (Pexpr_interp
+         ((Interp_expr (Pexpr_ident ((var_name a)))) (Interp_lit |)
+          (Interp_expr (Pexpr_ident ((var_name b)))) (Interp_lit |)
+          (Interp_expr (Pexpr_ident ((var_name c)))) (Interp_lit |)
+          (Interp_expr (Pexpr_ident ((var_name d)))) (Interp_lit |)
+          (Interp_expr (Pexpr_ident ((var_name e)))) (Interp_lit |)
+          (Interp_expr
+           (Pexpr_infix ((var_name /)) (Pexpr_ident ((var_name a)))
+            (Pexpr_constant 7)))
+          (Interp_lit |)
+          (Interp_expr
+           (Pexpr_infix ((var_name /)) (Pexpr_constant -7)
+            (Pexpr_constant 3)))
+          (Interp_lit |)
+          (Interp_expr
+           (Pexpr_infix ((var_name %)) (Pexpr_constant -7)
+            (Pexpr_constant 3)))
+          (Interp_lit |)
+          (Interp_expr
+           (Pexpr_infix ((var_name >>)) (Pexpr_ident ((var_name a)))
+            (Pexpr_constant 3)))
+          (Interp_lit |)
+          (Interp_expr
+           (Pexpr_infix ((var_name >>)) (Pexpr_constant -8)
+            (Pexpr_constant 1)))
+          (Interp_lit |)
+          (Interp_expr
+           (Pexpr_infix ((var_name <<)) (Pexpr_constant 1)
+            (Pexpr_constant 30))))))))))))
+ (Ptop_expr
+  (Pexpr_apply (Pexpr_ident ((var_name println)))
+   ((Pexpr_apply (Pexpr_ident ((var_name compute))) ())))
+  true No_error_typ))

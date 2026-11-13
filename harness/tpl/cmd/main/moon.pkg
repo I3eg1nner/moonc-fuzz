@@ -1,0 +1,5 @@
+// import {
+//   "minie135/tpl" @lib,
+// }
+
+pkgtype(kind: "executable")

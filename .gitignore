@@ -1,0 +1,31 @@
+# Generated / large assets
+out/
+logs/
+seeds/
+seeds_real/
+seeds_real2/
+assets/
+*.tar.gz
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# MoonBit
+moonbit/_build/
+moonbit/.mooncakes/
+moonbit/.git/
+**/_build/
+**/.moon-lock
+**/.moon_db
+
+# Third-party fixtures fetched by scripts
+poc/f6_native_export_closure/moonldif/
+poc/f6_native_export_closure/logs/
+
+# Local editor
+.vscode/
+.idea/
+.DS_Store
