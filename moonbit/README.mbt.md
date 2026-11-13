@@ -12,6 +12,23 @@ moon 0.1.20261104 (940aa18 2026-11-04)
 moonc v0.10.20+65efd5b93 (2026-11-05)
 ```
 
+## Install
+
+The module is published on mooncakes.io:
+
+```bash
+moon add I3eg1nner/mbtfuzz
+```
+
+The CLI drivers are meant to run from a clone, because they need a pinned
+`moonc`, the `harness/` fixtures and optional third-party corpora:
+
+```bash
+git clone https://github.com/I3eg1nner/moonc-fuzz.git
+cd moonc-fuzz/moonbit
+moon check && moon test
+```
+
 ## Packages
 
 | Package | Role |
@@ -52,6 +69,12 @@ moon run cmd/bytefuzz -- \
 moon run cmd/accept -- ..
 ```
 
+Minimal runnable example, no campaign required:
+
+```bash
+../examples/trace2funcs.sh
+```
+
 `cmd/accept` exits nonzero if any of its 10 gates fails: pinned toolchain,
 `moon build`, `moon test`, `moon check`, 12 regressions, exact synthetic trace
 JSON, real F4 trace (599 functions against a Python-golden fixture), coverage
@@ -60,6 +83,8 @@ Python.
 
 ## Measured results
 
+- Tests: 75 unit tests (`moon test`); GitHub Actions runs `moon check`,
+  `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the
   101 MB check trace (0.48 s vs 1.80 s).
@@ -77,3 +102,7 @@ Python.
   live on the `python-reference` branch, outside the main build.
 - The differential oracle compares a declared output contract (rc, stdout,
   failure class). Agreement between two backends does not prove correctness.
+
+## License
+
+Apache-2.0; see `LICENSE`.
