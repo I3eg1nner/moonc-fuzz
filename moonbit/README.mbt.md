@@ -2,7 +2,8 @@
 
 MoonBit implementation of the fuzzing and analysis stack. It drives the same
 `moonc` binary as the Python reference and produces the same coverage/defect
-evidence; Python remains an independent reference for selected pilots.
+evidence. The Python implementation is archived on the `python-reference`
+branch; the main branch contains no Python.
 
 Recorded toolchain:
 
@@ -72,7 +73,7 @@ Python.
 
 - Coverage is symbol-level over `camlMoonc*`, not source-line, branch or
   feasible-code coverage.
-- Python remains the reference for `syntax_boundary`, `olddiff`, `iface`,
-  `typegen` and other archived pilots.
+- `syntax_boundary`, `olddiff`, `iface`, `typegen` and the Python reference
+  live on the `python-reference` branch, outside the main build.
 - The differential oracle compares a declared output contract (rc, stdout,
   failure class). Agreement between two backends does not prove correctness.

@@ -8,7 +8,9 @@ already latest).
 ## What is now the default path
 
 `moonbit/` contains the operational harness.  The root `run.sh` now invokes the
-MoonBit fuzzer by default; `./run.sh py ...` keeps the Python reference.
+MoonBit fuzzer by default. The Python reference and archived pilots are
+preserved on the `python-reference` branch; the main branch contains no Python
+source.
 
 | workflow | MoonBit entry point |
 |---|---|
@@ -21,9 +23,9 @@ MoonBit fuzzer by default; `./run.sh py ...` keeps the Python reference.
 | known-defect regression | `cmd/regress` |
 | migration gate | `cmd/accept` |
 
-No MoonBit package imports Python.  Python remains an independent reference
-for `symbolize.py` and for archived pilots (`syntax_boundary`, `olddiff`,
-`iface`, `typegen`).
+No MoonBit package imports Python.  The independent Python reference and the
+archived pilots (`syntax_boundary`, `olddiff`, `iface`, `typegen`) are on the
+`python-reference` branch.
 
 ## Tests and gate
 

@@ -1,7 +1,8 @@
 # moonc-fuzz
 
-面向闭源 MoonBit 编译器 `moonc` 的黑盒/灰盒测试工具。默认实现为 MoonBit，
-Python 版本保留为独立参考实现和归档实验。
+面向闭源 MoonBit 编译器 `moonc` 的黑盒/灰盒测试工具，主分支实现为
+MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不参与
+主分支构建或验收。
 
 - 仓库：<https://github.com/I3eg1nner/moonc-fuzz>
 - 固定工具链：`moon 0.1.20261104 (940aa18)`、`moonc v0.10.20+65efd5b93`、
@@ -46,13 +47,13 @@ moon run cmd/accept -- /path/to/moonc-fuzz
 ## 3. 目录
 
 ```
-harness/        Python 参考实现：流水线、变异、覆盖、重放、pilot
+harness/        运行时资产：all_pkgs.json、moonbit.dict、tpl/
 moonbit/        MoonBit 主实现：trace/cov/mutate/exec/corpus/oracle + cmd/*
 poc/            每个缺陷的最小复现和版本说明
 templates/      25 个可运行程序，用于跨后端差分
 findings/       技术报告、验证记录、外部 review
 scripts/        资产下载、一键复现
-run.sh          默认入口（MoonBit；`./run.sh py` 走 Python）
+run.sh          MoonBit fuzz 入口
 ```
 
 ## 4. 缺陷
@@ -110,8 +111,9 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
   `regress`、`f6matrix`、`accept`。
 
 当前 54 个测试通过，`moon check` 无警告。`cmd/regress` 覆盖 12 例缺陷；
-`cmd/accept` 是迁移验收门禁。Python 保留用于 `symbolize.py` 独立对拍以及
-`syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot。
+`cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
+`syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
+`python-reference` 分支，仅用于对拍和历史复现。
 
 迁移细节和对拍数据见 `findings/migration_moonbit.md`。
 
@@ -153,6 +155,7 @@ moon test --target native
 | `findings/thirdparty.md` | 12 包 × 5 target 测试与 triage |
 | `findings/evidence_package.md` | 论文级证据包与声明边界 |
 | `findings/migration_moonbit.md` | Python → MoonBit 迁移证据与验收 |
+| [python-reference 分支](https://github.com/I3eg1nner/moonc-fuzz/tree/python-reference) | Python 参考实现与归档 pilot |
 | `findings/codex_review_5.md` | 外部 review 及逐条修正 |
 | `findings/codex_defect_review.md` | Codex 对每个缺陷的独立复验与修正 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
