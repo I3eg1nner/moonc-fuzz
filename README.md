@@ -4,7 +4,8 @@
 
 面向闭源 MoonBit 编译器 `moonc` 的黑盒/灰盒测试工具，主分支实现为
 MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不参与
-主分支构建或验收。
+主分支构建或验收。目前复现 6 个缺陷（F1–F6）和 1 个 formatter 性能异常
+（P1），7 个 issue 已提交至 `moonbitlang/moonbit-docs`。
 
 - 仓库：<https://github.com/I3eg1nner/moonc-fuzz>
 - 包：<https://mooncakes.io/docs/I3eg1nner/mbtfuzz>（`moon add I3eg1nner/mbtfuzz`）
