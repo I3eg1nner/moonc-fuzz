@@ -1,0 +1,69 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "minie135/mbtfuzz/mutate"
+
+// Values
+pub fn async_mut(String, Rng) -> String
+
+pub fn bitflip(String, Rng) -> String
+
+pub fn body(String, Rng) -> String
+
+pub fn comment_cut(String, Rng) -> String
+
+pub fn default_dict() -> Array[String]
+
+pub fn del_block(String, Rng) -> String
+
+pub fn delim(String, Rng) -> String
+
+pub fn dict_token(String, Rng) -> String
+
+pub fn dup_block(String, Rng) -> String
+
+pub fn generic(String, Rng) -> String
+
+pub fn inject_attr(String, Rng) -> String
+
+pub fn insert_stmt(String, Rng) -> String
+
+pub fn literal_edges(String, Rng) -> String
+
+pub fn mutate(String, Rng, Array[String], Bool, dict? : Array[String]) -> String
+
+pub fn mutate_named(String, String, Rng, Array[String], dict? : Array[String]) -> String
+
+pub fn parse_dict(String) -> Array[String]
+
+pub fn rename_ident(String, Rng) -> String
+
+pub fn replace_token(String, Rng) -> String
+
+pub fn splice_fn(String, Rng, Array[String]) -> String
+
+pub fn truncate(String, Rng) -> String
+
+pub fn unicode(String, Rng) -> String
+
+pub fn wrap(String, Rng) -> String
+
+// Errors
+
+// Types and methods
+pub struct Rng {
+  mut state : UInt64
+}
+pub fn Rng::chance(Self, Double) -> Bool
+pub fn[T] Rng::choice(Self, Array[T]) -> T
+pub fn[T] Rng::choice_opt(Self, Array[T]) -> T?
+pub fn Rng::float(Self) -> Double
+pub fn Rng::from_int(Int32) -> Self
+pub fn Rng::from_int64(Int64) -> Self
+pub fn Rng::int(Self, Int32) -> Int32
+pub fn Rng::int_range(Self, Int32, Int32) -> Int32
+pub fn Rng::new(UInt64) -> Self
+pub fn Rng::next_u64(Self) -> UInt64
+pub fn Rng::state(Self) -> UInt64
+
+// Type aliases
+
+// Traits

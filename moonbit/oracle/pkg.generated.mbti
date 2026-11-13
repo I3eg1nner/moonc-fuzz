@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "minie135/mbtfuzz/oracle"
+
+import {
+  "minie135/mbtfuzz/exec",
+}
+
+// Values
+pub async fn build_package(String, String, String, String, String, String, Int32) -> @exec.RunResult
+
+pub async fn diff_native(String, String, String, String, String, String, String, String, String, String, Int32) -> DiffResult
+
+pub async fn diff_program(String, String, String, String, String, String, String, String, String, String, String, Int32) -> DiffResult
+
+pub async fn link(String, String, String, String, String, String, String, Int32) -> @exec.RunResult
+
+pub fn outcomes_agree(String, Int32, String, String, Int32, String) -> Bool
+
+// Errors
+
+// Types and methods
+pub struct DiffResult {
+  same : Bool
+  wasm_rc : Int32
+  js_rc : Int32
+  wasm_out : String
+  js_out : String
+  wasm_kind : String
+  js_kind : String
+  wasm_stage : String
+  js_stage : String
+  wasm_detail : String
+  js_detail : String
+}
+
+// Type aliases
+
+// Traits

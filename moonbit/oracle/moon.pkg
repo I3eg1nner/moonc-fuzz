@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/x/fs",
+  "minie135/mbtfuzz/exec",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)

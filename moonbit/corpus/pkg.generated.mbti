@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "minie135/mbtfuzz/corpus"
+
+// Values
+pub fn append_line(String, String) -> Unit
+
+pub fn basename(String) -> String
+
+pub fn collect_files(String, Array[String], Int32, Int32) -> Array[String]
+
+pub fn dirname(String) -> String
+
+pub fn ensure_dir(String) -> Unit
+
+pub fn join(String, String) -> String
+
+pub fn json_escape(String) -> String
+
+pub fn load_texts(Array[String], Array[String], Int32, Int32) -> Array[String]
+
+pub fn save_finding(String, String, String, String, String, String, String) -> Bool
+
+pub fn sha1_hex(String) -> String
+
+pub fn short_hash(String) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

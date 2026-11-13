@@ -1,0 +1,13 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "minie135/mbtfuzz/cmd/regress"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Case
+
+// Type aliases
+
+// Traits

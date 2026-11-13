@@ -1,0 +1,1 @@
+{"tool":"qemu-exec-trace+nm-moonbit","text_lo":16,"text_hi":48,"symbols":3,"total_tb":5,"mapped_tb":4,"func_count":2,"funcs":["a","b"]}

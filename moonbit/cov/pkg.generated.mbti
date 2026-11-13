@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "minie135/mbtfuzz/cov"
+
+// Values
+pub fn aggregate(Array[Array[String]]) -> (Array[String], Array[Int32], Array[Int32])
+
+pub fn minimize_sets(Array[Array[String]]) -> Array[Int32]
+
+pub fn parse_json(String) -> FuncSet raise
+
+pub fn report_header() -> String
+
+pub let report_map_size : Int32
+
+pub fn report_row(String, Int32, Int32, Int32, Array[Int32]) -> String
+
+pub fn report_row_with_tool(String, String, Int32, Int32, Int32, Array[Int32]) -> String
+
+pub fn union_stats(Array[Array[String]]) -> String
+
+// Errors
+
+// Types and methods
+pub struct FuncSet {
+  funcs : Array[String]
+}
+pub fn FuncSet::difference(Self, Self) -> Self
+pub fn FuncSet::intersection(Self, Self) -> Self
+pub fn FuncSet::len(Self) -> Int32
+pub fn FuncSet::new(Array[String]) -> Self
+pub fn FuncSet::sorted(Self) -> Array[String]
+pub fn FuncSet::to_array(Self) -> Array[String]
+pub fn FuncSet::to_json_string(Self) -> String
+pub fn FuncSet::union(Self, Self) -> Self
+
+// Type aliases
+
+// Traits

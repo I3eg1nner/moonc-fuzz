@@ -1,0 +1,12 @@
+// Structure-aware mutation engine ported from harness/mutate.py.
+// Core-only by design: the package performs no file IO and has no external
+// dependencies.  The AFL dictionary is supplied as text to `parse_dict`.
+
+import {
+  "moonbitlang/core/test",
+} for "test"
+
+// Blackbox tests intentionally call the public API unqualified, matching the
+// surrounding project's test style.
+
+warnings = "-test_unqualified_package"

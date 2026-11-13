@@ -1,0 +1,15 @@
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "minie135/mbtfuzz/exec",
+  "minie135/mbtfuzz/mutate",
+  "minie135/mbtfuzz/corpus",
+  "minie135/mbtfuzz/oracle",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

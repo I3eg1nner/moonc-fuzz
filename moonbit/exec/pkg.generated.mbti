@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "minie135/mbtfuzz/exec"
+
+// Values
+pub fn classify(RunResult) -> String
+
+pub fn ice_detail(RunResult) -> String
+
+pub async fn run(String, Array[String], StringView, Int32) -> RunResult
+
+pub async fn run1(String, StringView, Int32) -> RunResult
+
+pub fn stderr(RunResult) -> String
+
+pub fn stdout(RunResult) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct RunResult {
+  rc : Int32
+  stdout : String
+  stderr : String
+  ms : Int64
+  timed_out : Bool
+}
+
+// Type aliases
+
+// Traits

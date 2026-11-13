@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/async/process",
+}
+
+options(
+  "allow-experimental-packages": [
+    "moonbitlang/core/async",
+    "moonbitlang/core/async/process",
+  ],
+)
+
+// Native process runner used by the regression suite and the fuzz driver.
