@@ -1,7 +1,8 @@
 ---
 title: "`moon fmt` prints unary plus as `~+`, producing code that cannot be re-parsed"
-labels: bug
+labels: bug, moonfmt
 tracker: moonbitlang/moonbit-docs (normal bug report)
+filed: https://github.com/moonbitlang/moonbit-docs/issues/1369
 ---
 
 ### Description

@@ -13,8 +13,9 @@ witness。
 https://github.com/moonbitlang/moonbit-docs/issues/new?template=ice.md
 ```
 
-- label：`bug`、`ICE`（模板自带）
 - 标题前缀：`ICE: `
+- 草稿 front matter 声明 `bug`、`ICE`；编译器类再加 `moonc`，formatter 类加
+  `moonfmt`
 - F5、P1 不是 ICE，用同仓库的普通 bug 报告，标题不加前缀
 
 ## 去重
@@ -54,3 +55,20 @@ https://github.com/moonbitlang/moonbit-docs/issues/new?template=ice.md
 
 每个 PoC 的完整命令和版本见 `poc/<id>/README.md`，复现次数见
 `findings/validation.md`。
+
+## 已提交
+
+2026-11-13 从 `I3eg1nner` 账号用 `gh issue create` 提交：
+
+| issue | 草稿 | 标题 |
+|---|---|---|
+| [#1364](https://github.com/moonbitlang/moonbit-docs/issues/1364) | `04-f4-invalid-utf8-mbtmd.md` | ICE: invalid UTF-8 in a `.mbt.md` file reaches Basic_utf8_decode.MalFormed |
+| [#1365](https://github.com/moonbitlang/moonbit-docs/issues/1365) | `02-f2-invalid-escape-ice.md` | ICE: invalid escape in a string literal reaches the typer as Invalid_argument("Char.chr") |
+| [#1366](https://github.com/moonbitlang/moonbit-docs/issues/1366) | `03-f3-parser-oom.md` | ICE: 19-byte parser input grows past 5 GiB and aborts (`moonc syncheck`) |
+| [#1367](https://github.com/moonbitlang/moonbit-docs/issues/1367) | `01-f1-moon-pkg-segv.md` | ICE: SIGSEGV in `moonc syncheck` on a malformed `moon.pkg` |
+| [#1368](https://github.com/moonbitlang/moonbit-docs/issues/1368) | `06-f6-native-export-closure.md` | ICE: native link rejects an exported closure-containing type with an ICE instead of a diagnostic |
+| [#1369](https://github.com/moonbitlang/moonbit-docs/issues/1369) | `05-f5-prefix-plus-formatter.md` | `moon fmt` prints unary plus as `~+`, producing code that cannot be re-parsed |
+| [#1370](https://github.com/moonbitlang/moonbit-docs/issues/1370) | `07-p1-interp-perf.md` | `moon fmt`: interpolation-heavy string costs ~9.5x more per doubling (1.6 s -> 15 s) |
+
+提交账号没有 triage 权限，`--label` 被 GitHub 静默丢弃，七条目前都没有 label；
+标题和正文按模板写，标签留给 maintainer。

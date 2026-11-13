@@ -1,7 +1,8 @@
 ---
 title: "ICE: 19-byte parser input grows past 5 GiB and aborts (`moonc syncheck`)"
-labels: bug, ICE
+labels: bug, ICE, moonc
 tracker: moonbitlang/moonbit-docs (ice.md)
+filed: https://github.com/moonbitlang/moonbit-docs/issues/1366
 ---
 
 ### Description

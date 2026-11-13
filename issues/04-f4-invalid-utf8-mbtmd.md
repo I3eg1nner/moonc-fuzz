@@ -1,7 +1,8 @@
 ---
 title: "ICE: invalid UTF-8 in a `.mbt.md` file reaches Basic_utf8_decode.MalFormed"
-labels: bug, ICE
+labels: bug, ICE, moonc
 tracker: moonbitlang/moonbit-docs (ice.md)
+filed: https://github.com/moonbitlang/moonbit-docs/issues/1364
 ---
 
 ### Description

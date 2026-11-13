@@ -1,7 +1,8 @@
 ---
 title: "ICE: SIGSEGV in `moonc syncheck` on a malformed `moon.pkg`"
-labels: bug, ICE
+labels: bug, ICE, moonc
 tracker: moonbitlang/moonbit-docs (ice.md)
+filed: https://github.com/moonbitlang/moonbit-docs/issues/1367
 ---
 
 ### Description

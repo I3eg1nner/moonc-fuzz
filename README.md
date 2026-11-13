@@ -66,6 +66,10 @@ run.sh          MoonBit fuzz 入口
 的 13 项检查。
 
 每个 PoC 的完整命令和预期输出见 `poc/<id>/README.md`，索引见 `poc/README.md`。
+7 条 issue 已提交到 `moonbitlang/moonbit-docs`
+（[#1364](https://github.com/moonbitlang/moonbit-docs/issues/1364) 到
+[#1370](https://github.com/moonbitlang/moonbit-docs/issues/1370)）；该仓库是
+ICE banner 指定的入口，`moonbitlang/moonbit-compiler` 的 Issues 处于关闭状态。
 
 | ID | 最小输入 | 结果 | 复现 | 口径 |
 |---|---|---|---|---|
@@ -166,7 +170,7 @@ moon test --target native
 | 文件 | 内容 |
 |---|---|
 | `poc/README.md` | 缺陷 PoC 索引、命令、预期结果 |
-| `issues/README.md` | 上游 issue 草稿的提交位置、去重和顺序 |
+| `issues/README.md` | 上游 issue 草稿、已提交链接（#1364–#1370）、去重和顺序 |
 | `findings/validation.md` | F1–F6/P1 多次复现表 |
 | `findings/cov_audit.md` | 符号化、重放、并集口径审计 |
 | `findings/thirdparty.md` | 12 包 × 5 target 测试与 triage |

@@ -1,7 +1,8 @@
 ---
 title: "`moon fmt`: interpolation-heavy string costs ~9.5x more per doubling (1.6 s -> 15 s)"
-labels: bug, performance
+labels: bug, moonfmt
 tracker: moonbitlang/moonbit-docs (normal bug report)
+filed: https://github.com/moonbitlang/moonbit-docs/issues/1370
 ---
 
 ### Description

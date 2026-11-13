@@ -1,7 +1,8 @@
 ---
 title: "ICE: native link rejects an exported closure-containing type with an ICE instead of a diagnostic"
-labels: bug, ICE
+labels: bug, ICE, moonc
 tracker: moonbitlang/moonbit-docs (ice.md)
+filed: https://github.com/moonbitlang/moonbit-docs/issues/1368
 ---
 
 ### Description

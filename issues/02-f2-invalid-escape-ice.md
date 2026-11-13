@@ -1,7 +1,8 @@
 ---
 title: "ICE: invalid escape in a string literal reaches the typer as Invalid_argument(\"Char.chr\")"
-labels: bug, ICE
+labels: bug, ICE, moonc
 tracker: moonbitlang/moonbit-docs (ice.md)
+filed: https://github.com/moonbitlang/moonbit-docs/issues/1365
 ---
 
 ### Description
