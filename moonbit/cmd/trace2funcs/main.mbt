@@ -1,4 +1,31 @@
 ///|
+/// Pure JSON rendering, split out so the output shape can be tested without
+/// touching the filesystem.
+fn render(nm_text : String, trace : String) -> String {
+  let sym = @trace.SymTab::parse(nm_text)
+  let summary = @trace.summarize_trace(trace, sym)
+  let (lo, hi) = sym.text_range()
+  let out = StringBuilder()
+  out.write_string("{\"tool\":\"qemu-exec-trace+nm-moonbit\",")
+  out.write_string("\"text_lo\":")
+  out.write_string(lo.to_string())
+  out.write_string(",\"text_hi\":")
+  out.write_string(hi.to_string())
+  out.write_string(",\"symbols\":")
+  out.write_string(sym.len().to_string())
+  out.write_string(",\"total_tb\":")
+  out.write_string(summary.total_tb.to_string())
+  out.write_string(",\"mapped_tb\":")
+  out.write_string(summary.mapped_tb.to_string())
+  out.write_string(",\"func_count\":")
+  out.write_string(summary.funcs.length().to_string())
+  out.write_string(",\"funcs\":")
+  out.write_string(@trace.json_string_array(summary.funcs))
+  out.write_string("}")
+  out.to_string()
+}
+
+///|
 /// Offline trace2funcs: read `nm -n` output + a QEMU `-d exec` log, emit the
 /// same JSON shape as the Python harness.  Kept intentionally small so the
 /// parity check can compare it byte-for-byte.
@@ -20,27 +47,7 @@ fn main {
       return
     }
   }
-  let sym = @trace.SymTab::parse(nm_text)
-  let summary = @trace.summarize_trace(trace, sym)
-  let (lo, hi) = sym.text_range()
-  let out = StringBuilder()
-  out.write_string("{\"tool\":\"qemu-exec-trace+nm-moonbit\",")
-  out.write_string("\"text_lo\":")
-  out.write_string(lo.to_string())
-  out.write_string(",\"text_hi\":")
-  out.write_string(hi.to_string())
-  out.write_string(",\"symbols\":")
-  out.write_string(sym.len().to_string())
-  out.write_string(",\"total_tb\":")
-  out.write_string(summary.total_tb.to_string())
-  out.write_string(",\"mapped_tb\":")
-  out.write_string(summary.mapped_tb.to_string())
-  out.write_string(",\"func_count\":")
-  out.write_string(summary.funcs.length().to_string())
-  out.write_string(",\"funcs\":")
-  out.write_string(@trace.json_string_array(summary.funcs))
-  out.write_string("}")
-  let text = out.to_string()
+  let text = render(nm_text, trace)
   if args.length() >= 4 {
     @fs.write_string_to_file(args[3], text) catch {
       _ => println("cannot write output")

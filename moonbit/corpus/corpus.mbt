@@ -219,7 +219,8 @@ pub fn json_escape(s : String) -> String {
     } else if c == '\t' {
       b.write_string("\\t")
     } else if c.to_int() < 32 {
-      b.write_string("\\u")
+      // JSON requires four hex digits; the branch guarantees a zero high byte.
+      b.write_string("\\u00")
       let h = c.to_int()
       let hex = "0123456789abcdef"
       b.write_char(hex.get_char(h / 16 % 16).unwrap())

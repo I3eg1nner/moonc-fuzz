@@ -65,3 +65,22 @@ test "json_string_array escapes quotes and backslashes" {
     "[\"a\",\"b\\\"c\",\"d\\\\e\",\"f\\ng\"]",
   )
 }
+
+///|
+test "range_of covers each symbol and ends the last at +4096" {
+  let tab = @trace.SymTab::parse(
+    "0000000000000010 T a\n0000000000000020 t b\n0000000000000030 W c\n",
+  )
+  assert_eq(tab.range_of("b"), Some((32UL, 48UL)))
+  assert_eq(tab.range_of("c"), Some((48UL, 4144UL)))
+  assert_eq(tab.range_of("missing"), None)
+}
+
+///|
+test "empty symbol table maps nothing" {
+  let tab = @trace.SymTab::parse("")
+  assert_eq(tab.len(), 0)
+  assert_eq(tab.text_range(), (0UL, 0UL))
+  assert_eq(tab.func_of(0UL), None)
+  assert_eq(tab.range_of("a"), None)
+}
