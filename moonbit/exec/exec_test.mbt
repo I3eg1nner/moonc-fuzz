@@ -177,3 +177,37 @@ async test "run1 reports a clean exit" {
   assert_eq(r.stdout, "")
   assert_true(!r.timed_out)
 }
+
+///|
+async test "output cap bounds retained stdout and stderr" {
+  let r = @exec.run(
+    "/bin/sh",
+    ["-c", "printf 0123456789; printf abcdefghij >&2"],
+    "/tmp",
+    5000,
+    max_output_bytes=5,
+  )
+  assert_eq(r.rc, 0)
+  assert_eq(r.stdout, "01234\n[output truncated]")
+  assert_eq(r.stderr, "abcde\n[output truncated]")
+}
+
+///|
+async test "isolated timeout reaps the process group" {
+  let p = "/tmp/mbtfuzz_group_pid_" + @env.now().to_string()
+  let r = @exec.run_isolated(
+    "/bin/sh",
+    ["-c", "sleep 30 & echo $! > " + p + "; wait"],
+    "/tmp",
+    200,
+  )
+  assert_true(r.timed_out)
+  @async.sleep(300)
+  let check = @exec.run(
+    "/bin/sh",
+    ["-c", "kill -0 $(cat " + p + ") 2>/dev/null"],
+    "/tmp",
+    2000,
+  )
+  assert_true(check.rc != 0)
+}

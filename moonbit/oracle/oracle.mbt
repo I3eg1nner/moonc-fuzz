@@ -5,8 +5,49 @@
 /// `link-core` + execute cycle.  This package ports that exact sequence, with
 /// the same flags and the same `strip()` comparison rule.  It is intentionally
 /// separate from the fuzz driver so the oracle can be tested on fixed inputs.
+
+///|
+/// Outcome of a differential run.  `Same` is the only class that means the two
+/// backends completed comparable executions and agreed; build/link failures are
+/// deliberately not folded into `same=true`.
+pub(all) enum DiffClass {
+  Same
+  SemanticDiff
+  AcceptDiff
+  CompilerAbort
+  Inconclusive
+}
+
+///|
+pub impl Eq for DiffClass with fn equal(a, b) {
+  match (a, b) {
+    (Same, Same)
+    | (SemanticDiff, SemanticDiff)
+    | (AcceptDiff, AcceptDiff)
+    | (CompilerAbort, CompilerAbort)
+    | (Inconclusive, Inconclusive) => true
+    _ => false
+  }
+}
+
+///|
+pub extend DiffClass with Eq::{not_equal, equal}
+
+///|
+pub fn diff_class_name(c : DiffClass) -> String {
+  match c {
+    Same => "SAME"
+    SemanticDiff => "SEMANTIC_DIFF"
+    AcceptDiff => "ACCEPT_DIFF"
+    CompilerAbort => "COMPILER_ABORT"
+    Inconclusive => "INCONCLUSIVE"
+  }
+}
+
+///|
 pub struct DiffResult {
   same : Bool
+  verdict : DiffClass
   wasm_rc : Int32
   js_rc : Int32
   wasm_out : String
@@ -152,9 +193,65 @@ fn strip(s : String) -> String {
 }
 
 ///|
-/// Pure agreement predicate so fault injection can test the oracle without a
-/// compiler.  A successful run is compared by rc and stdout; two failures are
-/// compared by failure class (native abort vs wasm trap is not a miscompile).
+fn is_compiler_abort(kind : String, stage : String) -> Bool {
+  (stage == "build" || stage == "link") &&
+  (
+    kind == "ICE" ||
+    kind == "OOM" ||
+    kind == "OCAML_EXN" ||
+    kind == "STACK" ||
+    kind == "ASSERT" ||
+    kind == "SIG"
+  )
+}
+
+///|
+/// Single decision function used by both real differential runs and fault
+/// injection tests.  It first establishes whether both sides produced a
+/// comparable execution; only then does it compare rc/stdout.  A build/link
+/// failure on both sides is *inconclusive*, not equal.
+pub fn classify_diff(
+  wasm_kind : String,
+  wasm_rc : Int32,
+  wasm_out : String,
+  wasm_stage : String,
+  js_kind : String,
+  js_rc : Int32,
+  js_out : String,
+  js_stage : String,
+) -> DiffClass {
+  if wasm_kind == "HANG" || js_kind == "HANG" {
+    return Inconclusive
+  }
+  if wasm_rc == -999 || js_rc == -999 {
+    return Inconclusive
+  }
+  if is_compiler_abort(wasm_kind, wasm_stage) ||
+    is_compiler_abort(js_kind, js_stage) {
+    return CompilerAbort
+  }
+  let wasm_ran = wasm_stage == "run"
+  let js_ran = js_stage == "run" || js_stage == "native-run"
+  if wasm_ran && js_ran {
+    if wasm_kind == js_kind &&
+      wasm_rc == js_rc &&
+      strip(wasm_out) == strip(js_out) {
+      Same
+    } else {
+      SemanticDiff
+    }
+  } else if wasm_ran || js_ran {
+    AcceptDiff
+  } else {
+    // Neither side reached execution.  Normal diagnostics on both sides, or a
+    // mixture of reject/link-error, cannot establish semantic equality.
+    Inconclusive
+  }
+}
+
+///|
+/// Backwards-compatible run-stage predicate.  New code should call
+/// `classify_diff` with the build/link/run stages.
 pub fn outcomes_agree(
   wasm_kind : String,
   wasm_rc : Int32,
@@ -163,11 +260,10 @@ pub fn outcomes_agree(
   js_rc : Int32,
   js_out : String,
 ) -> Bool {
-  if wasm_kind == "OK" && js_kind == "OK" {
-    wasm_rc == js_rc && strip(wasm_out) == strip(js_out)
-  } else {
-    wasm_kind == js_kind
-  }
+  classify_diff(
+    wasm_kind, wasm_rc, wasm_out, "run", js_kind, js_rc, js_out, "run",
+  ) ==
+  Same
 }
 
 ///|
@@ -216,7 +312,14 @@ pub async fn diff_program(
     wasm_rc = l.rc
     wasm_detail = @exec.ice_detail(l) + l.stderr
     if l.rc == 0 {
-      let r = @exec.run(moonrun, ["out_wasm.wasm"], wd, timeout_ms)
+      let r = @exec.run_isolated(
+        moonrun,
+        ["out_wasm.wasm"],
+        wd,
+        timeout_ms,
+        max_output_bytes=1048576,
+        mem_mb=4096,
+      )
       wasm_rc = r.rc
       wasm_out = r.stdout
       wasm_kind = @exec.classify(r)
@@ -233,7 +336,14 @@ pub async fn diff_program(
     js_rc = l.rc
     js_detail = @exec.ice_detail(l) + l.stderr
     if l.rc == 0 {
-      let r = @exec.run(node, ["out_js.js"], wd, timeout_ms)
+      let r = @exec.run_isolated(
+        node,
+        ["out_js.js"],
+        wd,
+        timeout_ms,
+        max_output_bytes=1048576,
+        mem_mb=4096,
+      )
       js_rc = r.rc
       js_out = r.stdout
       js_kind = @exec.classify(r)
@@ -241,10 +351,12 @@ pub async fn diff_program(
       js_detail = r.stderr
     }
   }
+  let verdict = classify_diff(
+    wasm_kind, wasm_rc, wasm_out, wasm_stage, js_kind, js_rc, js_out, js_stage,
+  )
   {
-    same: wasm_rc == js_rc &&
-    strip(wasm_out) == strip(js_out) &&
-    wasm_kind == js_kind,
+    same: verdict == Same,
+    verdict,
     wasm_rc,
     js_rc,
     wasm_out,
@@ -298,7 +410,14 @@ pub async fn diff_native(
     wasm_rc = l.rc
     wasm_detail = @exec.ice_detail(l) + l.stderr
     if l.rc == 0 {
-      let r = @exec.run(moonrun, ["out_wasm.wasm"], wd, timeout_ms)
+      let r = @exec.run_isolated(
+        moonrun,
+        ["out_wasm.wasm"],
+        wd,
+        timeout_ms,
+        max_output_bytes=1048576,
+        mem_mb=4096,
+      )
       wasm_rc = r.rc
       wasm_out = r.stdout
       wasm_kind = @exec.classify(r)
@@ -306,17 +425,33 @@ pub async fn diff_native(
       wasm_detail = r.stderr
     }
   }
-  let n = @exec.run(
+  let n = @exec.run_isolated(
     moon,
     ["run", "in.mbt", "--target", "native"],
     wd,
     timeout_ms,
+    max_output_bytes=1048576,
+    mem_mb=6144,
   )
   let js_kind = @exec.classify(n)
+  let js_stage = if n.rc == 0 || n.stdout.length() > 0 {
+    "native-run"
+  } else {
+    "build"
+  }
+  let verdict = classify_diff(
+    wasm_kind,
+    wasm_rc,
+    wasm_out,
+    wasm_stage,
+    js_kind,
+    n.rc,
+    n.stdout,
+    js_stage,
+  )
   {
-    same: wasm_rc == n.rc &&
-    strip(wasm_out) == strip(n.stdout) &&
-    wasm_kind == js_kind,
+    same: verdict == Same,
+    verdict,
     wasm_rc,
     js_rc: n.rc,
     wasm_out,
@@ -324,7 +459,7 @@ pub async fn diff_native(
     wasm_kind,
     js_kind,
     wasm_stage,
-    js_stage: "native-run",
+    js_stage,
     wasm_detail,
     js_detail: @exec.ice_detail(n) + n.stderr,
   }

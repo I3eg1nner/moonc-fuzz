@@ -8,6 +8,14 @@ package "I3eg1nner/mbtfuzz/cmd/fuzz"
 // Types and methods
 type Config
 
+type CovCtx
+
+type Feedback
+
+type Parent
+
+type Progress
+
 type Stats
 
 // Type aliases

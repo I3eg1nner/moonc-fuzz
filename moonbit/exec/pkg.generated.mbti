@@ -6,9 +6,11 @@ pub fn classify(RunResult) -> String
 
 pub fn ice_detail(RunResult) -> String
 
-pub async fn run(String, Array[String], StringView, Int32) -> RunResult
+pub async fn run(String, Array[String], StringView, Int32, max_output_bytes? : Int32) -> RunResult
 
 pub async fn run1(String, StringView, Int32) -> RunResult
+
+pub async fn run_isolated(String, Array[String], StringView, Int32, max_output_bytes? : Int32, mem_mb? : Int32) -> RunResult
 
 pub fn stderr(RunResult) -> String
 

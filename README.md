@@ -22,8 +22,9 @@ MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不
 - **T1**：`moonc syncheck`，覆盖 lexer/parser。
 - **T2**：`moonc build-package`，覆盖 typer、core IR 和 wasm codegen。
 - **T3**：`link-core` + `moonrun`/`node`，并做 wasm/js、wasm/native 差分。
-- **覆盖**：QEMU `-d exec` 记录 PC，按 `nm -n` 最近前置符号归因到函数。
-- **oracle**：崩溃/ICE/OOM/超时分类；跨后端输出与退出码比较；诊断码签名。
+- **覆盖**：QEMU `-d exec` 记录 PC，按 `nm -n` 最近前置符号归因到函数；
+  campaign 内按 `--cov-every` 采样，并把新增函数送回父本选择。
+- **oracle**：崩溃/ICE/OOM/超时分类；跨后端阶段感知判定；JSON 诊断签名。
 - **变异**：括号/字符串配平的 token 级变异，以及字节级无效 UTF-8 变异。
 
 覆盖率是**函数符号级**，不是源码行、分支或可行代码覆盖。分母包含
@@ -49,6 +50,18 @@ cd moonbit
 moon test
 moon run cmd/accept -- /path/to/moonc-fuzz
 ```
+
+启动一个 campaign（每次都会增量构建，不复用过期二进制）：
+
+```bash
+./run.sh hybrid 8 120          # T1 + 采样 T2/T3，默认
+./run.sh parser 8 120          # 只跑 lexer/parser
+./run.sh typer 8 120           # 解析通过的输入都进 typer
+./run.sh semantic-diff 4 120   # 每个可构建输入都做 wasm/js 差分
+```
+
+运行目录是 `out/mb_runs/<UTC 时间>-<pid>/`，包含 `manifest.json`、
+`stats.jsonl` 和 `summary.json`；同一 `OUT` 下并发启动不会互相清理。
 
 最小可运行示例（`nm -n` + QEMU `-d exec` 日志 → 函数集 JSON）：
 
@@ -149,13 +162,29 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
   `regress`、`f6matrix`、`accept`。
 
-当前 75 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 86 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。
 
 迁移细节和对拍数据见 `findings/migration_moonbit.md`。
+
+### 6.1 campaign 内的反馈闭环
+
+`cmd/fuzz` 不再从固定 seed 数组选父本：
+
+1. T1 用 `-error-format json`，签名保留 `error_code`、`message` 和 `loc`；
+   不同诊断不再合并成 `ERR`。
+2. 新签名对应输入进入共享 corpus；T1 的 QEMU trace 若带来新函数，该输入
+   获得更高的变异预算（energy）。
+3. 所有 worker 从同一动态 corpus 加权选择父本；splice 池满了以后用新输入
+   替换旧槽位，而不是拒绝新输入。
+4. T2/T3 分别统计 build 成功、run 完成、语义差分、接受性差分、编译器异常
+   和 inconclusive；后两者不会以 `same=true` 进入 finding。
+
+`cmd/diffprobe --inject` 对构建/链接故障做真实判定函数的注入检查。当前
+coverage 采样只覆盖 T1；T2/T3 仍由行为签名和 T2 成功门控驱动。
 
 ## 7. 复现
 
@@ -184,6 +213,12 @@ moon test --target native
 - F1 根因仍是基于符号和栈的假设；IDE/LSP 调用路径未验证。
 - 旧编译器、接口往返、类型生成等 pilot 是有限样本的负结果，不是普遍结论。
 - 诊断字符串数量不作为覆盖率；F6 不计为误编译。
+- campaign 的 QEMU 采样默认每 64 个 T1 输入一次，开销约 1 s/样本；它提高
+  反馈质量，不提高单次执行吞吐。
+- campaign 的 T1/T2/T3 走 `run_isolated`：GNU `timeout` 负责进程组回收，
+  `prlimit` 设地址空间上限（T1 2 GiB、T2 6 GiB、T3 4–6 GiB）。原始
+  `@exec.run` 仍不隔离，formatter 等直连路径未覆盖；输出在收集后截断到
+  1 MiB。
 
 ## 9. 文档
 
@@ -196,6 +231,7 @@ moon test --target native
 | `findings/thirdparty.md` | 12 包 × 5 target 测试与 triage |
 | `findings/evidence_package.md` | 论文级证据包与声明边界 |
 | `findings/migration_moonbit.md` | Python → MoonBit 迁移证据与验收 |
+| `findings/feedback_loop.md` | 诊断签名、动态 corpus、coverage 反馈与故障注入记录 |
 | [python-reference 分支](https://github.com/I3eg1nner/moonc-fuzz/tree/python-reference) | Python 参考实现与归档 pilot |
 | `findings/codex_review_5.md` | 外部 review 及逐条修正 |
 | `findings/codex_defect_review.md` | Codex 对每个缺陷的独立复验与修正 |

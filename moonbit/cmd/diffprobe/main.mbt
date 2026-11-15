@@ -11,7 +11,26 @@ fn join(a : String, b : String) -> String {
 async fn main {
   let args = @env.args()
   if args.length() < 2 {
-    println("usage: diffprobe <file.mbt> [repo-root]")
+    println("usage: diffprobe <file.mbt> [repo-root] [--native]")
+    println("       diffprobe --inject wasm-link-vs-js-build")
+    return
+  }
+  if args[1] == "--inject" {
+    let case = if args.length() >= 3 { args[2] } else { "" }
+    let r = if case == "wasm-link-vs-js-build" {
+      @oracle.classify_diff("ERR", 2, "", "link", "ERR", 2, "", "build")
+    } else if case == "wasm-run-vs-js-build" {
+      @oracle.classify_diff("OK", 0, "x", "run", "ERR", 2, "", "build")
+    } else if case == "wasm-ice-vs-js-build" {
+      @oracle.classify_diff("ICE", 199, "", "build", "ERR", 2, "", "build")
+    } else if case == "same-run" {
+      @oracle.classify_diff("OK", 0, "x", "run", "OK", 0, "x", "run")
+    } else {
+      println("unknown injection")
+      return
+    }
+    println("verdict=\{@oracle.diff_class_name(r)}")
+    println("same=\{r == @oracle.Same}")
     return
   }
   let home = match @env.get_env_var("HOME") {
@@ -61,6 +80,7 @@ async fn main {
       25000,
     )
   }
+  println("verdict=\{@oracle.diff_class_name(r.verdict)}")
   println("same=\{r.same}")
   println(
     "wasm stage=\{r.wasm_stage} kind=\{r.wasm_kind} rc=\{r.wasm_rc} out=\{r.wasm_out}",

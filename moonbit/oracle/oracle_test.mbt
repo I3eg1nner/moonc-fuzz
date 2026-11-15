@@ -12,7 +12,7 @@ test "oracle sensitivity: injected rc mismatch and success/failure split" {
 }
 
 ///|
-test "oracle treats two failure classes as agreement, not miscompile" {
+test "run-stage traps compare rc and output" {
   assert_true(@oracle.outcomes_agree("SIG", -11, "", "SIG", -11, ""))
   assert_true(!@oracle.outcomes_agree("SIG", -11, "", "ICE", 199, ""))
 }
@@ -24,9 +24,60 @@ test "outcomes_agree trims both sides before comparing stdout" {
 }
 
 ///|
-test "outcomes_agree compares failure class, not exit code" {
-  // wasm trap vs native abort with different rc is not a miscompile.
-  assert_true(@oracle.outcomes_agree("SIG", -11, "", "SIG", -6, ""))
-  assert_true(@oracle.outcomes_agree("ICE", 199, "", "ICE", 2, ""))
+test "outcomes_agree does not equate unrelated failures" {
+  assert_true(!@oracle.outcomes_agree("SIG", -11, "", "SIG", -6, ""))
+  assert_true(!@oracle.outcomes_agree("ICE", 199, "", "ICE", 2, ""))
   assert_true(!@oracle.outcomes_agree("ICE", 199, "", "OOM", 199, ""))
+}
+
+///|
+test "link failure vs build failure is inconclusive, not same" {
+  assert_true(
+    @oracle.classify_diff("ERR", 2, "", "link", "ERR", 2, "", "build") ==
+    @oracle.Inconclusive,
+  )
+}
+
+///|
+test "one backend runs while the other is rejected is an acceptance diff" {
+  assert_true(
+    @oracle.classify_diff("OK", 0, "x", "run", "ERR", 2, "", "build") ==
+    @oracle.AcceptDiff,
+  )
+}
+
+///|
+test "compiler abort is never folded into same" {
+  assert_true(
+    @oracle.classify_diff("ICE", 199, "", "link", "ERR", 2, "", "build") ==
+    @oracle.CompilerAbort,
+  )
+  assert_true(
+    @oracle.classify_diff("ICE", 199, "", "build", "ICE", 199, "", "build") ==
+    @oracle.CompilerAbort,
+  )
+}
+
+///|
+test "both sides execute and agree only when rc and stdout match" {
+  assert_true(
+    @oracle.classify_diff("OK", 0, "x\n", "run", "OK", 0, " x ", "run") ==
+    @oracle.Same,
+  )
+  assert_true(
+    @oracle.classify_diff("OK", 0, "x", "run", "OK", 0, "y", "run") ==
+    @oracle.SemanticDiff,
+  )
+  assert_true(
+    @oracle.classify_diff("OK", 0, "x", "run", "OK", 1, "x", "run") ==
+    @oracle.SemanticDiff,
+  )
+}
+
+///|
+test "both sides fail before execution is inconclusive" {
+  assert_true(
+    @oracle.classify_diff("ERR", 2, "", "link", "ERR", 2, "", "build") ==
+    @oracle.Inconclusive,
+  )
 }

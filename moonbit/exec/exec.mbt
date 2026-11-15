@@ -26,6 +26,7 @@ pub async fn run(
   args : Array[String],
   cwd : StringView,
   timeout_ms : Int32,
+  max_output_bytes~ : Int32 = 0,
 ) -> RunResult {
   let t0 = @async.now()
   let maybe = @async.with_timeout_opt(timeout_ms, async fn() {
@@ -44,8 +45,76 @@ pub async fn run(
     Some(res) => {
       let out = res.stdout_text() catch { _ => text_of(res.stdout_binary()) }
       let err = res.stderr_text() catch { _ => text_of(res.stderr_binary()) }
+      let out = cap_text(out, max_output_bytes)
+      let err = cap_text(err, max_output_bytes)
       { rc: res.exit_code, stdout: out, stderr: err, ms, timed_out: false, }
     }
+  }
+}
+
+///|
+/// Bound collected output before it reaches classification or evidence files.
+/// This happens after the child exits, so it limits retention, not the child's
+/// peak memory; the wall-clock guard is still the primary defence.
+fn cap_text(s : String, max_bytes : Int32) -> String {
+  if max_bytes <= 0 || s.length() <= max_bytes {
+    return s
+  }
+  let b = StringBuilder()
+  let mut n = 0
+  for c in s {
+    let cp = c.to_int()
+    let w = if cp < 0x80 {
+      1
+    } else if cp < 0x800 {
+      2
+    } else if cp < 0x10000 {
+      3
+    } else {
+      4
+    }
+    if n + w > max_bytes {
+      break
+    }
+    n = n + w
+    b.write_char(c)
+  }
+  b.write_string("\n[output truncated]")
+  b.to_string()
+}
+
+///|
+/// Run with an external process-group timeout and an optional address-space
+/// limit.  GNU `timeout` puts the child in its own group and kills descendants,
+/// so a `moon run` native build cannot leave a C compiler behind.  `prlimit`
+/// applies the memory cap to the whole group.
+pub async fn run_isolated(
+  cmd : String,
+  args : Array[String],
+  cwd : StringView,
+  timeout_ms : Int32,
+  max_output_bytes~ : Int32 = 0,
+  mem_mb~ : Int32 = 0,
+) -> RunResult {
+  let secs = ((timeout_ms + 999) / 1000).to_string() + "s"
+  let targs : Array[String] = ["-k", "1s", secs, cmd]
+  for a in args {
+    targs.push(a)
+  }
+  let (outer, oargs) = if mem_mb > 0 {
+    let bytes = mem_mb.to_int64() * 1048576L
+    (
+      "/usr/bin/prlimit",
+      ["--as=" + bytes.to_string(), "--", "/usr/bin/timeout"] + targs,
+    )
+  } else {
+    ("/usr/bin/timeout", targs)
+  }
+  let r = run(outer, oargs, cwd, timeout_ms + 5000, max_output_bytes~)
+  if r.rc == 124 {
+    { rc: -999, stdout: r.stdout, stderr: r.stderr, ms: r.ms, timed_out: true, }
+  } else {
+    r
   }
 }
 

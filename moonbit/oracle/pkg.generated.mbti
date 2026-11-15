@@ -8,6 +8,10 @@ import {
 // Values
 pub async fn build_package(String, String, String, String, String, String, Int32) -> @exec.RunResult
 
+pub fn classify_diff(String, Int32, String, String, String, Int32, String, String) -> DiffClass
+
+pub fn diff_class_name(DiffClass) -> String
+
 pub async fn diff_native(String, String, String, String, String, String, String, String, String, String, Int32) -> DiffResult
 
 pub async fn diff_program(String, String, String, String, String, String, String, String, String, String, String, Int32) -> DiffResult
@@ -19,8 +23,20 @@ pub fn outcomes_agree(String, Int32, String, String, Int32, String) -> Bool
 // Errors
 
 // Types and methods
+pub(all) enum DiffClass {
+  Same
+  SemanticDiff
+  AcceptDiff
+  CompilerAbort
+  Inconclusive
+}
+pub fn DiffClass::equal(Self, Self) -> Bool
+pub fn DiffClass::not_equal(Self, Self) -> Bool
+pub impl Eq for DiffClass
+
 pub struct DiffResult {
   same : Bool
+  verdict : DiffClass
   wasm_rc : Int32
   js_rc : Int32
   wasm_out : String

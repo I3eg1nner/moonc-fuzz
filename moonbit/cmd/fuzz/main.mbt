@@ -23,6 +23,10 @@ struct Config {
   mut fmt_check : Bool
   mut native_diff : Bool
   mut seed : UInt64
+  mut run_id : String
+  mut campaign : String
+  mut cov_every : Int32
+  mut qemu : String
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -32,14 +36,175 @@ struct Stats {
   mut it : Int32
   mut t1 : Int32
   mut t2 : Int32
+  mut t2_ok : Int32
+  mut t3_ok : Int32
+  mut t3_diff : Int32
+  mut t3_inconclusive : Int32
   mut crashes : Int32
-  mut new_sigs : Int32
+  mut witnesses : Int32
   mut timeouts : Int32
+  mut cov_samples : Int32
+  mut cov_funcs : Int32
+  sigs : Map[String, Unit]
 }
 
 ///|
 fn stats_new() -> Stats {
-  { it: 0, t1: 0, t2: 0, crashes: 0, new_sigs: 0, timeouts: 0, }
+  {
+    it: 0,
+    t1: 0,
+    t2: 0,
+    t2_ok: 0,
+    t3_ok: 0,
+    t3_diff: 0,
+    t3_inconclusive: 0,
+    crashes: 0,
+    witnesses: 0,
+    timeouts: 0,
+    cov_samples: 0,
+    cov_funcs: 0,
+    sigs: Map([]),
+  }
+}
+
+///|
+/// Campaign-wide counters for periodic snapshots.  Updates happen in the
+/// cooperative async event loop, so no lock is needed around these fields.
+struct Progress {
+  mut it : Int32
+  mut t1 : Int32
+  mut t2 : Int32
+  mut t2_ok : Int32
+  mut t3_ok : Int32
+  mut t3_diff : Int32
+  mut t3_inconclusive : Int32
+  mut crashes : Int32
+  mut witnesses : Int32
+  mut cov_samples : Int32
+  mut cov_funcs : Int32
+  mut done : Int32
+}
+
+///|
+fn progress_new() -> Progress {
+  {
+    it: 0,
+    t1: 0,
+    t2: 0,
+    t2_ok: 0,
+    t3_ok: 0,
+    t3_diff: 0,
+    t3_inconclusive: 0,
+    crashes: 0,
+    witnesses: 0,
+    cov_samples: 0,
+    cov_funcs: 0,
+    done: 0,
+  }
+}
+
+///|
+/// One retained input.  `energy` is the mutation budget: inputs that added
+/// compiler functions get selected more often; ordinary seeds stay at 1.
+struct Parent {
+  src : String
+  mut cov : @cov.FuncSet
+  mut energy : Int32
+}
+
+///|
+/// Shared corpus for the whole campaign.  With N workers this is the only
+/// place parent selection reads from, so a discovery in worker 3 is visible to
+/// worker 7 on its next iteration.
+struct Feedback {
+  entries : Array[Parent]
+  index : Map[String, Int32]
+  mut total_cov : @cov.FuncSet
+  mut coverage_adds : Int32
+}
+
+///|
+fn feedback_new() -> Feedback {
+  {
+    entries: [],
+    index: Map([]),
+    total_cov: @cov.FuncSet::new([]),
+    coverage_adds: 0,
+  }
+}
+
+///|
+fn feedback_upsert(
+  f : Feedback,
+  src : String,
+  cov : @cov.FuncSet,
+  added : Int32,
+) -> Bool {
+  let h = @corpus.sha1_hex(src)
+  let bonus = if added > 0 { 32 } else if cov.len() > 0 { 6 } else { 1 }
+  if added > 0 {
+    f.coverage_adds += added
+  }
+  match f.index.get(h) {
+    Some(i) => {
+      let e = f.entries[i]
+      e.cov = e.cov.union(cov)
+      if e.energy < 64 {
+        e.energy = e.energy + bonus
+      }
+      false
+    }
+    None => {
+      let i = f.entries.length()
+      f.index.set(h, i)
+      f.entries.push({ src, cov, energy: bonus, })
+      true
+    }
+  }
+}
+
+///|
+/// Observe a real compiler-function cover set.  Returns the number of functions
+/// this input added to the campaign union.
+fn feedback_cover(f : Feedback, src : String, funcs : Array[String]) -> Int32 {
+  let cov = @cov.FuncSet::new(funcs)
+  let added = cov.difference(f.total_cov).len()
+  if added > 0 {
+    f.total_cov = f.total_cov.union(cov)
+  }
+  ignore(feedback_upsert(f, src, cov, added))
+  added
+}
+
+///|
+fn feedback_pick(f : Feedback, rng : @mutate.Rng) -> String? {
+  if f.entries.length() == 0 {
+    return None
+  }
+  let mut total = 0
+  for e in f.entries {
+    total = total + 1 + e.energy
+  }
+  if total <= 0 {
+    return None
+  }
+  let mut r = rng.int(total)
+  for e in f.entries {
+    let w = 1 + e.energy
+    if r < w {
+      e.energy = if e.energy > 1 { e.energy - 1 } else { 1 }
+      return Some(e.src)
+    }
+    r = r - w
+  }
+  Some(f.entries[f.entries.length() - 1].src)
+}
+
+///|
+struct CovCtx {
+  enabled : Bool
+  qemu : String
+  sym : @trace.SymTab
 }
 
 ///|
@@ -130,14 +295,110 @@ fn diag_codes(blob : String) -> Array[String] {
 }
 
 ///|
-fn behavior_sig(r : @exec.RunResult) -> String {
-  let blob = r.stderr + r.stdout
-  let codes = diag_codes(blob)
+fn truncate_chars(s : StringView, n : Int32) -> String {
+  if s.char_length() <= n {
+    s.to_owned()
+  } else {
+    s.exact_view(start=0, end=n).to_owned()
+  }
+}
+
+///|
+/// Parse one `-error-format json` diagnostic line.  The compiler emits one
+/// object per line:
+///   {"$message_type":"diagnostic","level":"error","error_code":3002,...}
+/// The old `[E3002]`-only extractor merged every parse error into `ERR`, which
+/// made the fuzz feedback loop blind.  Keep the code *and* the low-cardinality
+/// context (message/location) so distinct diagnostics remain distinguishable.
+fn json_diag_sig(line : StringView) -> String? {
+  let parsed = @json.parse(line) catch { _ => return None }
+  match parsed {
+    Object(obj) => {
+      let level = match obj.get("level") {
+        Some(String(s)) => s
+        _ => "error"
+      }
+      let code = match obj.get("error_code") {
+        Some(Number(n, ..)) => n.to_int().to_string()
+        Some(String(s)) => s
+        _ =>
+          match obj.get("warning_code") {
+            Some(Number(n, ..)) => n.to_int().to_string()
+            Some(String(s)) => s
+            _ => ""
+          }
+      }
+      let loc = match obj.get("loc") {
+        Some(String(s)) => s
+        _ => ""
+      }
+      let msg = match obj.get("message") {
+        Some(String(s)) => truncate_chars(s, 160)
+        _ => ""
+      }
+      if code == "" && msg == "" {
+        None
+      } else {
+        let prefix = if level == "warning" { "W" } else { "E" }
+        let tagged = if code.has_prefix("E") || code.has_prefix("W") {
+          code
+        } else {
+          prefix + code
+        }
+        Some(tagged + "|" + msg + "|" + loc)
+      }
+    }
+    _ => None
+  }
+}
+
+///|
+/// Stable T1 behaviour signature.  JSON diagnostics are parsed structurally;
+/// legacy bracket codes remain as a fallback for non-JSON tool output.
+fn behavior_sig(stage : String, r : @exec.RunResult) -> String {
+  let seen : Map[String, Unit] = Map([])
+  let parts : Array[String] = []
+  let blob = r.stderr + "\n" + r.stdout
+  for line in blob.split("\n") {
+    let t = line.trim()
+    if t.has_prefix("{") {
+      match json_diag_sig(t) {
+        Some(s) =>
+          if !seen.contains(s) {
+            seen.set(s, ())
+            parts.push(s)
+          }
+        None => ()
+      }
+    }
+  }
+  if parts.length() == 0 {
+    for c in diag_codes(blob) {
+      if !seen.contains(c) {
+        seen.set(c, ())
+        parts.push(c)
+      }
+    }
+  }
+  parts.sort()
+  let status = if r.timed_out {
+    "HANG"
+  } else if r.rc == 0 {
+    "ACC"
+  } else {
+    "ERR"
+  }
   let b = StringBuilder()
-  b.write_string(if r.rc == 0 { "ACC" } else { "ERR" })
-  for c in codes {
+  b.write_string(stage)
+  b.write_string("|")
+  b.write_string(status)
+  for p in parts {
     b.write_string("|")
-    b.write_string(c)
+    b.write_string(p)
+  }
+  if parts.length() == 0 && r.rc != 0 {
+    b.write_string("|rc=")
+    b.write_string(r.rc.to_string())
   }
   b.to_string()
 }
@@ -195,7 +456,9 @@ fn save_crash(
 ) -> Bool {
   let kind = @exec.classify(r)
   let detail = @exec.ice_detail(r)
-  let sig = @corpus.short_hash(stage + "|" + kind + "|" + detail)
+  let sig = @corpus.short_hash(
+    stage + "|" + kind + "|" + detail + "|rc=" + r.rc.to_string(),
+  )
   @corpus.save_finding(
     cfg.out,
     stage,
@@ -247,6 +510,31 @@ fn suffixes_of(mode : String) -> Array[String] {
 }
 
 ///|
+fn t1_args(
+  mode : String,
+  fname : String,
+  builtin : String,
+  prelude : String,
+) -> Array[String] {
+  if mode == "mbt" || mode == "pkg" || mode == "mod" || mode == "mbtmd" {
+    ["syncheck", "-error-format", "json", fname]
+  } else if mode == "mbti" {
+    [
+      "build-interface",
+      fname,
+      "-o",
+      "out.mi",
+      "-i",
+      builtin + ":moonbitlang/core/builtin",
+      "-i",
+      prelude + ":prelude",
+    ]
+  } else {
+    ["syncheck", "-mbtx-frontmatter", "true", fname]
+  }
+}
+
+///|
 async fn run_t1(
   moonc : String,
   wd : String,
@@ -256,37 +544,63 @@ async fn run_t1(
   builtin : String,
   prelude : String,
 ) -> @exec.RunResult {
-  if mode == "mbt" || mode == "pkg" || mode == "mod" || mode == "mbtmd" {
-    @exec.run(
-      moonc,
-      ["syncheck", "-error-format", "json", fname],
-      wd,
-      timeout_ms,
-    )
-  } else if mode == "mbti" {
-    @exec.run(
-      moonc,
-      [
-        "build-interface",
-        fname,
-        "-o",
-        "out.mi",
-        "-i",
-        builtin + ":moonbitlang/core/builtin",
-        "-i",
-        prelude + ":prelude",
-      ],
-      wd,
-      timeout_ms,
-    )
-  } else {
-    @exec.run(
-      moonc,
-      ["syncheck", "-mbtx-frontmatter", "true", fname],
-      wd,
-      timeout_ms,
-    )
+  @exec.run_isolated(
+    moonc,
+    t1_args(mode, fname, builtin, prelude),
+    wd,
+    timeout_ms,
+    mem_mb=2048,
+  )
+}
+
+///|
+/// Run T1 under QEMU, then symbolize the executed PCs with the campaign's nm
+/// table.  This is the real coverage source used by the feedback loop; it is
+/// sampled (default: every 64th input) because tracing costs about one second
+/// and writes ~17 MiB even for a tiny input.
+async fn trace_t1(
+  ctx : CovCtx,
+  moonc : String,
+  wd : String,
+  mode : String,
+  fname : String,
+  builtin : String,
+  prelude : String,
+  tag : String,
+  timeout_ms : Int32,
+) -> Array[String] {
+  if !ctx.enabled {
+    return []
   }
+  let trace_path = join(wd, "qemu_" + tag + ".log")
+  @fs.remove_file(trace_path) catch {
+    _ => ()
+  }
+  let args = ["-d", "exec", "-D", trace_path, "--", moonc] +
+    t1_args(mode, fname, builtin, prelude)
+  let r = @exec.run_isolated(ctx.qemu, args, wd, timeout_ms, mem_mb=4096)
+  if r.timed_out {
+    return []
+  }
+  let trace = @fs.read_file_to_string(trace_path) catch { _ => "" }
+  @fs.remove_file(trace_path) catch {
+    _ => ()
+  }
+  // A runaway log is a sign the sample is not representative; skip it rather
+  // than pinning the worker's heap.
+  if trace.length() == 0 || trace.length() > 134217728 {
+    return []
+  }
+  let all = @trace.summarize_trace(trace, ctx.sym).funcs
+  // Keep the same denominator as the frozen coverage report: camlMoonc*
+  // symbols only, not OCaml runtime/CRT startup.
+  let funcs : Array[String] = []
+  for f in all {
+    if f.has_prefix("camlMoonc") {
+      funcs.push(f)
+    }
+  }
+  funcs
 }
 
 ///|
@@ -298,6 +612,12 @@ fn save_diff(
 ) -> Bool {
   let sig = @corpus.short_hash(
     "diff|" +
+    @oracle.diff_class_name(r.verdict) +
+    "|" +
+    r.wasm_stage +
+    "|" +
+    r.js_stage +
+    "|" +
     r.wasm_kind +
     "|" +
     r.js_kind +
@@ -311,7 +631,9 @@ fn save_diff(
     r.js_out,
   )
   let b = StringBuilder()
-  b.write_string("{\"stage\":\"diff\",\"kind\":\"DIFF\",\"signature\":\"")
+  b.write_string("{\"stage\":\"diff\",\"kind\":\"DIFF\",\"verdict\":\"")
+  b.write_string(@oracle.diff_class_name(r.verdict))
+  b.write_string("\",\"signature\":\"")
   b.write_string(sig)
   b.write_string("\",\"wasm_stage\":\"")
   b.write_string(r.wasm_stage)
@@ -356,9 +678,12 @@ async fn worker(
   dict : Array[String],
   moonc : String,
   home : String,
+  feed : Feedback,
+  covctx : CovCtx,
+  prog : Progress,
 ) -> Stats {
   let s = stats_new()
-  let tag = @corpus.short_hash(cfg.out)
+  let tag = @corpus.short_hash(cfg.run_id)
   let wd = join(join("/tmp/mbtfuzz_mb", tag), "w" + id.to_string())
   rm_rf(wd)
   @corpus.ensure_dir(wd)
@@ -376,7 +701,11 @@ async fn worker(
   let pkg = "I3eg1nner/tpl/cmd/main"
   while @async.now() < end {
     s.it += 1
-    let base = rng.choice(seeds)
+    prog.it += 1
+    let base = match feedback_pick(feed, rng) {
+      Some(v) => v
+      None => rng.choice(seeds)
+    }
     let src = @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
     let fname = fname_of(cfg.mode)
     if !write(join(wd, fname), src) {
@@ -392,11 +721,37 @@ async fn worker(
       prelude,
     )
     s.t1 += 1
+    prog.t1 += 1
+    if r1.timed_out {
+      s.timeouts += 1
+    }
     let k1 = @exec.classify(r1)
+    if cfg.cov_every > 0 && !r1.timed_out && s.it % cfg.cov_every == 0 {
+      let funcs = trace_t1(
+        covctx,
+        moonc,
+        wd,
+        cfg.mode,
+        fname,
+        builtin,
+        prelude,
+        "w" + id.to_string(),
+        cfg.t2_timeout,
+      )
+      if funcs.length() > 0 {
+        s.cov_samples += 1
+        prog.cov_samples += 1
+        ignore(feedback_cover(feed, src, funcs))
+        s.cov_funcs = feed.total_cov.len()
+        prog.cov_funcs = feed.total_cov.len()
+      }
+    }
     if k1 != "OK" && k1 != "ERR" {
       s.crashes += 1
+      prog.crashes += 1
       if save_crash(cfg, "t1", r1, src, id) {
-        ()
+        s.witnesses += 1
+        prog.witnesses += 1
       }
       continue
     }
@@ -542,7 +897,7 @@ async fn worker(
       if !write(join(wd, "in.mbt"), src2) {
         continue
       }
-      let r2 = @exec.run(
+      let r2 = @exec.run_isolated(
         moonc,
         [
           "build-package",
@@ -570,12 +925,25 @@ async fn worker(
         ],
         wd,
         cfg.t2_timeout,
+        mem_mb=6144,
       )
       s.t2 += 1
+      prog.t2 += 1
+      if r2.timed_out {
+        s.timeouts += 1
+      }
       let k2 = @exec.classify(r2)
+      if k2 == "OK" {
+        s.t2_ok += 1
+        prog.t2_ok += 1
+      }
       if k2 != "OK" && k2 != "ERR" {
         s.crashes += 1
-        ignore(save_crash(cfg, "t2", r2, src, id))
+        prog.crashes += 1
+        if save_crash(cfg, "t2", r2, src, id) {
+          s.witnesses += 1
+          prog.witnesses += 1
+        }
         continue
       }
       if k2 == "OK" && rng.chance(cfg.p_run) {
@@ -609,26 +977,81 @@ async fn worker(
             cfg.t2_timeout,
           )
         }
-        if !d.same {
+        if d.verdict == @oracle.Same {
+          s.t3_ok += 1
+          prog.t3_ok += 1
+        } else if d.verdict == @oracle.Inconclusive {
+          s.t3_inconclusive += 1
+          prog.t3_inconclusive += 1
+        } else {
           s.crashes += 1
-          ignore(save_diff(cfg, d, src, id))
+          prog.crashes += 1
+          s.t3_diff += 1
+          prog.t3_diff += 1
+          if save_diff(cfg, d, src, id) {
+            s.witnesses += 1
+            prog.witnesses += 1
+          }
         }
       }
     }
-    let sig = behavior_sig(r1)
-    if !local_sigs.contains(sig) {
+    let sig = behavior_sig("t1", r1)
+    s.sigs.set(sig, ())
+    let novel = !local_sigs.contains(sig)
+    if novel {
       local_sigs.set(sig, ())
-      s.new_sigs += 1
+      // Only inputs that produced a new compiler behaviour enter the dynamic
+      // corpus.  Coverage samples can also admit an input with a higher energy.
+      ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
       let h = @corpus.short_hash(src)
       let corpus_dir = join(cfg.out, "corpus")
       @corpus.ensure_dir(corpus_dir)
       ignore(write(join(corpus_dir, h + ".mbt"), src))
+      // Keep the splice pool fresh even after it reaches its cap.
       if local_pool.length() < 400 {
         local_pool.push(src)
+      } else if local_pool.length() > 0 {
+        local_pool[rng.int(local_pool.length())] = src
       }
     }
   }
+  prog.done += 1
   s
+}
+
+///|
+async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
+  while prog.done < cfg.workers {
+    @async.sleep(2000)
+    let line = "{\"run_id\":\"" +
+      @corpus.json_escape(cfg.run_id) +
+      "\",\"it\":" +
+      prog.it.to_string() +
+      ",\"t1\":" +
+      prog.t1.to_string() +
+      ",\"t2\":" +
+      prog.t2.to_string() +
+      ",\"t2_ok\":" +
+      prog.t2_ok.to_string() +
+      ",\"t3_ok\":" +
+      prog.t3_ok.to_string() +
+      ",\"t3_diff\":" +
+      prog.t3_diff.to_string() +
+      ",\"t3_inconclusive\":" +
+      prog.t3_inconclusive.to_string() +
+      ",\"crash_events\":" +
+      prog.crashes.to_string() +
+      ",\"unique_witnesses\":" +
+      prog.witnesses.to_string() +
+      ",\"cov_samples\":" +
+      prog.cov_samples.to_string() +
+      ",\"cov_funcs\":" +
+      prog.cov_funcs.to_string() +
+      "}"
+    @corpus.append_line(join(out, "stats.jsonl"), line)
+    println("[mb-fuzz progress] \{line}")
+  }
+  stats_new()
 }
 
 ///|
@@ -654,7 +1077,7 @@ fn parse_int(s : String, dflt : Int32) -> Int32 {
 fn main_usage() -> Unit {
   println("usage: fuzz [--root DIR] [--out DIR] [--workers N] [--duration S]")
   println(
-    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff]",
+    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--cov-every N] [--qemu PATH]",
   )
 }
 
@@ -678,6 +1101,10 @@ async fn main {
     fmt_check: false,
     native_diff: false,
     seed: 1UL,
+    run_id: "",
+    campaign: "default",
+    cov_every: 64,
+    qemu: "/tmp/AFLplusplus/afl-qemu-trace",
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -720,12 +1147,31 @@ async fn main {
     } else if a == "--mode" && i + 1 < args.length() {
       cfg.mode = args[i + 1]
       i += 2
+    } else if a == "--run-id" && i + 1 < args.length() {
+      cfg.run_id = args[i + 1]
+      i += 2
+    } else if a == "--campaign" && i + 1 < args.length() {
+      cfg.campaign = args[i + 1]
+      i += 2
+    } else if a == "--cov-every" && i + 1 < args.length() {
+      cfg.cov_every = parse_int(args[i + 1], cfg.cov_every)
+      i += 2
+    } else if a == "--qemu" && i + 1 < args.length() {
+      cfg.qemu = args[i + 1]
+      i += 2
     } else {
       main_usage()
       return
     }
   }
-  let out = cfg.out
+  let run_id = if cfg.run_id == "" {
+    @async.now().to_string()
+  } else {
+    cfg.run_id
+  }
+  cfg.run_id = run_id
+  let out = join(cfg.out, run_id)
+  cfg.out = out
   @corpus.ensure_dir(join(out, "findings"))
   @corpus.ensure_dir(join(out, "corpus"))
   let roots = if cfg.seed_dir != "" {
@@ -749,25 +1195,113 @@ async fn main {
   }
   let dict = @mutate.parse_dict(dict_text)
   let moonc = moonc_path(home)
-  println(
-    "[mb-fuzz] mode=\{cfg.mode} workers=\{cfg.workers} duration=\{cfg.duration_s}s seeds=\{seeds.length()} dict=\{dict.length()} out=\{out} p_deep=\{cfg.p_deep} p_run=\{cfg.p_run}",
-  )
+  let nm = @exec.run("nm", ["-n", moonc], cfg.root, 30000)
+  let sym = @trace.SymTab::parse(nm.stdout)
+  let cov_on = cfg.cov_every > 0 &&
+    @fs.path_exists(cfg.qemu) &&
+    nm.rc == 0 &&
+    sym.len() > 0
+  let covctx : CovCtx = { enabled: cov_on, qemu: cfg.qemu, sym, }
+  let feed = feedback_new()
+  for src in seeds {
+    ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
+  }
+  let plan = "{\"run_id\":\"" +
+    @corpus.json_escape(run_id) +
+    "\",\"campaign\":\"" +
+    @corpus.json_escape(cfg.campaign) +
+    "\",\"mode\":\"" +
+    @corpus.json_escape(cfg.mode) +
+    "\",\"workers\":" +
+    cfg.workers.to_string() +
+    ",\"duration_s\":" +
+    cfg.duration_s.to_string() +
+    ",\"p_deep\":" +
+    cfg.p_deep.to_string() +
+    ",\"p_run\":" +
+    cfg.p_run.to_string() +
+    ",\"seed\":" +
+    cfg.seed.to_string() +
+    ",\"body_only\":" +
+    (if cfg.body_only { "true" } else { "false" }) +
+    ",\"native_diff\":" +
+    (if cfg.native_diff { "true" } else { "false" }) +
+    ",\"cov_every\":" +
+    cfg.cov_every.to_string() +
+    ",\"coverage\":" +
+    (if cov_on { "true" } else { "false" }) +
+    ",\"qemu\":\"" +
+    @corpus.json_escape(cfg.qemu) +
+    "\",\"moonc\":\"" +
+    @corpus.json_escape(moonc) +
+    "\",\"seeds\":" +
+    seeds.length().to_string() +
+    ",\"dict\":" +
+    dict.length().to_string() +
+    "}"
+  ignore(write(join(out, "manifest.json"), plan))
+  println("[mb-fuzz plan] \{plan}")
+  let prog = progress_new()
   let tasks : Array[async () -> Stats] = []
   for id in 0..<cfg.workers {
     let w = id
-    tasks.push(() => worker(cfg, w, seeds, seeds, dict, moonc, home))
+    tasks.push(() => {
+      worker(cfg, w, seeds, seeds, dict, moonc, home, feed, covctx, prog)
+    })
   }
-  let results = @async.all(tasks, max_concurrent=cfg.workers)
+  tasks.push(() => monitor(cfg, prog, out))
+  let results = @async.all(tasks, max_concurrent=cfg.workers + 1)
   let total = stats_new()
   for r in results {
     total.it += r.it
     total.t1 += r.t1
     total.t2 += r.t2
+    total.t2_ok += r.t2_ok
+    total.t3_ok += r.t3_ok
+    total.t3_diff += r.t3_diff
+    total.t3_inconclusive += r.t3_inconclusive
     total.crashes += r.crashes
-    total.new_sigs += r.new_sigs
+    total.witnesses += r.witnesses
     total.timeouts += r.timeouts
+    total.cov_samples += r.cov_samples
+    if r.cov_funcs > total.cov_funcs {
+      total.cov_funcs = r.cov_funcs
+    }
+    for k in r.sigs.keys() {
+      total.sigs.set(k, ())
+    }
   }
-  println(
-    "[mb-fuzz done] it=\{total.it} t1=\{total.t1} t2=\{total.t2} crashes=\{total.crashes} new_sigs=\{total.new_sigs}",
-  )
+  let summary = "{\"run_id\":\"" +
+    @corpus.json_escape(run_id) +
+    "\",\"it\":" +
+    total.it.to_string() +
+    ",\"t1\":" +
+    total.t1.to_string() +
+    ",\"t2\":" +
+    total.t2.to_string() +
+    ",\"t2_ok\":" +
+    total.t2_ok.to_string() +
+    ",\"t3_ok\":" +
+    total.t3_ok.to_string() +
+    ",\"t3_diff\":" +
+    total.t3_diff.to_string() +
+    ",\"t3_inconclusive\":" +
+    total.t3_inconclusive.to_string() +
+    ",\"crash_events\":" +
+    total.crashes.to_string() +
+    ",\"unique_witnesses\":" +
+    total.witnesses.to_string() +
+    ",\"behavior_sigs\":" +
+    total.sigs.length().to_string() +
+    ",\"cov_samples\":" +
+    total.cov_samples.to_string() +
+    ",\"cov_funcs\":" +
+    feed.total_cov.len().to_string() +
+    ",\"coverage_adds\":" +
+    feed.coverage_adds.to_string() +
+    ",\"corpus\":" +
+    feed.entries.length().to_string() +
+    "}"
+  ignore(write(join(out, "summary.json"), summary))
+  println("[mb-fuzz done] \{summary}")
 }

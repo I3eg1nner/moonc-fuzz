@@ -3,6 +3,10 @@ import {
   "moonbitlang/core/async/process",
 }
 
+import {
+  "moonbitlang/core/env",
+} for "test"
+
 options(
   "allow-experimental-packages": [
     "moonbitlang/core/async",

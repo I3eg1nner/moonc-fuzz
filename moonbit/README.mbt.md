@@ -36,12 +36,12 @@ moon check && moon test
 | `trace/` | `nm -n` symbol table + QEMU `-d exec` trace → function set |
 | `cov/` | JSON function-set algebra, union/intersection/diff, greedy minimization |
 | `mutate/` | structure-aware mutator, deterministic splitmix64 RNG |
-| `exec/` | async child-process runner with hard timeout |
+| `exec/` | async child-process runner with hard timeout and output cap |
 | `corpus/` | seed walking, SHA-1, finding storage |
 | `oracle/` | wasm/js and wasm/native build + link + run differential |
 | `cmd/trace2funcs` | offline trace converter |
 | `cmd/cov` | coverage JSON CLI |
-| `cmd/fuzz` | T1/T2 campaign driver (mbt, moon.pkg, moon.mod, .mbt.md, .mbti, .mbtx) |
+| `cmd/fuzz` | T1/T2/T3 campaign driver with dynamic corpus and sampled QEMU coverage |
 | `cmd/bytefuzz` | byte-level fuzzer for invalid UTF-8 |
 | `cmd/diffprobe` | one-program differential probe |
 | `cmd/regress` | 12-case defect regression (F1–F6, P1) |
@@ -55,10 +55,14 @@ cd moonbit
 moon check
 moon test
 
-# One bounded campaign.
+# One bounded campaign. Each run gets out/<base>/<run-id>/.
 moon run cmd/fuzz -- \
   --root .. --out ../out/mb_campaign \
-  --mode mbt --workers 48 --duration 120 --p-deep 50 --body-only
+  --mode mbt --workers 48 --duration 120 --p-deep 50 --p-run 10 \
+  --cov-every 64 --body-only
+
+# Or use the launcher presets: parser, typer, semantic-diff, hybrid.
+../run.sh hybrid 8 120
 
 # Invalid-UTF-8 campaign.
 moon run cmd/bytefuzz -- \
@@ -83,7 +87,7 @@ Python.
 
 ## Measured results
 
-- Tests: 75 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 86 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the
@@ -93,6 +97,10 @@ Python.
 - `regress`: 12/12, including the 10-line F6 native-export repro.
 - Campaigns: 126k mbt, 223k moon.pkg, 83k .mbt.md, 111k .mbti, 140k moon.mod.
   F1b/F2b/F4b are extra witnesses grouped with F1/F2/F4, not new root causes.
+- Feedback: T1 JSON signatures retain code/message/location; novel inputs enter a
+  shared corpus; sampled `qemu -d exec` coverage raises parent energy. A 3 s,
+  2-worker parser smoke produced 969 distinct `camlMoonc*` functions from 4
+  samples in the local environment.
 
 ## Boundaries
 
@@ -101,7 +109,12 @@ Python.
 - `syntax_boundary`, `olddiff`, `iface`, `typegen` and the Python reference
   live on the `python-reference` branch, outside the main build.
 - The differential oracle compares a declared output contract (rc, stdout,
-  failure class). Agreement between two backends does not prove correctness.
+  failure class) only after both sides reach `run`; build/link failures are
+  classified separately and never reported as `same=true`.
+- Coverage feedback samples T1 only; T2/T3 remain gated by T1 behaviour and T2
+  success. Campaign T1/T2/T3 use `run_isolated` (GNU timeout process-group
+  cleanup + `prlimit`); raw `@exec.run` call sites remain unisolated. Output is
+  capped after collection.
 
 ## License
 
