@@ -128,6 +128,12 @@ moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irprobe
 # Add 30 deterministic random IR programs in the same subset.
 moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irprobe \
   --random 30 --seed 1
+
+# Reduce each generated program while preserving type validity, successful
+# interpretation and the complete event trace, then recompile/run the reduced
+# program and repeat the wasm/js comparison.
+moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irprobe \
+  --random 30 --seed 1 --reduce
 ```
 
 `cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
@@ -207,10 +213,14 @@ final extra condition evaluation. Division, floats, strings, closures, generics,
 traits and trap semantics are excluded. The interpreter fuel is a screening
 budget: exhaustion is a failed/invalid sample, not a program result. Locals and
 parameters may not shadow functions, `println`, or generated `__` names.
-Restricted random generation is connected to `irprobe`; reduction and
-four-cell integration are not. The generator uses one fixed main/helper shape,
-`size=8` in the probe, and does not yet generate recursive `Index`/`Len`
-expressions or nested functions. The interpreter is the semantic oracle;
+Restricted random generation is connected to `irprobe`; four-cell integration
+is not. The generator uses one fixed main/helper shape, `size=8` in the probe,
+and does not yet generate recursive `Index`/`Len` expressions or nested
+functions. `--reduce` is a statement-level, trace-preserving reducer: it
+requires type validity, successful interpretation and an identical event
+sequence, and removes dead lets/no-op assignments. It is not yet a
+compiler-difference reducer; a future predicate must preserve the original
+failure class, not merely “no crash.” The interpreter is the semantic oracle;
 `cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output
 and byte-equal event text (including the final newline). It runs three hand
 calibration programs plus optional deterministic generated programs
@@ -219,7 +229,7 @@ samples does not establish general compiler correctness or a complete IR.
 
 ## Measured results
 
-- Tests: 141 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 144 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the

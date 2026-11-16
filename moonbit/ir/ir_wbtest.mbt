@@ -197,3 +197,51 @@ test "random generator is deterministic and type-correct" {
   assert_eq(emit_program(a), emit_program(b))
   assert_true(emit_program(a).contains("fn main"))
 }
+
+///|
+test "trace-preserving reducer removes dead lets and no-op assignments" {
+  let p : Program = {
+    funcs: [
+      main_func([
+        Let("x", I32, ConstI32(1), true),
+        Let("dead", I32, ConstI32(2), false),
+        Assign("x", Var("x")),
+        Assign("x", Add(Var("x"), ConstI32(1))),
+        Emit(1, Var("x")),
+      ]),
+    ],
+  }
+  let expected = run(p, 1000) catch { _ => [] }
+  let r = reduce(p, expected, 1000) catch { _ => p }
+  assert_eq(statement_count(r), 3)
+  assert_eq(run(r, 1000) catch { _ => [] }, expected)
+}
+
+///|
+test "reducer keeps the assignment that changes the trace" {
+  let p : Program = {
+    funcs: [
+      main_func([
+        Let("x", I32, ConstI32(1), true),
+        Assign("x", Add(Var("x"), ConstI32(4))),
+        Emit(1, Var("x")),
+      ]),
+    ],
+  }
+  let expected = run(p, 1000) catch { _ => [] }
+  let r = reduce(p, expected, 1000) catch { _ => p }
+  assert_eq(statement_count(r), 3)
+  assert_eq(run(r, 1000) catch { _ => [] }, ["Emit(1, 5)"])
+}
+
+///|
+test "reducer rejects a mismatched target" {
+  let p : Program = { funcs: [main_func([Emit(1, ConstI32(1))])], }
+  let failed = try {
+    ignore(reduce(p, ["Emit(1, 2)"], 1000))
+    false
+  } catch {
+    _ => true
+  }
+  assert_true(failed)
+}

@@ -53,6 +53,7 @@ async fn main {
   let out = if args.length() >= 3 { args[2] } else { "/tmp/mbtfuzz_irprobe" }
   let mut random_n = 0
   let mut seed = 1
+  let mut do_reduce = false
   let mut ai = 3
   while ai < args.length() {
     if args[ai] == "--random" && ai + 1 < args.length() {
@@ -61,8 +62,11 @@ async fn main {
     } else if args[ai] == "--seed" && ai + 1 < args.length() {
       seed = parse_int(args[ai + 1], 1)
       ai += 2
+    } else if args[ai] == "--reduce" {
+      do_reduce = true
+      ai += 1
     } else {
-      println("usage: irprobe ROOT OUT [--random N] [--seed S]")
+      println("usage: irprobe ROOT OUT [--random N] [--seed S] [--reduce]")
       @env.exit(2)
     }
   }
@@ -91,14 +95,25 @@ async fn main {
     let tag = i.to_string()
     let wd = @corpus.join("/tmp/mbtfuzz_irprobe", "p" + tag)
     @corpus.ensure_dir(wd)
-    let interpreter_ok = Some(join_events(@ir.run(program, 10000))) catch {
-      _ => None
-    }
-    let expected = match interpreter_ok {
-      Some(e) => e
+    let interpreter_events = Some(@ir.run(program, 10000)) catch { _ => None }
+    let expected = match interpreter_events {
+      Some(events) => join_events(events)
       None => ""
     }
-    let src = @ir.emit_program(program)
+    let before_stmts = @ir.statement_count(program)
+    let used_program = if do_reduce {
+      match interpreter_events {
+        Some(events) =>
+          @ir.reduce(program, events, 10000) catch {
+            _ => program
+          }
+        None => program
+      }
+    } else {
+      program
+    }
+    let after_stmts = @ir.statement_count(used_program)
+    let src = @ir.emit_program(used_program)
     write(@corpus.join(wd, "in.mbt"), src)
     let d = @oracle.diff_program(
       moonc,
@@ -117,7 +132,7 @@ async fn main {
     let target = if expected == "" { "" } else { expected + "\n" }
     let wasm_ok = d.wasm_out == target
     let js_ok = d.js_out == target
-    let ok = interpreter_ok is Some(_) &&
+    let ok = interpreter_events is Some(_) &&
       d.verdict == @oracle.Same &&
       d.wasm_rc == 0 &&
       d.js_rc == 0 &&
@@ -131,12 +146,18 @@ async fn main {
     rows.push(
       "{\"case\":" +
       tag +
+      ",\"before_stmts\":" +
+      before_stmts.to_string() +
+      ",\"after_stmts\":" +
+      after_stmts.to_string() +
+      ",\"reduced\":" +
+      (if do_reduce { "true" } else { "false" }) +
       ",\"ok\":" +
       (if ok { "true" } else { "false" }) +
       ",\"verdict\":\"" +
       @oracle.diff_class_name(d.verdict) +
       "\",\"interpreter_ok\":" +
-      (if interpreter_ok is Some(_) { "true" } else { "false" }) +
+      (if interpreter_events is Some(_) { "true" } else { "false" }) +
       ",\"wasm_rc\":" +
       d.wasm_rc.to_string() +
       ",\"js_rc\":" +

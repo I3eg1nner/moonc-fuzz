@@ -8,11 +8,15 @@ pub fn emit_program(Program) -> String
 
 pub fn generate(UInt64, Int32) -> Program
 
+pub fn reduce(Program, Array[String], Int32) -> Program raise Failure
+
 pub fn run(Program, Int32) -> Array[String] raise Failure
 
 pub fn sample_programs() -> Array[Program]
 
 pub fn show_value(Value) -> String
+
+pub fn statement_count(Program) -> Int32
 
 pub fn ty_name(Ty) -> String
 
