@@ -186,3 +186,14 @@ test "type checker rejects locals that shadow functions or println" {
   }
   assert_true(check_fails(q))
 }
+
+///|
+test "random generator is deterministic and type-correct" {
+  let a = generate(7UL, 8)
+  let b = generate(7UL, 8)
+  check_program(a) catch {
+    _ => fail("generated program is invalid")
+  }
+  assert_eq(emit_program(a), emit_program(b))
+  assert_true(emit_program(a).contains("fn main"))
+}

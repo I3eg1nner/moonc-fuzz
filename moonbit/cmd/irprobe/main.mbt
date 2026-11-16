@@ -24,6 +24,25 @@ fn write(path : String, text : String) -> Unit {
 }
 
 ///|
+fn parse_int(s : String, dflt : Int32) -> Int32 {
+  let mut v = 0
+  let mut any = false
+  for c in s {
+    if c >= '0' && c <= '9' {
+      v = v * 10 + (c.to_int() - '0'.to_int())
+      any = true
+    } else {
+      return dflt
+    }
+  }
+  if any {
+    v
+  } else {
+    dflt
+  }
+}
+
+///|
 async fn main {
   let args = @env.args()
   let home = match @env.get_env_var("HOME") {
@@ -32,6 +51,21 @@ async fn main {
   }
   let root = if args.length() >= 2 { args[1] } else { "/data/audit/mbtfuzz" }
   let out = if args.length() >= 3 { args[2] } else { "/tmp/mbtfuzz_irprobe" }
+  let mut random_n = 0
+  let mut seed = 1
+  let mut ai = 3
+  while ai < args.length() {
+    if args[ai] == "--random" && ai + 1 < args.length() {
+      random_n = parse_int(args[ai + 1], 0)
+      ai += 2
+    } else if args[ai] == "--seed" && ai + 1 < args.length() {
+      seed = parse_int(args[ai + 1], 1)
+      ai += 2
+    } else {
+      println("usage: irprobe ROOT OUT [--random N] [--seed S]")
+      @env.exit(2)
+    }
+  }
   @corpus.ensure_dir(out)
   let moonc = @corpus.join(@corpus.join(home, ".moon/bin"), "moonc")
   let moonrun = @corpus.join(@corpus.join(home, ".moon/bin"), "moonrun")
@@ -42,7 +76,15 @@ async fn main {
   let pkg = "I3eg1nner/tpl/cmd/main"
   let pkg_config = @corpus.join(@corpus.join(root, "harness"), "moon.pkg")
   let all_pkgs = @corpus.join(@corpus.join(root, "harness"), "all_pkgs.json")
-  let programs = @ir.sample_programs()
+  let programs : Array[@ir.Program] = []
+  for p in @ir.sample_programs() {
+    programs.push(p)
+  }
+  for i in 0..<random_n {
+    programs.push(
+      @ir.generate((seed.to_int64() + i.to_int64()).reinterpret_as_uint64(), 8),
+    )
+  }
   let rows : Array[String] = []
   let mut errors = 0
   for i, program in programs {

@@ -64,11 +64,45 @@ fn indent(text : String, n : Int32) -> String {
 }
 
 ///|
-fn stmt_src(s : Stmt, depth : Int32) -> String {
+fn collect_assigned(s : Stmt, out : Map[String, Unit]) -> Unit {
+  match s {
+    Let(_, _, _, _) | Emit(_, _) | Return(_) => ()
+    Assign(name, _) => out.set(name, ())
+    ArraySet(_, _, _) => ()
+    If(_, a, b) => {
+      for st in a {
+        collect_assigned(st, out)
+      }
+      for st in b {
+        collect_assigned(st, out)
+      }
+    }
+    While(_, body, _) =>
+      for st in body {
+        collect_assigned(st, out)
+      }
+  }
+}
+
+///|
+fn assigned_in(f : Func) -> Map[String, Unit] {
+  let out : Map[String, Unit] = Map([])
+  for st in f.body {
+    collect_assigned(st, out)
+  }
+  out
+}
+
+///|
+fn stmt_src(s : Stmt, depth : Int32, assigned : Map[String, Unit]) -> String {
   match s {
     Let(name, ty, e, mutable) =>
       indent(
-        (if mutable && ty != I32Array { "let mut " } else { "let " }) +
+        (if mutable && ty != I32Array && assigned.contains(name) {
+          "let mut "
+        } else {
+          "let "
+        }) +
         name +
         " : " +
         ty_name(ty) +
@@ -93,13 +127,13 @@ fn stmt_src(s : Stmt, depth : Int32) -> String {
       out.write_string(indent("if " + expr_src(c) + " {", depth))
       out.write_string("\n")
       for st in a {
-        out.write_string(stmt_src(st, depth + 1))
+        out.write_string(stmt_src(st, depth + 1, assigned))
         out.write_string("\n")
       }
       out.write_string(indent("} else {", depth))
       out.write_string("\n")
       for st in b {
-        out.write_string(stmt_src(st, depth + 1))
+        out.write_string(stmt_src(st, depth + 1, assigned))
         out.write_string("\n")
       }
       out.write_string(indent("}", depth))
@@ -114,7 +148,7 @@ fn stmt_src(s : Stmt, depth : Int32) -> String {
       out.write_string(indent("if !(" + expr_src(c) + ") { break }", depth + 1))
       out.write_string("\n")
       for st in body {
-        out.write_string(stmt_src(st, depth + 1))
+        out.write_string(stmt_src(st, depth + 1, assigned))
         out.write_string("\n")
       }
       out.write_string(indent("}", depth))
@@ -125,7 +159,7 @@ fn stmt_src(s : Stmt, depth : Int32) -> String {
 }
 
 ///|
-fn func_src(f : Func) -> String {
+fn func_src(f : Func, assigned : Map[String, Unit]) -> String {
   let b = StringBuilder()
   if f.name == "main" {
     b.write_string("fn main {\n")
@@ -141,7 +175,7 @@ fn func_src(f : Func) -> String {
     b.write_string(") -> " + ty_name(f.ret) + " {\n")
   }
   for st in f.body {
-    b.write_string(stmt_src(st, 1))
+    b.write_string(stmt_src(st, 1, assigned))
     b.write_string("\n")
   }
   b.write_string("}\n")
@@ -152,7 +186,7 @@ fn func_src(f : Func) -> String {
 pub fn emit_program(program : Program) -> String {
   let b = StringBuilder()
   for f in program.funcs {
-    b.write_string(func_src(f))
+    b.write_string(func_src(f, assigned_in(f)))
     b.write_string("\n")
   }
   b.to_string()
