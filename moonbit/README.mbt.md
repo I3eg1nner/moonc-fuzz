@@ -47,6 +47,7 @@ moon check && moon test
 | `cmd/regress` | 12-case defect regression (F1–F6, P1) |
 | `cmd/f6matrix` | F6 native-export boundary matrix (8 closure shapes + 2 controls) |
 | `cmd/accept` | migration acceptance gate |
+| `cmd/optdiff` | controlled real-package test differential (link-only first) |
 
 ## Commands
 
@@ -71,8 +72,51 @@ moon run cmd/bytefuzz -- \
   --mode mbtmd --workers 16 --duration 60
 
 # Acceptance: tests, build, regressions, trace parity, oracle.
-moon run cmd/accept -- ..
+# Use an absolute repo root; the command currently resolves child binaries
+# relative to that root.
+moon run cmd/accept -- /data/audit/mbtfuzz
+
+# Controlled link-only optimization differential on a real package test suite.
+# --module and --out must be absolute; the source module is copied to
+# <out>/module so the experiment does not reuse the source tree's build cache.
+moon run cmd/optdiff -- \
+  --module /data/audit/mbtfuzz/seeds \
+  --out /tmp/optdiff-argparse \
+  --packages moonbitlang/core/argparse \
+  --target wasm-gc --repeats 3
+
+# Positive control: inject one implementation-level behavior change and verify
+# that the real test assertions catch it.
+moon run cmd/optdiff -- \
+  --module /data/audit/mbtfuzz/seeds \
+  --out /tmp/optdiff-fault \
+  --packages moonbitlang/core/argparse \
+  --fault-check argparse/help_render.mbt 'Usage: ' 'Use: '
 ```
+
+`cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
+module, reuses the official test build artifacts, relinks each test wasm with
+and without `-O0`, runs the captured `moonrun --test-args` argv, and compares
+the complete per-test ID set. It compares semantic test states (`pass` /
+`skip` / `fail`), using the generated test metadata to treat panic-named tests
+as expected-panic tests. Raw failure text is preserved as evidence but stack
+addresses and wasm function indices are not treated as semantic differences.
+This is still a bounded interpretation: it does not prove every assertion
+category, and unsupported/unknown metadata is not promoted to `SAME`. For
+panic-named tests it follows the fixed `moon 940aa18` rule (test name starts
+with `panic`, any non-empty message counts as passed); it does not verify the
+panic reason. `--fault-check` only proves that the package assertions detect a
+deliberate implementation change; it does not yet exercise the full
+single-arm-change -> candidate -> exit 1 chain.
+
+It does not yet isolate `build-package` optimization; do not describe its
+output as a full optimization differential. A missing requested test ID, a
+duplicate result, a missing `-O0`, a missing runtime command, a timeout, or a
+link failure is an error, not a `SAME` result. Exit codes are `0` for a clean
+comparison, `1` for a candidate status difference, and `2` for an invalid or
+incomplete experiment. `--aa` runs both arms with `-O0` as a negative control;
+`--fault-check` accepts only an assertion failure with a non-empty failed
+count, not an arbitrary nonzero compiler/test-runner exit.
 
 Minimal runnable example, no campaign required:
 
@@ -88,7 +132,7 @@ Python.
 
 ## Measured results
 
-- Tests: 106 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 127 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the

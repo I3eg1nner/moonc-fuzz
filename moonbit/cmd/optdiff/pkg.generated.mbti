@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cmd/optdiff"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Compare
+
+type Config
+
+type LinkTask
+
+type ParsedRun
+
+type RunTask
+
+type TestMeta
+
+// Type aliases
+
+// Traits
