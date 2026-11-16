@@ -6,6 +6,8 @@ package "I3eg1nner/mbtfuzz/cmd/optdiff"
 // Errors
 
 // Types and methods
+type CandidateArtifact
+
 type Compare
 
 type Config

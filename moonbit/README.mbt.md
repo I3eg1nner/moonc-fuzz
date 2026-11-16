@@ -92,6 +92,15 @@ moon run cmd/optdiff -- \
   --out /tmp/optdiff-fault \
   --packages moonbitlang/core/argparse \
   --fault-check argparse/help_render.mbt 'Usage: ' 'Use: '
+
+# Candidate-chain control: build green A, mutate one implementation file,
+# rebuild B, compare the same test IDs. This is expected to exit 1 with a
+# non-zero `changed` count; exit 2 means the harness failed to see the change.
+moon run cmd/optdiff -- \
+  --module /data/audit/mbtfuzz/seeds \
+  --out /tmp/optdiff-candidate \
+  --packages moonbitlang/core/argparse \
+  --candidate-check argparse/help_render.mbt 'Usage: ' 'Use: '
 ```
 
 `cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
@@ -113,10 +122,14 @@ It does not yet isolate `build-package` optimization; do not describe its
 output as a full optimization differential. A missing requested test ID, a
 duplicate result, a missing `-O0`, a missing runtime command, a timeout, or a
 link failure is an error, not a `SAME` result. Exit codes are `0` for a clean
-comparison, `1` for a candidate status difference, and `2` for an invalid or
-incomplete experiment. `--aa` runs both arms with `-O0` as a negative control;
+comparison, `1` for a candidate status difference, and `2` for an invalid,
+incomplete, or no-change candidate experiment. `--aa` runs both arms with `-O0` as a negative control;
 `--fault-check` accepts only an assertion failure with a non-empty failed
-count, not an arbitrary nonzero compiler/test-runner exit.
+count, not an arbitrary nonzero compiler/test-runner exit. `--candidate-check`
+is the separate end-to-end control: it freezes A, mutates one implementation
+file, rebuilds B, and must report a status change and exit 1. It is a harness
+control only: it does not prove optimization correctness, and it does not
+guarantee metadata consistency if a test structure is mutated.
 
 Minimal runnable example, no campaign required:
 

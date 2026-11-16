@@ -21,6 +21,7 @@ struct Config {
   mut timeout_ms : Int32
   mut repeats : Int32
   mut aa : Bool
+  mut candidate : Bool
   mut fault_file : String
   mut fault_from : String
   mut fault_to : String
@@ -52,7 +53,7 @@ struct LinkTask {
 ///|
 fn usage() -> Unit {
   println(
-    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc] [--timeout MS] [--repeats N] [--aa] [--fault-check FILE FROM TO]",
+    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc] [--timeout MS] [--repeats N] [--aa] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
   )
 }
 
@@ -652,6 +653,262 @@ fn fault_file_ok(p : String) -> Bool {
 }
 
 ///|
+async fn copy_one(src : String, dst : String, timeout_ms : Int32) -> Bool {
+  @corpus.ensure_dir(@corpus.dirname(dst))
+  let r = @exec.run("/bin/cp", [src, dst], "/tmp", timeout_ms)
+  r.rc == 0
+}
+
+///|
+/// End-to-end control for the candidate path: build a green baseline, mutate
+/// one implementation file, rebuild, run the same test IDs, and require at
+/// least one semantic status change.  This deliberately uses a source-level
+/// change, so it validates the harness, not link optimization.
+async fn run_candidate_check(cfg : Config) -> Unit {
+  let home = match @env.get_env_var("HOME") {
+    Some(h) => h
+    None => "/home/user"
+  }
+  if cfg.packages.length() != 1 || !fault_file_ok(cfg.fault_file) {
+    println("[optdiff] candidate-check requires one package and a safe file")
+    @env.exit(2)
+  }
+  let pkg = cfg.packages[0]
+  let root = @corpus.join(cfg.out, "candidate_module")
+  if !root.has_prefix(cfg.out + "/") {
+    println("[optdiff] unsafe candidate module path")
+    @env.exit(2)
+  }
+  let rm = @exec.run("/bin/rm", ["-rf", root], "/tmp", cfg.timeout_ms)
+  if rm.rc != 0 {
+    println("[optdiff] cannot clean candidate module")
+    @env.exit(2)
+  }
+  let cp = @exec.run(
+    "/bin/cp",
+    ["-a", cfg.source_dir, root],
+    "/tmp",
+    cfg.timeout_ms,
+  )
+  if cp.rc != 0 {
+    println("[optdiff] cannot copy candidate module")
+    @env.exit(2)
+  }
+  match real_path(root) {
+    Some(p) =>
+      if p != root {
+        println("[optdiff] candidate copy is a symlink")
+        @env.exit(2)
+      }
+    None => {
+      println("[optdiff] cannot resolve candidate copy")
+      @env.exit(2)
+    }
+  }
+  let clean = @exec.run(
+    "/bin/rm",
+    ["-rf", @corpus.join(root, "_build")],
+    "/tmp",
+    cfg.timeout_ms,
+  )
+  if clean.rc != 0 {
+    println("[optdiff] cannot clean candidate build cache")
+    @env.exit(2)
+  }
+  cfg.module_dir = root
+  if !write_manifest(cfg, home) {
+    println("[optdiff] cannot write candidate manifest")
+    @env.exit(2)
+  }
+  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  let base = @exec.run(
+    moon,
+    [
+      "test",
+      "-p",
+      pkg,
+      "--target",
+      cfg.target,
+      "--debug",
+      "--no-parallelize",
+      "-v",
+    ],
+    root,
+    cfg.timeout_ms,
+    max_output_bytes=32 * 1024 * 1024,
+  )
+  if base.rc != 0 || summary_failures(base.stdout) > 0 {
+    println("[optdiff] candidate baseline is not green")
+    @env.exit(2)
+  }
+  let runs_a : Array[String] = []
+  for line in base.stderr.split("\n") {
+    let t = line.trim()
+    if t.has_prefix("moonrun --test-args ") {
+      runs_a.push(t.to_owned())
+    }
+  }
+  let run_tasks = match parse_runs(runs_a) {
+    Some(r) => r
+    None => {
+      println("[optdiff] cannot parse candidate runtime commands")
+      @env.exit(2)
+    }
+  }
+  let arts : Array[CandidateArtifact] = []
+  let a_dir = @corpus.join(cfg.out, "candidate/A")
+  let b_dir = @corpus.join(cfg.out, "candidate/B")
+  for run in run_tasks {
+    let base_name = @corpus.basename(run.wasm_path)
+    let meta = match metadata_path(root, cfg.target, pkg, base_name) {
+      Some(path) => load_test_meta(path)
+      None => None
+    }
+    let meta = match meta {
+      Some(m) => m
+      None => {
+        println("[optdiff] candidate metadata missing for \{base_name}")
+        @env.exit(2)
+      }
+    }
+    if !subset_ids(run.expected, meta.known) {
+      println("[optdiff] candidate metadata incomplete for \{base_name}")
+      @env.exit(2)
+    }
+    let a_path = @corpus.join(a_dir, base_name)
+    if !copy_one(@corpus.join(root, run.wasm_path), a_path, cfg.timeout_ms) {
+      println("[optdiff] cannot save candidate A artifact")
+      @env.exit(2)
+    }
+    arts.push({ base: base_name, run, meta, })
+  }
+  // Mutate exactly one implementation file after A is frozen.
+  let path = @corpus.join(root, cfg.fault_file)
+  let real = @exec.run("/usr/bin/readlink", ["-f", path], "/tmp", 5000)
+  if real.rc != 0 || !real.stdout.trim().has_prefix(root + "/") {
+    println("[optdiff] candidate file escapes the copy")
+    @env.exit(2)
+  }
+  let src = read_text(path)
+  let next = match replace_once(src, cfg.fault_from, cfg.fault_to) {
+    Some(v) => v
+    None => {
+      println("[optdiff] candidate mutation string not found")
+      @env.exit(2)
+    }
+  }
+  if next == src || !write_json(path, next) {
+    println("[optdiff] candidate mutation failed")
+    @env.exit(2)
+  }
+  for art in arts {
+    let stale = @corpus.join(root, art.run.wasm_path)
+    let rm = @exec.run("/bin/rm", ["-f", stale], "/tmp", cfg.timeout_ms)
+    if rm.rc != 0 {
+      println(
+        "[optdiff] cannot remove stale candidate artifact for \{art.base}",
+      )
+      @env.exit(2)
+    }
+  }
+  let mutated = @exec.run(
+    moon,
+    [
+      "test",
+      "-p",
+      pkg,
+      "--target",
+      cfg.target,
+      "--debug",
+      "--no-parallelize",
+      "-v",
+    ],
+    root,
+    cfg.timeout_ms,
+    max_output_bytes=32 * 1024 * 1024,
+  )
+  if mutated.timed_out {
+    println("[optdiff] candidate rebuild timed out")
+    @env.exit(2)
+  }
+  if !write_json(
+      @corpus.join(cfg.out, "candidate/mutated.stdout"),
+      mutated.stdout,
+    ) ||
+    !write_json(
+      @corpus.join(cfg.out, "candidate/mutated.stderr"),
+      mutated.stderr,
+    ) {
+    println("[optdiff] cannot save candidate evidence")
+    @env.exit(2)
+  }
+  let mut changed = 0
+  let mut errors = 0
+  for art in arts {
+    let b_path = @corpus.join(b_dir, art.base)
+    let built = @corpus.join(root, art.run.wasm_path)
+    if !@fs.path_exists(built) || !copy_one(built, b_path, cfg.timeout_ms) {
+      println("[optdiff] candidate B artifact missing for \{art.base}")
+      errors += 1
+      continue
+    }
+    let ar = run_argv(
+      make_run_argv(art.run, @corpus.join(a_dir, art.base)),
+      root,
+      cfg.timeout_ms,
+      home,
+    )
+    let br = run_argv(
+      make_run_argv(art.run, b_path),
+      root,
+      cfg.timeout_ms,
+      home,
+    )
+    let a_parsed = collect_results(ar.stdout)
+    let b_parsed = collect_results(br.stdout)
+    if ar.rc != 0 ||
+      br.rc != 0 ||
+      br.timed_out ||
+      ar.stdout_truncated ||
+      br.stdout_truncated ||
+      a_parsed.bad ||
+      b_parsed.bad ||
+      a_parsed.duplicate ||
+      b_parsed.duplicate ||
+      !exact_coverage(a_parsed.results, art.run.expected) ||
+      !exact_coverage(b_parsed.results, art.run.expected) {
+      errors += 1
+      continue
+    }
+    let cmp = compare_results(
+      a_parsed.results,
+      b_parsed.results,
+      art.meta.panic_ids,
+    )
+    changed += cmp.changed + cmp.missing + cmp.extra
+  }
+  let candidate = errors == 0 && changed > 0
+  let row = "{\"stage\":\"candidate_check\",\"file\":\"" +
+    @corpus.json_escape(cfg.fault_file) +
+    "\",\"changed\":" +
+    changed.to_string() +
+    ",\"errors\":" +
+    errors.to_string() +
+    ",\"candidate\":" +
+    (if candidate { "true" } else { "false" }) +
+    "}"
+  if !write_json(@corpus.join(cfg.out, "candidate.json"), row) {
+    println("[optdiff] cannot write candidate verdict")
+    @env.exit(2)
+  }
+  println("[optdiff] \{row}")
+  if !candidate {
+    @env.exit(2)
+  }
+  @env.exit(1)
+}
+
+///|
 async fn run_fault(cfg : Config) -> Unit {
   let home = match @env.get_env_var("HOME") {
     Some(h) => h
@@ -872,6 +1129,13 @@ fn metadata_path(
 struct TestMeta {
   panic_ids : Map[String, Unit]
   known : Map[String, Unit]
+}
+
+///|
+struct CandidateArtifact {
+  base : String
+  run : RunTask
+  meta : TestMeta
 }
 
 ///|
@@ -1308,6 +1572,7 @@ async fn main {
     timeout_ms: 300000,
     repeats: 1,
     aa: false,
+    candidate: false,
     fault_file: "",
     fault_from: "",
     fault_to: "",
@@ -1337,6 +1602,12 @@ async fn main {
     } else if a == "--aa" {
       cfg.aa = true
       i += 1
+    } else if a == "--candidate-check" && i + 3 < args.length() {
+      cfg.candidate = true
+      cfg.fault_file = args[i + 1]
+      cfg.fault_from = args[i + 2]
+      cfg.fault_to = args[i + 3]
+      i += 4
     } else if a == "--fault-check" && i + 3 < args.length() {
       cfg.fault_file = args[i + 1]
       cfg.fault_from = args[i + 2]
@@ -1386,6 +1657,10 @@ async fn main {
   let home = match @env.get_env_var("HOME") {
     Some(h) => h
     None => "/home/user"
+  }
+  if cfg.candidate {
+    run_candidate_check(cfg)
+    return
   }
   if cfg.fault_file != "" {
     run_fault(cfg)
