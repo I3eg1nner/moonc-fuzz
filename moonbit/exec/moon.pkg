@@ -1,6 +1,8 @@
 import {
   "moonbitlang/core/async",
   "moonbitlang/core/async/process",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
 }
 
 import {

@@ -1,5 +1,6 @@
 import {
   "moonbitlang/x/fs",
+  "moonbitlang/core/json",
   "I3eg1nner/mbtfuzz/exec",
 }
 

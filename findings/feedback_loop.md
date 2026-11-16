@@ -55,21 +55,23 @@ it. A trace larger than 128 MiB is skipped.
 
 ### 2.3 Stage-aware differential verdict
 
-`@oracle.DiffClass` has five outcomes:
+`@oracle.DiffClass` has six outcomes:
 
 | verdict | meaning |
 |---|---|
 | `SAME` | both sides reached `run` and rc/stdout/kind agree |
-| `SEMANTIC_DIFF` | both ran, observable results differ |
+| `SEMANTIC_DIFF` | both ran and an observable result differs |
+| `RUNTIME_DIFF` | both ran but failed with different runtime classes |
 | `ACCEPT_DIFF` | one side ran, the other failed before running |
 | `COMPILER_ABORT` | ICE/OOM/exception/signal at build or link |
-| `INCONCLUSIVE` | both failed before running, timeout, or infrastructure failure |
+| `INCONCLUSIVE` | both failed before running, timeout, truncation ambiguity, or infrastructure failure |
 
-`classify_diff` is the only decision function. `diff_program` and
-`diff_native` call it; `outcomes_agree` is now a run-stage wrapper. The fuzz
-driver counts `INCONCLUSIVE` separately and does not write a finding for it.
-`cmd/diffprobe --inject` exercises the same function with a link/build failure
-and an ICE/build failure.
+`classify_diff(BackendResult, BackendResult)` is the only decision function.
+`diff_program` and `diff_native` call it; `outcomes_agree` is a run-stage
+wrapper. The fuzz driver counts `RUNTIME_DIFF` and `INCONCLUSIVE` separately and
+does not write a miscompile finding for either. `cmd/diffprobe --inject`
+exercises the same function with build/link failures, truncation, and a native
+abort.
 
 ### 2.4 Launcher and run identity
 
@@ -92,8 +94,11 @@ Every launch prints and persists a plan. The run directory is
 
 `@exec.run` accepts an optional `max_output_bytes`. The differential run stage
 caps retained stdout/stderr at 1 MiB with an explicit
-`[output truncated]` marker. The cap is applied after collection, so it bounds
-evidence and parsing, not the child's peak RSS.
+`[output truncated]` marker. Before truncation it records a SHA-1 of the full
+trimmed stdout and its byte length; the oracle compares the digest when either
+side is truncated, so a suffix beyond the cap cannot produce a false `SAME`.
+The cap is applied after collection, so it bounds evidence and parsing, not the
+child's peak RSS.
 
 `@exec.run_isolated` wraps the command in GNU `timeout` (own process group,
 kill-after 1 s) and optional `prlimit --as`. The campaign uses it for T1
@@ -110,7 +115,7 @@ All commands were run after the changes.
 
 ```text
 moon check   -> 0 errors, 0 warnings
-moon test    -> 86/86
+moon test    -> 92/92
 cmd/accept   -> 10/10 gates, including 25-template wasm/js differential
 ```
 
@@ -130,13 +135,13 @@ not a defect count; it measures distinguishable diagnostic behaviour.
 Parser campaign, 2 workers, 3 s, `--cov-every 32`:
 
 ```text
-it=128 t1=128 cov_samples=4 cov_funcs=969 coverage_adds=969
+it=128 t1=128 cov_samples=4 cov_funcs=1166 coverage_adds=1166
 ```
 
 Hybrid campaign, 2 workers, 5 s, `--cov-every 0`:
 
 ```text
-it=682 t1=682 t2=80 t2_ok=9 t3_ok=3 t3_diff=0 t3_inconclusive=0
+it=660 t1=660 t2=90 t2_ok=12 t3_ok=3 t3_diff=0 t3_runtime=0 t3_inconclusive=0
 ```
 
 ### 3.4 Differential fault injection
@@ -162,6 +167,42 @@ $ diffprobe templates/01_int_ops.mbt .
 verdict=SAME
 same=true
 ```
+
+### 3.5 Second review fixes
+
+```text
+$ diffprobe --inject truncated-suffix
+verdict=SEMANTIC_DIFF
+same=false
+
+$ diffprobe --inject truncated-same
+verdict=SAME
+same=true
+
+$ diffprobe /tmp/abort.mbt . --native
+verdict=RUNTIME_DIFF
+same=false
+wasm   stage=run         kind=ERR rc=1
+native stage=native-run  kind=SIG rc=-6
+```
+
+`exec` keeps a SHA-1 of the complete trimmed stdout and its full byte length
+before truncation. `classify_diff` compares digests when either side is
+truncated, so suffix differences beyond the evidence cap cannot become `SAME`;
+an incomparable one-sided truncation is `INCONCLUSIVE`. A real 1.1 MB +
+different-suffix injection is covered by `exec_test`.
+
+Native now separates `moon run --build-only` from executing the artifact. An
+`abort` is therefore `native-run / SIG`, and comparable runtime failure
+classes are `RUNTIME_DIFF`, not a build error or a miscompile finding.
+
+Coverage sampling no longer admits a parent when `added == 0` or rewards it
+with energy. In the persistence smoke, 91 admitted inputs produced 91 `.mbt` files and 91
+`.json` sidecars; reasons were 87 `behavior` and 4 `behavior+coverage`. Sidecars contain the full SHA-1, reason, byte length, and
+the covered-function set, and `--seed-dir <run>/corpus` replays them.
+
+The SIGKILL test (`trap '' TERM` + `timeout -k`) reports `timed_out=true`,
+`rc=-999`, and strips timeout controller messages from stderr.
 
 ## 4. Remaining limits
 

@@ -28,6 +28,9 @@ test "classify ICE and OOM markers" {
       stderr: "Oops, the compiler has encountered",
       ms: 0,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "ICE",
   )
@@ -38,15 +41,36 @@ test "classify ICE and OOM markers" {
       stderr: "Fatal error: out of memory",
       ms: 0,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "OOM",
   )
   assert_eq(
-    @exec.classify({ rc: -11, stdout: "", stderr: "", ms: 0, timed_out: false, }),
+    @exec.classify({
+      rc: -11,
+      stdout: "",
+      stderr: "",
+      ms: 0,
+      timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
+    }),
     "SIG",
   )
   assert_eq(
-    @exec.classify({ rc: 0, stdout: "", stderr: "", ms: 0, timed_out: false, }),
+    @exec.classify({
+      rc: 0,
+      stdout: "",
+      stderr: "",
+      ms: 0,
+      timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
+    }),
     "OK",
   )
 }
@@ -61,6 +85,9 @@ test "classify checks timed_out first, then stderr markers only" {
       stderr: "Oops, the compiler has encountered",
       ms: 1,
       timed_out: true,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "HANG",
   )
@@ -72,6 +99,9 @@ test "classify checks timed_out first, then stderr markers only" {
       stderr: "",
       ms: 1,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "ERR",
   )
@@ -82,6 +112,9 @@ test "classify checks timed_out first, then stderr markers only" {
       stderr: "Out_of_memory",
       ms: 1,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "OOM",
   )
@@ -92,6 +125,9 @@ test "classify checks timed_out first, then stderr markers only" {
       stderr: "Cannot allocate memory",
       ms: 1,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "OOM",
   )
@@ -102,6 +138,9 @@ test "classify checks timed_out first, then stderr markers only" {
       stderr: "Fatal error: exception Failure(\"x\")",
       ms: 1,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "OCAML_EXN",
   )
@@ -112,6 +151,9 @@ test "classify checks timed_out first, then stderr markers only" {
       stderr: "Stack overflow",
       ms: 1,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "STACK",
   )
@@ -122,6 +164,9 @@ test "classify checks timed_out first, then stderr markers only" {
       stderr: "Assert_failure",
       ms: 1,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "ASSERT",
   )
@@ -136,6 +181,9 @@ test "ice_detail takes the first Error line, trims it, and caps at 200" {
       stderr: "noise\n   Error: Boom   \nError: second\n",
       ms: 0,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "Boom",
   )
@@ -146,6 +194,9 @@ test "ice_detail takes the first Error line, trims it, and caps at 200" {
       stderr: "",
       ms: 0,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "from stdout",
   )
@@ -156,6 +207,9 @@ test "ice_detail takes the first Error line, trims it, and caps at 200" {
       stderr: "no error line\n",
       ms: 0,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }),
     "",
   )
@@ -166,6 +220,9 @@ test "ice_detail takes the first Error line, trims it, and caps at 200" {
     stderr: long,
     ms: 0,
     timed_out: false,
+    stdout_digest: "",
+    stdout_full_len: 0L,
+    stdout_truncated: false,
   })
   assert_eq(detail.length(), 200)
 }
@@ -210,4 +267,41 @@ async test "isolated timeout reaps the process group" {
     2000,
   )
   assert_true(check.rc != 0)
+}
+
+///|
+async test "truncation keeps a full-output digest" {
+  let prefix = "head -c 1100000 /dev/zero | tr '\\0' a; printf "
+  let a = @exec.run(
+    "/bin/sh",
+    ["-c", prefix + "WASM_SUFFIX"],
+    "/tmp",
+    5000,
+    max_output_bytes=1048576,
+  )
+  let b = @exec.run(
+    "/bin/sh",
+    ["-c", prefix + "JS_SUFFIX"],
+    "/tmp",
+    5000,
+    max_output_bytes=1048576,
+  )
+  assert_true(a.stdout_truncated)
+  assert_true(b.stdout_truncated)
+  assert_eq(a.stdout, b.stdout)
+  assert_true(a.stdout_digest != b.stdout_digest)
+  assert_true(a.stdout_full_len > 1100000L)
+}
+
+///|
+async test "SIGKILL escalation still reports timed_out" {
+  let r = @exec.run_isolated(
+    "/bin/sh",
+    ["-c", "trap '' TERM; while :; do :; done"],
+    "/tmp",
+    200,
+  )
+  assert_true(r.timed_out)
+  assert_eq(r.rc, -999)
+  assert_true(!r.stderr.contains("timeout: sending signal"))
 }

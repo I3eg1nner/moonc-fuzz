@@ -24,6 +24,9 @@ test "behavior signature distinguishes accept and error codes" {
     stderr: "[E3001]",
     ms: 0,
     timed_out: false,
+    stdout_digest: "",
+    stdout_full_len: 0L,
+    stdout_truncated: false,
   }
   let err : @exec.RunResult = {
     rc: 2,
@@ -31,6 +34,9 @@ test "behavior signature distinguishes accept and error codes" {
     stderr: "",
     ms: 0,
     timed_out: false,
+    stdout_digest: "",
+    stdout_full_len: 0L,
+    stdout_truncated: false,
   }
   assert_eq(behavior_sig("t1", ok), "t1|ACC|E3001")
   assert_eq(behavior_sig("t1", err), "t1|ERR|E3001")
@@ -68,6 +74,9 @@ test "json diagnostics do not collapse into one ERR bucket" {
       "\"}",
       ms: 0,
       timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
     }
   }
   let a = behavior_sig("t1", mk("unexpected token A"))
@@ -111,4 +120,17 @@ test "feedback parent selection returns a retained input" {
   }
   assert_true(saw_seed)
   assert_true(saw_new)
+}
+
+///|
+test "zero coverage growth does not admit or reward a parent" {
+  let f = feedback_new()
+  ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0))
+  assert_eq(f.entries.length(), 1)
+  let before = f.entries[0].energy
+  assert_eq(feedback_cover(f, "seed", ["f1"]), 1)
+  assert_eq(f.entries.length(), 1)
+  assert_eq(feedback_cover(f, "other", ["f1"]), 0)
+  assert_eq(f.entries.length(), 1)
+  assert_eq(f.entries[0].energy, before + 32)
 }

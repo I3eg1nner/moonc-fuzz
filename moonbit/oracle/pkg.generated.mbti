@@ -8,7 +8,7 @@ import {
 // Values
 pub async fn build_package(String, String, String, String, String, String, Int32) -> @exec.RunResult
 
-pub fn classify_diff(String, Int32, String, String, String, Int32, String, String) -> DiffClass
+pub fn classify_diff(BackendResult, BackendResult) -> DiffClass
 
 pub fn diff_class_name(DiffClass) -> String
 
@@ -20,12 +20,26 @@ pub async fn link(String, String, String, String, String, String, String, Int32)
 
 pub fn outcomes_agree(String, Int32, String, String, Int32, String) -> Bool
 
+pub fn stage_name(Stage) -> String
+
 // Errors
 
 // Types and methods
+pub(all) struct BackendResult {
+  kind : String
+  rc : Int32
+  out : String
+  stage : Stage
+  detail : String
+  truncated : Bool
+  out_digest : String
+  out_len : Int64
+}
+
 pub(all) enum DiffClass {
   Same
   SemanticDiff
+  RuntimeDiff
   AcceptDiff
   CompilerAbort
   Inconclusive
@@ -47,7 +61,23 @@ pub struct DiffResult {
   js_stage : String
   wasm_detail : String
   js_detail : String
+  wasm_truncated : Bool
+  js_truncated : Bool
+  wasm_digest : String
+  js_digest : String
+  wasm_len : Int64
+  js_len : Int64
 }
+
+pub(all) enum Stage {
+  Build
+  Link
+  Run
+  NativeRun
+}
+pub fn Stage::equal(Self, Self) -> Bool
+pub fn Stage::not_equal(Self, Self) -> Bool
+pub impl Eq for Stage
 
 // Type aliases
 

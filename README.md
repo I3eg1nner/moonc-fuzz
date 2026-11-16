@@ -162,7 +162,7 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
   `regress`、`f6matrix`、`accept`。
 
-当前 86 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 92 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
@@ -180,8 +180,13 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
    获得更高的变异预算（energy）。
 3. 所有 worker 从同一动态 corpus 加权选择父本；splice 池满了以后用新输入
    替换旧槽位，而不是拒绝新输入。
-4. T2/T3 分别统计 build 成功、run 完成、语义差分、接受性差分、编译器异常
-   和 inconclusive；后两者不会以 `same=true` 进入 finding。
+4. T2/T3 分别统计 build 成功、run 完成、语义差分、纯运行期差分、接受性差分、
+   编译器异常和 inconclusive；编译器异常和 inconclusive 不会以 `same=true`
+   进入 finding。
+5. 输出截断只作用于证据；完整 stdout 的 SHA-1 和字节数参与差分判定，截断后
+   的后缀差异不会变成 `SAME`。
+6. 被接纳的输入、准入原因和覆盖集合写入 `corpus/<hash>.mbt` 与
+   `<hash>.json`；可用 `--seed-dir <run>/corpus` 重放。
 
 `cmd/diffprobe --inject` 对构建/链接故障做真实判定函数的注入检查。当前
 coverage 采样只覆盖 T1；T2/T3 仍由行为签名和 T2 成功门控驱动。
@@ -218,7 +223,7 @@ moon test --target native
 - campaign 的 T1/T2/T3 走 `run_isolated`：GNU `timeout` 负责进程组回收，
   `prlimit` 设地址空间上限（T1 2 GiB、T2 6 GiB、T3 4–6 GiB）。原始
   `@exec.run` 仍不隔离，formatter 等直连路径未覆盖；输出在收集后截断到
-  1 MiB。
+  1 MiB，但完整 stdout 的 SHA-1 和字节数参与差分判定。
 
 ## 9. 文档
 

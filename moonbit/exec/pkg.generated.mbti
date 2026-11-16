@@ -25,6 +25,9 @@ pub(all) struct RunResult {
   stderr : String
   ms : Int64
   timed_out : Bool
+  stdout_digest : String
+  stdout_full_len : Int64
+  stdout_truncated : Bool
 }
 
 // Type aliases

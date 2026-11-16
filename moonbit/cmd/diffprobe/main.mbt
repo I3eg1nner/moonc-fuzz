@@ -8,6 +8,39 @@ fn join(a : String, b : String) -> String {
 }
 
 ///|
+fn be(
+  kind : String,
+  rc : Int32,
+  out : String,
+  stage : @oracle.Stage,
+) -> @oracle.BackendResult {
+  {
+    kind,
+    rc,
+    out,
+    stage,
+    detail: "",
+    truncated: false,
+    out_digest: "",
+    out_len: 0L,
+  }
+}
+
+///|
+fn bt(kind : String, rc : Int32, digest : String) -> @oracle.BackendResult {
+  {
+    kind,
+    rc,
+    out: "prefix\n[output truncated]",
+    stage: @oracle.Run,
+    detail: "",
+    truncated: true,
+    out_digest: digest,
+    out_len: 2000000L,
+  }
+}
+
+///|
 async fn main {
   let args = @env.args()
   if args.length() < 2 {
@@ -18,13 +51,40 @@ async fn main {
   if args[1] == "--inject" {
     let case = if args.length() >= 3 { args[2] } else { "" }
     let r = if case == "wasm-link-vs-js-build" {
-      @oracle.classify_diff("ERR", 2, "", "link", "ERR", 2, "", "build")
+      @oracle.classify_diff(
+        be("ERR", 2, "", @oracle.Link),
+        be("ERR", 2, "", @oracle.Build),
+      )
     } else if case == "wasm-run-vs-js-build" {
-      @oracle.classify_diff("OK", 0, "x", "run", "ERR", 2, "", "build")
+      @oracle.classify_diff(
+        be("OK", 0, "x", @oracle.Run),
+        be("ERR", 2, "", @oracle.Build),
+      )
     } else if case == "wasm-ice-vs-js-build" {
-      @oracle.classify_diff("ICE", 199, "", "build", "ERR", 2, "", "build")
+      @oracle.classify_diff(
+        be("ICE", 199, "", @oracle.Build),
+        be("ERR", 2, "", @oracle.Build),
+      )
+    } else if case == "native-abort" {
+      @oracle.classify_diff(
+        be("ERR", 1, "", @oracle.Run),
+        be("ERR", 134, "", @oracle.NativeRun),
+      )
+    } else if case == "truncated-suffix" {
+      @oracle.classify_diff(
+        bt("OK", 0, "wasm-full-digest"),
+        bt("OK", 0, "js-full-digest"),
+      )
+    } else if case == "truncated-same" {
+      @oracle.classify_diff(
+        bt("OK", 0, "same-full-digest"),
+        bt("OK", 0, "same-full-digest"),
+      )
     } else if case == "same-run" {
-      @oracle.classify_diff("OK", 0, "x", "run", "OK", 0, "x", "run")
+      @oracle.classify_diff(
+        be("OK", 0, "x", @oracle.Run),
+        be("OK", 0, "x", @oracle.Run),
+      )
     } else {
       println("unknown injection")
       return

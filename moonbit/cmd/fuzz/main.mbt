@@ -39,6 +39,7 @@ struct Stats {
   mut t2_ok : Int32
   mut t3_ok : Int32
   mut t3_diff : Int32
+  mut t3_runtime : Int32
   mut t3_inconclusive : Int32
   mut crashes : Int32
   mut witnesses : Int32
@@ -57,6 +58,7 @@ fn stats_new() -> Stats {
     t2_ok: 0,
     t3_ok: 0,
     t3_diff: 0,
+    t3_runtime: 0,
     t3_inconclusive: 0,
     crashes: 0,
     witnesses: 0,
@@ -77,6 +79,7 @@ struct Progress {
   mut t2_ok : Int32
   mut t3_ok : Int32
   mut t3_diff : Int32
+  mut t3_runtime : Int32
   mut t3_inconclusive : Int32
   mut crashes : Int32
   mut witnesses : Int32
@@ -94,6 +97,7 @@ fn progress_new() -> Progress {
     t2_ok: 0,
     t3_ok: 0,
     t3_diff: 0,
+    t3_runtime: 0,
     t3_inconclusive: 0,
     crashes: 0,
     witnesses: 0,
@@ -171,8 +175,16 @@ fn feedback_cover(f : Feedback, src : String, funcs : Array[String]) -> Int32 {
   let added = cov.difference(f.total_cov).len()
   if added > 0 {
     f.total_cov = f.total_cov.union(cov)
+    ignore(feedback_upsert(f, src, cov, added))
+  } else {
+    // Record the observation on an already-admitted parent, but do not admit a
+    // new input and do not grant energy when the campaign union did not grow.
+    let h = @corpus.sha1_hex(src)
+    match f.index.get(h) {
+      Some(i) => f.entries[i].cov = f.entries[i].cov.union(cov)
+      None => ()
+    }
   }
-  ignore(feedback_upsert(f, src, cov, added))
   added
 }
 
@@ -471,6 +483,32 @@ fn save_crash(
 }
 
 ///|
+/// Persist one admitted parent and the evidence that justified admission.
+/// Source and sidecar share a content-derived name; `--seed-dir <run>/corpus`
+/// can therefore replay or resume from a previous run.
+fn persist_parent(
+  cfg : Config,
+  src : String,
+  reason : String,
+  funcs : Array[String],
+) -> Unit {
+  let h = @corpus.short_hash(src)
+  let dir = join(cfg.out, "corpus")
+  @corpus.ensure_dir(dir)
+  ignore(write(join(dir, h + ".mbt"), src))
+  let meta = "{\"sha1\":\"" +
+    @corpus.sha1_hex(src) +
+    "\",\"reason\":\"" +
+    @corpus.json_escape(reason) +
+    "\",\"bytes\":" +
+    src.length().to_string() +
+    ",\"coverage_funcs\":" +
+    @trace.json_string_array(funcs) +
+    "}"
+  ignore(write(join(dir, h + ".json"), meta))
+}
+
+///|
 fn moonc_path(home : String) -> String {
   join(join(home, ".moon/bin"), "moonc")
 }
@@ -626,9 +664,9 @@ fn save_diff(
     "|" +
     r.js_rc.to_string() +
     "|" +
-    r.wasm_out +
+    (if r.wasm_truncated { r.wasm_digest } else { r.wasm_out }) +
     "|" +
-    r.js_out,
+    (if r.js_truncated { r.js_digest } else { r.js_out }),
   )
   let b = StringBuilder()
   b.write_string("{\"stage\":\"diff\",\"kind\":\"DIFF\",\"verdict\":\"")
@@ -651,7 +689,11 @@ fn save_diff(
   b.write_string(@corpus.json_escape(r.wasm_out))
   b.write_string("\",\"js_out\":\"")
   b.write_string(@corpus.json_escape(r.js_out))
-  b.write_string("\",\"wasm_detail\":\"")
+  b.write_string("\",\"wasm_truncated\":")
+  b.write_string(if r.wasm_truncated { "true" } else { "false" })
+  b.write_string(",\"js_truncated\":")
+  b.write_string(if r.js_truncated { "true" } else { "false" })
+  b.write_string(",\"wasm_detail\":\"")
   b.write_string(@corpus.json_escape(tail_text(r.wasm_detail, 4000)))
   b.write_string("\",\"js_detail\":\"")
   b.write_string(@corpus.json_escape(tail_text(r.js_detail, 4000)))
@@ -726,6 +768,8 @@ async fn worker(
       s.timeouts += 1
     }
     let k1 = @exec.classify(r1)
+    let mut cov_funcs : Array[String] = []
+    let mut cov_admitted = false
     if cfg.cov_every > 0 && !r1.timed_out && s.it % cfg.cov_every == 0 {
       let funcs = trace_t1(
         covctx,
@@ -741,7 +785,12 @@ async fn worker(
       if funcs.length() > 0 {
         s.cov_samples += 1
         prog.cov_samples += 1
-        ignore(feedback_cover(feed, src, funcs))
+        let added = feedback_cover(feed, src, funcs)
+        if added > 0 {
+          cov_funcs = funcs
+          cov_admitted = true
+          persist_parent(cfg, src, "coverage", funcs)
+        }
         s.cov_funcs = feed.total_cov.len()
         prog.cov_funcs = feed.total_cov.len()
       }
@@ -980,6 +1029,9 @@ async fn worker(
         if d.verdict == @oracle.Same {
           s.t3_ok += 1
           prog.t3_ok += 1
+        } else if d.verdict == @oracle.RuntimeDiff {
+          s.t3_runtime += 1
+          prog.t3_runtime += 1
         } else if d.verdict == @oracle.Inconclusive {
           s.t3_inconclusive += 1
           prog.t3_inconclusive += 1
@@ -1003,10 +1055,12 @@ async fn worker(
       // Only inputs that produced a new compiler behaviour enter the dynamic
       // corpus.  Coverage samples can also admit an input with a higher energy.
       ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
-      let h = @corpus.short_hash(src)
-      let corpus_dir = join(cfg.out, "corpus")
-      @corpus.ensure_dir(corpus_dir)
-      ignore(write(join(corpus_dir, h + ".mbt"), src))
+      let reason = if cov_admitted { "behavior+coverage" } else { "behavior" }
+      if cov_admitted {
+        persist_parent(cfg, src, reason, cov_funcs)
+      } else {
+        persist_parent(cfg, src, reason, [])
+      }
       // Keep the splice pool fresh even after it reaches its cap.
       if local_pool.length() < 400 {
         local_pool.push(src)
@@ -1037,6 +1091,8 @@ async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
       prog.t3_ok.to_string() +
       ",\"t3_diff\":" +
       prog.t3_diff.to_string() +
+      ",\"t3_runtime\":" +
+      prog.t3_runtime.to_string() +
       ",\"t3_inconclusive\":" +
       prog.t3_inconclusive.to_string() +
       ",\"crash_events\":" +
@@ -1052,6 +1108,18 @@ async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
     println("[mb-fuzz progress] \{line}")
   }
   stats_new()
+}
+
+///|
+fn count_corpus_files(out : String) -> Int32 {
+  let mut n = 0
+  let names = @fs.read_dir(join(out, "corpus")) catch { _ => [] }
+  for name in names {
+    if name.has_suffix(".mbt") {
+      n += 1
+    }
+  }
+  n
 }
 
 ///|
@@ -1259,6 +1327,7 @@ async fn main {
     total.t2_ok += r.t2_ok
     total.t3_ok += r.t3_ok
     total.t3_diff += r.t3_diff
+    total.t3_runtime += r.t3_runtime
     total.t3_inconclusive += r.t3_inconclusive
     total.crashes += r.crashes
     total.witnesses += r.witnesses
@@ -1285,6 +1354,8 @@ async fn main {
     total.t3_ok.to_string() +
     ",\"t3_diff\":" +
     total.t3_diff.to_string() +
+    ",\"t3_runtime\":" +
+    total.t3_runtime.to_string() +
     ",\"t3_inconclusive\":" +
     total.t3_inconclusive.to_string() +
     ",\"crash_events\":" +
@@ -1301,6 +1372,8 @@ async fn main {
     feed.coverage_adds.to_string() +
     ",\"corpus\":" +
     feed.entries.length().to_string() +
+    ",\"persisted\":" +
+    count_corpus_files(out).to_string() +
     "}"
   ignore(write(join(out, "summary.json"), summary))
   println("[mb-fuzz done] \{summary}")

@@ -8,6 +8,20 @@ pub(all) struct RunResult {
   stderr : String
   ms : Int64
   timed_out : Bool
+  /// SHA-1 of the full stdout after trimming, computed before truncation.
+  /// Empty when no cap was requested; then `stdout` is already complete.
+  stdout_digest : String
+  /// Full stdout length in bytes before truncation.
+  stdout_full_len : Int64
+  stdout_truncated : Bool
+}
+
+///|
+priv struct CappedText {
+  text : String
+  digest : String
+  full_len : Int64
+  truncated : Bool
 }
 
 ///|
@@ -41,13 +55,32 @@ pub async fn run(
   })
   let ms = @async.now() - t0
   match maybe {
-    None => { rc: -999, stdout: "", stderr: "", ms, timed_out: true, }
+    None =>
+      {
+        rc: -999,
+        stdout: "",
+        stderr: "",
+        ms,
+        timed_out: true,
+        stdout_digest: "",
+        stdout_full_len: 0L,
+        stdout_truncated: false,
+      }
     Some(res) => {
       let out = res.stdout_text() catch { _ => text_of(res.stdout_binary()) }
       let err = res.stderr_text() catch { _ => text_of(res.stderr_binary()) }
-      let out = cap_text(out, max_output_bytes)
+      let capped = cap_text(out, max_output_bytes)
       let err = cap_text(err, max_output_bytes)
-      { rc: res.exit_code, stdout: out, stderr: err, ms, timed_out: false, }
+      {
+        rc: res.exit_code,
+        stdout: capped.text,
+        stderr: err.text,
+        ms,
+        timed_out: false,
+        stdout_digest: capped.digest,
+        stdout_full_len: capped.full_len,
+        stdout_truncated: capped.truncated,
+      }
     }
   }
 }
@@ -56,10 +89,17 @@ pub async fn run(
 /// Bound collected output before it reaches classification or evidence files.
 /// This happens after the child exits, so it limits retention, not the child's
 /// peak memory; the wall-clock guard is still the primary defence.
-fn cap_text(s : String, max_bytes : Int32) -> String {
+fn cap_text(s : String, max_bytes : Int32) -> CappedText {
   if max_bytes <= 0 || s.length() <= max_bytes {
-    return s
+    return {
+      text: s,
+      digest: "",
+      full_len: s.length().to_int64(),
+      truncated: false,
+    }
   }
+  let digest = @crypto.bytes_to_hex_string(@crypto.sha1(@utf8.encode(s.trim())))
+  let full_len = s.length().to_int64()
   let b = StringBuilder()
   let mut n = 0
   for c in s {
@@ -80,7 +120,7 @@ fn cap_text(s : String, max_bytes : Int32) -> String {
     b.write_char(c)
   }
   b.write_string("\n[output truncated]")
-  b.to_string()
+  { text: b.to_string(), digest, full_len, truncated: true, }
 }
 
 ///|
@@ -97,7 +137,7 @@ pub async fn run_isolated(
   mem_mb~ : Int32 = 0,
 ) -> RunResult {
   let secs = ((timeout_ms + 999) / 1000).to_string() + "s"
-  let targs : Array[String] = ["-k", "1s", secs, cmd]
+  let targs : Array[String] = ["-v", "-k", "1s", secs, cmd]
   for a in args {
     targs.push(a)
   }
@@ -110,12 +150,44 @@ pub async fn run_isolated(
   } else {
     ("/usr/bin/timeout", targs)
   }
-  let r = run(outer, oargs, cwd, timeout_ms + 5000, max_output_bytes~)
-  if r.rc == 124 {
-    { rc: -999, stdout: r.stdout, stderr: r.stderr, ms: r.ms, timed_out: true, }
+  // Do not cap inside run: the timeout controller writes its marker to stderr
+  // at the very end, so a pre-detection cap could hide it.
+  let raw = run(outer, oargs, cwd, timeout_ms + 5000)
+  let controller_fired = raw.stderr.contains("timeout: sending signal")
+  let clean_err = if controller_fired {
+    strip_timeout_messages(raw.stderr)
+  } else {
+    raw.stderr
+  }
+  let capped_out = cap_text(raw.stdout, max_output_bytes)
+  let capped_err = cap_text(clean_err, max_output_bytes)
+  let r = {
+    rc: raw.rc,
+    stdout: capped_out.text,
+    stderr: capped_err.text,
+    ms: raw.ms,
+    timed_out: false,
+    stdout_digest: capped_out.digest,
+    stdout_full_len: capped_out.full_len,
+    stdout_truncated: capped_out.truncated,
+  }
+  if raw.timed_out || r.rc == 124 || controller_fired {
+    { ..r, rc: -999, timed_out: true, }
   } else {
     r
   }
+}
+
+///|
+fn strip_timeout_messages(stderr : String) -> String {
+  let b = StringBuilder()
+  for line in stderr.split("\n") {
+    if !line.contains("timeout: sending signal") {
+      b.write_string(line.to_owned())
+      b.write_string("\n")
+    }
+  }
+  b.to_string()
 }
 
 ///|

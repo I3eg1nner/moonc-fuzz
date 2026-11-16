@@ -87,7 +87,7 @@ Python.
 
 ## Measured results
 
-- Tests: 86 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 92 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the
@@ -99,8 +99,9 @@ Python.
   F1b/F2b/F4b are extra witnesses grouped with F1/F2/F4, not new root causes.
 - Feedback: T1 JSON signatures retain code/message/location; novel inputs enter a
   shared corpus; sampled `qemu -d exec` coverage raises parent energy. A 3 s,
-  2-worker parser smoke produced 969 distinct `camlMoonc*` functions from 4
-  samples in the local environment.
+  2-worker parser smoke produced 1,166 distinct `camlMoonc*` functions from 4
+  samples in the local environment. Admitted inputs have `.mbt` + `.json`
+  sidecars with reason and coverage set.
 
 ## Boundaries
 
