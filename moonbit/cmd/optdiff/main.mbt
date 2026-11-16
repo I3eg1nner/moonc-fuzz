@@ -837,6 +837,7 @@ async fn run_test_arm(
   label : String,
   override_core : String?,
   core_name : String,
+  repeats : Int32,
 ) -> Map[String, String]? {
   let mut link_argv = link.argv
   if remove_o0 && override_core is Some(core) {
@@ -851,33 +852,57 @@ async fn run_test_arm(
       return None
     }
   }
-  let link_cmd = match make_link_argv(link_argv, arm_path, remove_o0) {
-    Some(a) => a
-    None => return None
+  let mut base_results : Map[String, String] = Map([])
+  let mut r = 0
+  while r < repeats {
+    let repeated_path = arm_path + ".r" + r.to_string() + ".wasm"
+    let link_cmd = match make_link_argv(link_argv, repeated_path, remove_o0) {
+      Some(a) => a
+      None => return None
+    }
+    let lr = run_argv(link_cmd, root, cfg.timeout_ms, home)
+    if lr.rc != 0 {
+      println("[optdiff] link failed for \{repeated_path}: \{lr.rc}")
+      println("[optdiff] link stderr: \{lr.stderr}")
+      return None
+    }
+    let rr = run_argv(
+      make_run_argv(run, repeated_path),
+      root,
+      cfg.timeout_ms,
+      home,
+    )
+    let parsed = collect_results(rr.stdout)
+    let tag = @corpus.basename(run.wasm_path) +
+      "." +
+      label +
+      ".r" +
+      r.to_string()
+    if !write_json(@corpus.join(evidence, tag + ".stdout"), rr.stdout) ||
+      !write_json(@corpus.join(evidence, tag + ".stderr"), rr.stderr) {
+      return None
+    }
+    if rr.rc != 0 ||
+      rr.timed_out ||
+      rr.stdout_truncated ||
+      parsed.bad ||
+      parsed.duplicate ||
+      !exact_coverage(parsed.results, run.expected) {
+      println("[optdiff] test run invalid for \{repeated_path}")
+      return None
+    }
+    if r == 0 {
+      base_results = parsed.results
+    } else {
+      let c = compare_results(base_results, parsed.results, Map([]))
+      if c.changed > 0 || c.missing > 0 || c.extra > 0 {
+        println("[optdiff] unstable repeat for \{repeated_path}")
+        return None
+      }
+    }
+    r += 1
   }
-  let lr = run_argv(link_cmd, root, cfg.timeout_ms, home)
-  if lr.rc != 0 {
-    println("[optdiff] link failed for \{arm_path}: \{lr.rc}")
-    println("[optdiff] link stderr: \{lr.stderr}")
-    return None
-  }
-  let rr = run_argv(make_run_argv(run, arm_path), root, cfg.timeout_ms, home)
-  let parsed = collect_results(rr.stdout)
-  let tag = @corpus.basename(run.wasm_path) + "." + label
-  if !write_json(@corpus.join(evidence, tag + ".stdout"), rr.stdout) ||
-    !write_json(@corpus.join(evidence, tag + ".stderr"), rr.stderr) {
-    return None
-  }
-  if rr.rc != 0 ||
-    rr.timed_out ||
-    rr.stdout_truncated ||
-    parsed.bad ||
-    parsed.duplicate ||
-    !exact_coverage(parsed.results, run.expected) {
-    println("[optdiff] test run invalid for \{arm_path}")
-    return None
-  }
-  Some(parsed.results)
+  Some(base_results)
 }
 
 ///|
@@ -1136,10 +1161,21 @@ async fn run_four_cell(cfg : Config) -> Unit {
       "B0L0",
       None,
       core_name,
+      cfg.repeats,
     )
     let m0d = run_test_arm(
-      cfg, work, run, link_o0, ald, true, home, evidence, "B0Ld", override_core,
+      cfg,
+      work,
+      run,
+      link_o0,
+      ald,
+      true,
+      home,
+      evidence,
+      "B0Ld",
+      override_core,
       core_name,
+      cfg.repeats,
     )
     let md0 = run_test_arm(
       cfg,
@@ -1153,9 +1189,21 @@ async fn run_four_cell(cfg : Config) -> Unit {
       "BdL0",
       None,
       core_name,
+      cfg.repeats,
     )
     let mdd = run_test_arm(
-      cfg, work, run, link_d, add, true, home, evidence, "BdLd", override_core, core_name,
+      cfg,
+      work,
+      run,
+      link_d,
+      add,
+      true,
+      home,
+      evidence,
+      "BdLd",
+      override_core,
+      core_name,
+      cfg.repeats,
     )
     let (m00, m0d, md0, mdd) = match (m00, m0d, md0, mdd) {
       (Some(a), Some(b), Some(c), Some(d)) => (a, b, c, d)
@@ -1233,6 +1281,10 @@ async fn run_four_cell(cfg : Config) -> Unit {
     changed_total.to_string() +
     ",\"errors\":" +
     errors.to_string() +
+    ",\"repeats\":" +
+    cfg.repeats.to_string() +
+    ",\"aa\":" +
+    (if cfg.aa { "true" } else { "false" }) +
     "}"
   if !write_json(@corpus.join(cfg.out, "summary.json"), summary) {
     errors += 1
@@ -2287,8 +2339,8 @@ async fn main {
     return
   }
   if cfg.four_cell {
-    if cfg.repeats != 1 || cfg.aa {
-      println("[optdiff] four-cell does not support --repeats or --aa")
+    if cfg.aa && cfg.repeats < 2 {
+      println("[optdiff] four-cell --aa needs --repeats >= 2")
       @env.exit(2)
     }
     run_four_cell(cfg)

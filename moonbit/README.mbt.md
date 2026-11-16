@@ -142,7 +142,9 @@ differential. A missing requested test ID, a
 duplicate result, a missing `-O0`, a missing runtime command, a timeout, or a
 link failure is an error, not a `SAME` result. Exit codes are `0` for a clean
 comparison, `1` for a candidate status difference, and `2` for an invalid,
-incomplete, or no-change candidate experiment. `--aa` runs both arms with `-O0` as a negative control;
+incomplete, or no-change candidate experiment. In link-only mode, `--aa` runs
+both link arms with `-O0` as a negative control; in four-cell mode it uses the
+repeated B0L0 arm as the A/A check;
 `--fault-check` accepts only an assertion failure with a non-empty failed
 count, not an arbitrary nonzero compiler/test-runner exit. `--candidate-check`
 is the separate end-to-end control: it freezes A, mutates one implementation
@@ -155,8 +157,12 @@ guarantee metadata consistency if a test structure is mutated.
 `-O0`), and `BdLd` (both default). The default build arm is produced by
 removing `-O0` from the replayed `build-package` argv; it does not use
 `moon test --release` and therefore does not switch `assert.mbt` to
-`assert_release.mbt`. The four-cell mode currently handles one package and
-does not yet run repeats or an A/A control; those remain in link-only mode.
+`assert_release.mbt`. The four-cell mode currently handles one package. `--repeats N` relinks and
+reruns every arm N times and rejects unstable test states (the build arms are
+built once; link/run are repeated). `--aa` requires `--repeats >= 2` and uses
+the repeated B0L0 arm as the A/A check; an A/A instability is an error. A
+single candidate still needs independent confirmation before being called a
+bug.
 `--four-cell-control` is a link-injection harness control, not an optimizer
 correctness claim. It restricts to artifacts whose link argv actually contains
 the package core; artifacts without that core are skipped rather than treated
