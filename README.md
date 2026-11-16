@@ -59,6 +59,7 @@ moon run cmd/accept -- /path/to/moonc-fuzz
 ./run.sh parser 8 120          # 只跑 lexer/parser
 ./run.sh typer 8 120           # 解析通过的输入都进 typer
 ./run.sh semantic-diff 4 120   # 每个可构建输入都做 wasm/js 差分
+SEED_DIR=$PWD/templates ./run.sh typer 8 120   # 用可运行模板作为种子
 ```
 
 trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 的
@@ -241,6 +242,9 @@ moon test --target native
   队列 32；过载会丢弃并记录 `trace_dropped`。`TRACE_CPU=25` 是软预算，
   已在飞的 T3 trace 仍可能超出。
 - 覆盖仍是函数级；同一函数内的新分支不会增加集合。T3 第一版没有种子基线。
+- 60 秒 16-worker 校准写出 88,775 个文件（437 MB），feedback 父本增至
+  45,546；多小时的 campaign 必须先限制/采样行为证据和父本池，否则文件数
+  和选择开销会线性膨胀。
 - 采集器返回非零时，只有带编译器诊断的退出才算正常拒绝。wrapper 保留的
   124–127 优先判为 `collector_failed`，即使命令已写出 OOM 文本；moonc 的
   199 ICE 仍保留为 `compiler_abort`。无诊断退出和信号也单独分类，失败记录

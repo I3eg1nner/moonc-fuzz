@@ -504,3 +504,25 @@ test "relative_new is null unless baseline is complete" {
   q.baseline_complete = false
   assert_eq(relative_new_json(q, cov), "null")
 }
+
+///|
+test "diagnostic family ignores location while signature keeps it" {
+  let mk = fn(loc : String) -> @exec.RunResult {
+    {
+      rc: 2,
+      stdout: "",
+      stderr: "{\"level\":\"error\",\"error_code\":3002,\"loc\":\"" +
+      loc +
+      "\",\"message\":\"Parse error\"}",
+      ms: 0,
+      timed_out: false,
+      stdout_digest: "",
+      stdout_full_len: 0L,
+      stdout_truncated: false,
+    }
+  }
+  let a = mk("1:1")
+  let b = mk("2:8")
+  assert_true(behavior_sig("t1", a) != behavior_sig("t1", b))
+  assert_eq(behavior_family("t1", a), behavior_family("t1", b))
+}

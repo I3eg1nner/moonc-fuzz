@@ -175,7 +175,7 @@ All commands were run after the changes.
 
 ```text
 moon check   -> 0 errors, 0 warnings
-moon test    -> 105/105
+moon test    -> 106/106
 cmd/accept   -> 10/10 gates, including 25-template wasm/js differential
 ```
 
@@ -271,6 +271,32 @@ relative_new=null coverage_adds=0 baseline_unresolved=305
 The queue is deliberately allowed to drop under overload; `trace_dropped` and
 `trace_failures.jsonl` make that visible. The numbers above are smoke evidence
 that T1/T2/T3 each reach the collector, not a claim of optimal sampling.
+
+### 3.3.1 Instrumented calibration
+
+A 60 s, 16-worker hybrid calibration was used only to validate the new
+observation fields, not to estimate bug-finding ability:
+
+```text
+it=48880 t2=1333 t2_ok=205 unique_t2_ok_inputs=178
+diff_attempts=23 diff_complete=23 diff_nonempty=0
+t3_ok=23 t3_diff=0 t3_inconclusive=0
+unique_inputs=46442 behavior_sigs=36378 diagnostic_families=27998
+baseline_state=complete baseline_funcs=2165 observed_funcs=2478 relative_new=313
+coverage_adds=798 trace_completed=22 trace_dropped=1245
+```
+
+This confirms why short runs cannot answer the capability question: the fast
+loop produces many text mutations, but only 205 T2 successes in 60 s, and all
+23 differential attempts produced empty output and `SAME`. The new fields make
+those limits visible per run; they do not by themselves show whether a longer
+campaign reaches new compiler paths.
+
+The calibration also exposed an operational limit. It persisted 88,775 files
+(437 MB) and grew the feedback corpus to 45,546 parents in 60 s. Linear
+extrapolation to 2 h is about 10.6 million files; the unbounded behavior
+persistence and O(parents) parent selection must be capped or sampled before a
+multi-hour campaign is meaningful.
 
 ### 3.4 Differential fault injection### 3.4 Differential fault injection
 

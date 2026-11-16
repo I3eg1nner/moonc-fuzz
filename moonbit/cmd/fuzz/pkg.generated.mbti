@@ -12,6 +12,8 @@ type CovCtx
 
 type Feedback
 
+type JsonDiagPart
+
 type Parent
 
 type PendingTrace

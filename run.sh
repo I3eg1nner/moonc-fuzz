@@ -28,6 +28,7 @@ environment:
   TRACE_MAX_MB=256 maximum accepted QEMU log per task
   TRACE_CPU=25    adaptive trace CPU budget, percent of campaign
   BASELINE_SEEDS=8 seed traces used for U0
+  SEED_DIR=       explicit seed root (for example $ROOT/templates)
   QEMU=/tmp/AFLplusplus/afl-qemu-trace
   OUT=$ROOT/out/mb_runs
 EOF
@@ -87,5 +88,6 @@ exec "$ROOT/moonbit/_build/native/release/build/cmd/fuzz/fuzz.exe" \
   --trace-max-mb "${TRACE_MAX_MB:-256}" \
   --trace-cpu "${TRACE_CPU:-25}" \
   --baseline-seeds "${BASELINE_SEEDS:-8}" \
+  --seed-dir "${SEED_DIR:-}" \
   --qemu "${QEMU:-/tmp/AFLplusplus/afl-qemu-trace}" \
   --body-only

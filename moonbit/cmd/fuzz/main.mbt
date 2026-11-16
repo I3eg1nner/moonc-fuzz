@@ -48,10 +48,22 @@ struct Stats {
   mut t3_diff : Int32
   mut t3_runtime : Int32
   mut t3_inconclusive : Int32
+  mut t3_semantic_diff : Int32
+  mut t3_accept_diff : Int32
+  mut t3_compiler_abort : Int32
+  mut diff_attempts : Int32
+  mut diff_nonempty : Int32
+  mut finding_candidates : Int32
+  mut finding_duplicates : Int32
   mut crashes : Int32
   mut witnesses : Int32
   mut timeouts : Int32
   sigs : Map[String, Unit]
+  diag_families : Map[String, Unit]
+  inputs : Map[String, Unit]
+  t2_inputs : Map[String, Unit]
+  t2_ok_inputs : Map[String, Unit]
+  diff_inputs : Map[String, Unit]
 }
 
 ///|
@@ -65,10 +77,22 @@ fn stats_new() -> Stats {
     t3_diff: 0,
     t3_runtime: 0,
     t3_inconclusive: 0,
+    t3_semantic_diff: 0,
+    t3_accept_diff: 0,
+    t3_compiler_abort: 0,
+    diff_attempts: 0,
+    diff_nonempty: 0,
+    finding_candidates: 0,
+    finding_duplicates: 0,
     crashes: 0,
     witnesses: 0,
     timeouts: 0,
     sigs: Map([]),
+    diag_families: Map([]),
+    inputs: Map([]),
+    t2_inputs: Map([]),
+    t2_ok_inputs: Map([]),
+    diff_inputs: Map([]),
   }
 }
 
@@ -84,6 +108,10 @@ struct Progress {
   mut t3_diff : Int32
   mut t3_runtime : Int32
   mut t3_inconclusive : Int32
+  mut diff_attempts : Int32
+  mut diff_nonempty : Int32
+  mut finding_candidates : Int32
+  mut finding_duplicates : Int32
   mut crashes : Int32
   mut witnesses : Int32
   mut trace_completed : Int32
@@ -103,6 +131,10 @@ fn progress_new() -> Progress {
     t3_diff: 0,
     t3_runtime: 0,
     t3_inconclusive: 0,
+    diff_attempts: 0,
+    diff_nonempty: 0,
+    finding_candidates: 0,
+    finding_duplicates: 0,
     crashes: 0,
     witnesses: 0,
     trace_completed: 0,
@@ -664,7 +696,14 @@ fn truncate_chars(s : StringView, n : Int32) -> String {
 /// The old `[E3002]`-only extractor merged every parse error into `ERR`, which
 /// made the fuzz feedback loop blind.  Keep the code *and* the low-cardinality
 /// context (message/location) so distinct diagnostics remain distinguishable.
-fn json_diag_sig(line : StringView) -> String? {
+struct JsonDiagPart {
+  tagged : String
+  msg : String
+  loc : String
+}
+
+///|
+fn json_diag_part(line : StringView) -> JsonDiagPart? {
   let parsed = @json.parse(line) catch { _ => return None }
   match parsed {
     Object(obj) => {
@@ -699,7 +738,7 @@ fn json_diag_sig(line : StringView) -> String? {
         } else {
           prefix + code
         }
-        Some(tagged + "|" + msg + "|" + loc)
+        Some({ tagged, msg, loc, })
       }
     }
     _ => None
@@ -707,16 +746,37 @@ fn json_diag_sig(line : StringView) -> String? {
 }
 
 ///|
+fn json_diag_sig(line : StringView) -> String? {
+  match json_diag_part(line) {
+    Some(p) => Some(p.tagged + "|" + p.msg + "|" + p.loc)
+    None => None
+  }
+}
+
+///|
+fn json_diag_family(line : StringView) -> String? {
+  match json_diag_part(line) {
+    Some(p) => Some(p.tagged + "|" + p.msg)
+    None => None
+  }
+}
+
+///|
 /// Stable T1 behaviour signature.  JSON diagnostics are parsed structurally;
 /// legacy bracket codes remain as a fallback for non-JSON tool output.
-fn behavior_sig(stage : String, r : @exec.RunResult) -> String {
+fn behavior_sig_impl(
+  stage : String,
+  r : @exec.RunResult,
+  with_loc : Bool,
+) -> String {
   let seen : Map[String, Unit] = Map([])
   let parts : Array[String] = []
   let blob = r.stderr + "\n" + r.stdout
   for line in blob.split("\n") {
     let t = line.trim()
     if t.has_prefix("{") {
-      match json_diag_sig(t) {
+      let detail = if with_loc { json_diag_sig(t) } else { json_diag_family(t) }
+      match detail {
         Some(s) =>
           if !seen.contains(s) {
             seen.set(s, ())
@@ -755,6 +815,21 @@ fn behavior_sig(stage : String, r : @exec.RunResult) -> String {
     b.write_string(r.rc.to_string())
   }
   b.to_string()
+}
+
+///|
+/// Stable T1 behaviour signature.  JSON diagnostics are parsed structurally;
+/// legacy bracket codes remain as a fallback for non-JSON tool output.
+fn behavior_sig(stage : String, r : @exec.RunResult) -> String {
+  behavior_sig_impl(stage, r, true)
+}
+
+///|
+/// Scheduler-facing family: same error code and message, location omitted.
+/// Full signatures remain the evidence key; families prevent a moved token
+/// from looking like a new exploration direction.
+fn behavior_family(stage : String, r : @exec.RunResult) -> String {
+  behavior_sig_impl(stage, r, false)
 }
 
 ///|
@@ -1450,6 +1525,8 @@ async fn worker(
       None => rng.choice(seeds)
     }
     let src = @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
+    let src_hash = @corpus.sha1_hex(src)
+    s.inputs.set(src_hash, ())
     let fname = fname_of(cfg.mode)
     if !write(join(wd, fname), src) {
       continue
@@ -1470,6 +1547,7 @@ async fn worker(
     }
     let k1 = @exec.classify(r1)
     let sig = behavior_sig("t1", r1)
+    s.diag_families.set(behavior_family("t1", r1), ())
     let novel = !local_sigs.contains(sig)
     if covctx.enabled &&
       !r1.timed_out &&
@@ -1493,9 +1571,14 @@ async fn worker(
     if k1 != "OK" && k1 != "ERR" {
       s.crashes += 1
       prog.crashes += 1
+      s.finding_candidates += 1
+      prog.finding_candidates += 1
       if save_crash(cfg, "t1", r1, src, id) {
         s.witnesses += 1
         prog.witnesses += 1
+      } else {
+        s.finding_duplicates += 1
+        prog.finding_duplicates += 1
       }
       continue
     }
@@ -1650,6 +1733,7 @@ async fn worker(
       )
       s.t2 += 1
       prog.t2 += 1
+      s.t2_inputs.set(src_hash, ())
       if r2.timed_out {
         s.timeouts += 1
       }
@@ -1657,18 +1741,25 @@ async fn worker(
       if k2 == "OK" {
         s.t2_ok += 1
         prog.t2_ok += 1
+        s.t2_ok_inputs.set(src_hash, ())
       }
       if k2 != "OK" && k2 != "ERR" {
         s.crashes += 1
         prog.crashes += 1
+        s.finding_candidates += 1
+        prog.finding_candidates += 1
         if save_crash(cfg, "t2", r2, src, id) {
           s.witnesses += 1
           prog.witnesses += 1
+        } else {
+          s.finding_duplicates += 1
+          prog.finding_duplicates += 1
         }
         continue
       }
       let sig2 = behavior_sig("t2", r2)
       s.sigs.set(sig2, ())
+      s.diag_families.set(behavior_family("t2", r2), ())
       let novel2 = !local_t2_sigs.contains(sig2)
       if novel2 {
         local_t2_sigs.set(sig2, ())
@@ -1718,6 +1809,9 @@ async fn worker(
         }
       }
       if k2 == "OK" && rng.chance(cfg.p_run) {
+        s.diff_attempts += 1
+        prog.diff_attempts += 1
+        s.diff_inputs.set(src_hash, ())
         let d = if cfg.native_diff {
           @oracle.diff_native(
             moonc,
@@ -1748,6 +1842,11 @@ async fn worker(
             cfg.t2_timeout,
           )
         }
+        if d.wasm_out.trim().char_length() > 0 ||
+          d.js_out.trim().char_length() > 0 {
+          s.diff_nonempty += 1
+          prog.diff_nonempty += 1
+        }
         if d.verdict == @oracle.Same {
           s.t3_ok += 1
           prog.t3_ok += 1
@@ -1762,9 +1861,20 @@ async fn worker(
           prog.crashes += 1
           s.t3_diff += 1
           prog.t3_diff += 1
+          match d.verdict {
+            @oracle.SemanticDiff => s.t3_semantic_diff += 1
+            @oracle.AcceptDiff => s.t3_accept_diff += 1
+            @oracle.CompilerAbort => s.t3_compiler_abort += 1
+            _ => ()
+          }
+          s.finding_candidates += 1
+          prog.finding_candidates += 1
           if save_diff(cfg, d, src, id) {
             s.witnesses += 1
             prog.witnesses += 1
+          } else {
+            s.finding_duplicates += 1
+            prog.finding_duplicates += 1
           }
         }
       }
@@ -1814,6 +1924,14 @@ async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
       prog.t3_runtime.to_string() +
       ",\"t3_inconclusive\":" +
       prog.t3_inconclusive.to_string() +
+      ",\"diff_attempts\":" +
+      prog.diff_attempts.to_string() +
+      ",\"diff_nonempty\":" +
+      prog.diff_nonempty.to_string() +
+      ",\"finding_candidates\":" +
+      prog.finding_candidates.to_string() +
+      ",\"finding_duplicates\":" +
+      prog.finding_duplicates.to_string() +
       ",\"crash_events\":" +
       prog.crashes.to_string() +
       ",\"unique_witnesses\":" +
@@ -2173,13 +2291,40 @@ async fn main {
     total.t3_diff += r.t3_diff
     total.t3_runtime += r.t3_runtime
     total.t3_inconclusive += r.t3_inconclusive
+    total.t3_semantic_diff += r.t3_semantic_diff
+    total.t3_accept_diff += r.t3_accept_diff
+    total.t3_compiler_abort += r.t3_compiler_abort
+    total.diff_attempts += r.diff_attempts
+    total.diff_nonempty += r.diff_nonempty
+    total.finding_candidates += r.finding_candidates
+    total.finding_duplicates += r.finding_duplicates
     total.crashes += r.crashes
     total.witnesses += r.witnesses
     total.timeouts += r.timeouts
     for k in r.sigs.keys() {
       total.sigs.set(k, ())
     }
+    for k in r.diag_families.keys() {
+      total.diag_families.set(k, ())
+    }
+    for k in r.inputs.keys() {
+      total.inputs.set(k, ())
+    }
+    for k in r.t2_inputs.keys() {
+      total.t2_inputs.set(k, ())
+    }
+    for k in r.t2_ok_inputs.keys() {
+      total.t2_ok_inputs.set(k, ())
+    }
+    for k in r.diff_inputs.keys() {
+      total.diff_inputs.set(k, ())
+    }
   }
+  let diff_complete = total.t3_ok +
+    total.t3_runtime +
+    total.t3_semantic_diff +
+    total.t3_accept_diff +
+    total.t3_compiler_abort
   let summary = "{\"run_id\":\"" +
     @corpus.json_escape(run_id) +
     "\",\"it\":" +
@@ -2198,12 +2343,38 @@ async fn main {
     total.t3_runtime.to_string() +
     ",\"t3_inconclusive\":" +
     total.t3_inconclusive.to_string() +
+    ",\"t3_semantic_diff\":" +
+    total.t3_semantic_diff.to_string() +
+    ",\"t3_accept_diff\":" +
+    total.t3_accept_diff.to_string() +
+    ",\"t3_compiler_abort\":" +
+    total.t3_compiler_abort.to_string() +
+    ",\"diff_attempts\":" +
+    total.diff_attempts.to_string() +
+    ",\"diff_complete\":" +
+    diff_complete.to_string() +
+    ",\"diff_nonempty\":" +
+    total.diff_nonempty.to_string() +
+    ",\"finding_candidates\":" +
+    total.finding_candidates.to_string() +
+    ",\"finding_duplicates\":" +
+    total.finding_duplicates.to_string() +
     ",\"crash_events\":" +
     total.crashes.to_string() +
     ",\"unique_witnesses\":" +
     total.witnesses.to_string() +
     ",\"behavior_sigs\":" +
     total.sigs.length().to_string() +
+    ",\"diagnostic_families\":" +
+    total.diag_families.length().to_string() +
+    ",\"unique_inputs\":" +
+    total.inputs.length().to_string() +
+    ",\"unique_t2_inputs\":" +
+    total.t2_inputs.length().to_string() +
+    ",\"unique_t2_ok_inputs\":" +
+    total.t2_ok_inputs.length().to_string() +
+    ",\"unique_diff_inputs\":" +
+    total.diff_inputs.length().to_string() +
     ",\"trace_completed\":" +
     q.completed.to_string() +
     ",\"trace_failed\":" +

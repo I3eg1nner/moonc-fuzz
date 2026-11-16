@@ -88,7 +88,7 @@ Python.
 
 ## Measured results
 
-- Tests: 105 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 106 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the
@@ -121,6 +121,11 @@ Python.
   baseline tasks done and `coverage_adds=0` for seed-duplicate coverage. A
   partial baseline with `observed_funcs=2` emitted `relative_new=null` and
   `coverage_adds=0`.
+- Campaign summaries now include `unique_inputs`, `unique_t2_inputs`,
+  `unique_t2_ok_inputs`, `unique_diff_inputs`, `diff_attempts`,
+  `diff_complete`, `diff_nonempty`, `diagnostic_families`,
+  `finding_candidates`, and `finding_duplicates`. `SEED_DIR` lets the launcher
+  use an explicit corpus such as `templates/`.
 
 ## Boundaries
 
