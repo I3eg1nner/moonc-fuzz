@@ -86,3 +86,33 @@ test "collector accepts a clean exit and rejects an empty trace" {
   assert_true(empty == CollectorFailed)
   assert_eq(reason, "empty_trace")
 }
+
+///|
+test "wrapper status wins over OOM-looking command output" {
+  let (outcome, failure) = classify_collection(
+    trace_test_run(127, "Cannot allocate memory", false),
+    1L,
+    1024L,
+  )
+  assert_true(outcome == CollectorFailed)
+  assert_eq(failure, "collector_exit=127")
+}
+
+///|
+test "moonc ICE status 199 is not mistaken for a wrapper failure" {
+  let (ice, _) = classify_collection(
+    trace_test_run(
+      199, "Oops, the compiler has encountered an unexpected situation.", false,
+    ),
+    1L,
+    1024L,
+  )
+  assert_true(ice == CompilerAbort)
+  let (unknown, reason) = classify_collection(
+    trace_test_run(199, "", false),
+    1L,
+    1024L,
+  )
+  assert_true(unknown == CollectorFailed)
+  assert_eq(reason, "unclassified_exit=199")
+}

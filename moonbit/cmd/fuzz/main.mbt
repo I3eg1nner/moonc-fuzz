@@ -1036,6 +1036,18 @@ fn trace_baseline_state(q : TraceQueue) -> String {
 }
 
 ///|
+/// `relative_new` is only meaningful against a frozen, complete U0.  A
+/// disabled/pending/incomplete baseline keeps `observed_funcs` for diagnosis
+/// but emits JSON null instead of a number that would look like coverage gain.
+fn relative_new_json(q : TraceQueue, cov : TraceUniverse) -> String {
+  if trace_baseline_state(q) == "complete" {
+    cov.observed_total.difference(cov.baseline_total).len().to_string()
+  } else {
+    "null"
+  }
+}
+
+///|
 fn trace_record_evidence(
   cfg : Config,
   task : TraceTask,
@@ -2233,7 +2245,7 @@ async fn main {
     ",\"observed_funcs\":" +
     cov.observed_total.len().to_string() +
     ",\"relative_new\":" +
-    cov.observed_total.difference(cov.baseline_total).len().to_string() +
+    relative_new_json(q, cov) +
     ",\"coverage_adds\":" +
     cov.coverage_adds.to_string() +
     ",\"coverage_keys\":" +

@@ -489,3 +489,18 @@ test "a dropped baseline task makes U0 incomplete" {
   assert_eq(trace_baseline_state(q), "incomplete")
   assert_eq(q.baseline_complete, false)
 }
+
+///|
+test "relative_new is null unless baseline is complete" {
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  cov.baseline_total = @cov.FuncSet::new(["f1"])
+  cov.observed_total = @cov.FuncSet::new(["f1", "f2"])
+  assert_eq(relative_new_json(q, cov), "null")
+  q.baseline_expected = 1
+  q.baseline_settled = true
+  q.baseline_complete = true
+  assert_eq(relative_new_json(q, cov), "1")
+  q.baseline_complete = false
+  assert_eq(relative_new_json(q, cov), "null")
+}

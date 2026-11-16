@@ -88,7 +88,7 @@ Python.
 
 ## Measured results
 
-- Tests: 102 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 105 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the
@@ -115,8 +115,12 @@ Python.
 - Fault injection: a synthetic collector made a T1-only 2 s campaign complete
   304 traces instead of stopping after one. Exit 127 after a valid PC produced
   348 `collector_failed` records, zero accepted/rejected, and zero coverage
-  adds. A delayed-baseline run completed 516 traces with all four baseline
-  tasks done and `coverage_adds=0` for seed-duplicate coverage.
+  adds. Exit 127 plus `Cannot allocate memory` also stays
+  `collector_failed`; exit 199 with the real ICE banner stays
+  `compiler_abort`. A delayed-baseline run completed 516 traces with all four
+  baseline tasks done and `coverage_adds=0` for seed-duplicate coverage. A
+  partial baseline with `observed_funcs=2` emitted `relative_new=null` and
+  `coverage_adds=0`.
 
 ## Boundaries
 
@@ -130,8 +134,9 @@ Python.
 - Coverage is function-level: a new branch inside an already-covered function
   does not increase the set. QEMU execution events are used, not translation
   events. T3 has no seed baseline in the first version. If any baseline task
-  fails or is dropped, `baseline_state=incomplete`; `relative_new` and
-  `coverage_adds` are not a trusted campaign result in that run.
+  fails or is dropped, `baseline_state=incomplete`; `relative_new` is JSON
+  `null` and `coverage_adds` stays zero in that run. `observed_funcs` remains
+  available for diagnosis.
 - Campaign T1/T2/T3 use `run_isolated` (GNU timeout process-group cleanup +
   `prlimit`); raw `@exec.run` call sites remain unisolated. Output is capped
   after collection.

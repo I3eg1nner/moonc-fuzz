@@ -91,11 +91,12 @@ fn is_compiler_abort(kind : String) -> Bool {
 }
 
 ///|
-/// Exit statuses used by the shell/timeout wrapper itself, not by moonc.  A
+/// Exit statuses reserved by the GNU timeout wrapper, not by moonc.  A
 /// valid-looking PC written before such an exit is not evidence that this run
-/// exercised the requested compiler path.
+/// exercised the requested compiler path.  Do not extend this to arbitrary
+/// >=128 statuses: moonc itself uses 199 for real ICEs.
 fn is_collector_exit(rc : Int32) -> Bool {
-  rc == 124 || rc == 125 || rc == 126 || rc == 127 || rc >= 128
+  rc == 124 || rc == 125 || rc == 126 || rc == 127
 }
 
 ///|
@@ -136,10 +137,12 @@ fn classify_collection(
     (CollectorFailed, "trace_too_large")
   } else if r.rc == 0 {
     (Accepted, "")
+  } else if is_collector_exit(r.rc) {
+    // Wrapper status wins even if the command wrote OOM/ICE-looking text
+    // before the wrapper failed.
+    (CollectorFailed, "collector_exit=" + r.rc.to_string())
   } else if is_compiler_abort(@exec.classify(r)) {
     (CompilerAbort, "")
-  } else if is_collector_exit(r.rc) {
-    (CollectorFailed, "collector_exit=" + r.rc.to_string())
   } else if has_compiler_diagnostic(r) {
     (Rejected, "")
   } else {

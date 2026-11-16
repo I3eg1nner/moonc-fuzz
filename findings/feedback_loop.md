@@ -73,9 +73,11 @@ string. `outcome` is `accepted`, `rejected`, `compiler_abort`, or
 `collector_failed` with `complete=false`; they are written to
 `trace_failures.jsonl` and never enter a coverage union. A non-zero compiler
 exit is `rejected` only when it carries a compiler diagnostic (`[E...]`,
-`Error:`, or JSON `"level":"error"`). Shell exits 124–127, exits ≥128,
-undiagnosed exits, and signals are classified separately; the failure record
-keeps `rc` and a machine-readable reason. This removes the old `[]` ambiguity
+`Error:`, or JSON `"level":"error"`). Wrapper exits 124–127 are checked before
+compiler markers, so exit 127 plus OOM-looking stderr is still a collector
+failure; moonc's real ICE status 199 remains `compiler_abort`. Undiagnosed
+exits and signals are classified separately, and the failure record keeps `rc`
+and a machine-readable reason. This removes the old `[]` ambiguity
 between “no coverage” and “collection failed”.
 
 Coverage is maintained as `U[config, stage, outcome]`. For a complete result:
@@ -99,9 +101,12 @@ are buffered until every submitted baseline task has completed or failed; U0
 is then frozen and deltas are computed. `summary.json` reports
 `baseline_state` (`disabled`/`pending`/`complete`/`incomplete`),
 `baseline_failed`, `baseline_pending`, `baseline_unresolved`, `baseline_funcs`,
-`observed_funcs`, `relative_new = |observed − baseline|`, `coverage_adds`, and
-`coverage_keys`. A failed or dropped baseline task makes U0 incomplete: buffered
-candidates are counted as unresolved and receive no coverage reward. The 7,916
+`observed_funcs`, `relative_new`, `coverage_adds`, and `coverage_keys`.
+`relative_new = |observed − baseline|` is numeric only when
+`baseline_state=complete`; disabled, pending, or incomplete baselines emit JSON
+`null` while `observed_funcs` remains for diagnosis. A failed or dropped
+baseline task makes U0 incomplete: buffered candidates are counted as unresolved
+and receive no coverage reward. The 7,916
 historical union is not used as the campaign baseline.
 
 `trace_cpu_pct` (default 25) is a soft budget: adaptive tracing stops submitting
@@ -170,7 +175,7 @@ All commands were run after the changes.
 
 ```text
 moon check   -> 0 errors, 0 warnings
-moon test    -> 102/102
+moon test    -> 105/105
 cmd/accept   -> 10/10 gates, including 25-template wasm/js differential
 ```
 
@@ -210,7 +215,7 @@ T3 link trace, 100% link sampling, one successful core snapshot:
 
 ```text
 trace_completed=2 trace_failed=0 trace_dropped=5
-observed_funcs=568 relative_new=568 coverage_keys=1
+observed_funcs=568 relative_new=null coverage_keys=1
 ```
 
 Fault injection, using a synthetic collector rather than QEMU:
@@ -237,6 +242,30 @@ candidates completed after 1 s):
 trace_completed=516 baseline_done=4 baseline_failed=0
 baseline_state=complete baseline_funcs=1 observed_funcs=1
 relative_new=0 coverage_adds=0
+```
+
+An exit-127 collector that also writes `Cannot allocate memory`:
+
+```text
+trace_completed=0 trace_failed=368 trace_aborts=0
+observed_funcs=0 coverage_adds=0
+trace_failures.jsonl: rc=127 failure="collector_exit=127"
+```
+
+A real exit-199 ICE:
+
+```text
+trace_completed=351 trace_aborts=351 trace_failed=0
+observed_funcs=1 coverage_adds=1
+```
+
+A partial baseline (T1 baseline succeeded, T2 baseline failed) with later
+candidate coverage:
+
+```text
+baseline_done=1 baseline_failed=1 baseline_state=incomplete
+baseline_funcs=1 observed_funcs=2
+relative_new=null coverage_adds=0 baseline_unresolved=305
 ```
 
 The queue is deliberately allowed to drop under overload; `trace_dropped` and

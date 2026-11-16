@@ -195,7 +195,8 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 5. 启动时先对少量种子测 U0，并用完成屏障冻结：baseline 未完成前候选结果
    只缓存，不计算增量。任一 baseline 失败或丢弃时，summary 标记
    `baseline_state=incomplete`，缓存候选转为 `baseline_unresolved`，不发放
-   覆盖奖励；不会把部分 U0 当作完整基线。
+   覆盖奖励；不会把部分 U0 当作完整基线。只有 `baseline_state=complete`
+   时 `relative_new` 才是数字，否则为 JSON `null`，`observed_funcs` 仍保留。
 6. T2/T3 分别统计 build 成功、run 完成、语义差分、纯运行期差分、接受性差分、
    编译器异常和 inconclusive；编译器异常和 inconclusive 不会以 `same=true`
    进入 finding。
@@ -240,9 +241,10 @@ moon test --target native
   队列 32；过载会丢弃并记录 `trace_dropped`。`TRACE_CPU=25` 是软预算，
   已在飞的 T3 trace 仍可能超出。
 - 覆盖仍是函数级；同一函数内的新分支不会增加集合。T3 第一版没有种子基线。
-- 采集器返回非零时，只有带编译器诊断的退出才算正常拒绝；shell 的
-  124–127、≥128、无诊断退出和信号前置的异常都进入
-  `collector_failed`/`compiler_abort`，失败记录保留 rc 和原因。
+- 采集器返回非零时，只有带编译器诊断的退出才算正常拒绝。wrapper 保留的
+  124–127 优先判为 `collector_failed`，即使命令已写出 OOM 文本；moonc 的
+  199 ICE 仍保留为 `compiler_abort`。无诊断退出和信号也单独分类，失败记录
+  保留 rc 和原因。
 - campaign 的 T1/T2/T3 走 `run_isolated`：GNU `timeout` 负责进程组回收，
   `prlimit` 设地址空间上限（T1 2 GiB、T2 6 GiB、T3 4–6 GiB）。原始
   `@exec.run` 仍不隔离，formatter 等直连路径未覆盖；输出在收集后截断到
