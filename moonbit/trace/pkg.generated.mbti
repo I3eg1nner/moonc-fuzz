@@ -2,6 +2,8 @@
 package "I3eg1nner/mbtfuzz/trace"
 
 // Values
+pub async fn collect(String, String, Array[String], String, String, SymTab, String, String, String, Int32, Int64) -> TraceResult
+
 pub fn json_string_array(Array[String]) -> String
 
 pub fn parse_hex_u64(StringView) -> UInt64?
@@ -11,6 +13,8 @@ pub fn parse_trace_pc(StringView) -> UInt64?
 pub fn short_name(StringView) -> String
 
 pub fn summarize_trace(String, SymTab) -> TraceSummary
+
+pub fn trace_outcome_name(TraceOutcome) -> String
 
 // Errors
 
@@ -30,6 +34,28 @@ pub fn SymTab::len(Self) -> Int32
 pub fn SymTab::parse(String) -> Self
 pub fn SymTab::range_of(Self, String) -> (UInt64, UInt64)?
 pub fn SymTab::text_range(Self) -> (UInt64, UInt64)
+
+pub(all) enum TraceOutcome {
+  Accepted
+  Rejected
+  CompilerAbort
+  CollectorFailed
+}
+pub fn TraceOutcome::equal(Self, Self) -> Bool
+pub fn TraceOutcome::not_equal(Self, Self) -> Bool
+pub impl Eq for TraceOutcome
+
+pub(all) struct TraceResult {
+  input_hash : String
+  config_hash : String
+  stage : String
+  outcome : TraceOutcome
+  complete : Bool
+  functions : Array[String]
+  elapsed_ms : Int64
+  trace_bytes : Int64
+  detail : String
+}
 
 pub struct TraceSummary {
   funcs : Array[String]

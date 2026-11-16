@@ -20,7 +20,14 @@ usage: ./run.sh [parser|typer|semantic-diff|hybrid] [workers] [seconds] [mode]
 environment:
   P_DEEP=50       percent of parseable inputs sent to T2
   P_RUN=10        percent of buildable inputs sent to T3
-  COV_EVERY=64    trace every Nth T1 input (0 disables QEMU tracing)
+  TRACE_T1=20     percent of eligible T1 inputs sampled for trace
+  TRACE_T2=70     percent of eligible T2 inputs sampled for trace
+  TRACE_T3=10     percent of buildable inputs sampled for link trace
+  TRACE_WORKERS=3 background trace workers
+  TRACE_QUEUE=32  bounded queue length
+  TRACE_MAX_MB=256 maximum accepted QEMU log per task
+  TRACE_CPU=25    adaptive trace CPU budget, percent of campaign
+  BASELINE_SEEDS=8 seed traces used for U0
   QEMU=/tmp/AFLplusplus/afl-qemu-trace
   OUT=$ROOT/out/mb_runs
 EOF
@@ -72,6 +79,13 @@ exec "$ROOT/moonbit/_build/native/release/build/cmd/fuzz/fuzz.exe" \
   --duration "$DUR" \
   --p-deep "$P_DEEP" \
   --p-run "$P_RUN" \
-  --cov-every "${COV_EVERY:-64}" \
+  --trace-t1 "${TRACE_T1:-20}" \
+  --trace-t2 "${TRACE_T2:-70}" \
+  --trace-t3 "${TRACE_T3:-10}" \
+  --trace-workers "${TRACE_WORKERS:-3}" \
+  --trace-queue "${TRACE_QUEUE:-32}" \
+  --trace-max-mb "${TRACE_MAX_MB:-256}" \
+  --trace-cpu "${TRACE_CPU:-25}" \
+  --baseline-seeds "${BASELINE_SEEDS:-8}" \
   --qemu "${QEMU:-/tmp/AFLplusplus/afl-qemu-trace}" \
   --body-only

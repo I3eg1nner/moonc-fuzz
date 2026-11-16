@@ -2,6 +2,7 @@ import {
   "moonbitlang/core/async",
   "moonbitlang/core/env",
   "moonbitlang/core/json",
+  "moonbitlang/x/crypto",
   "moonbitlang/x/fs",
   "I3eg1nner/mbtfuzz/exec",
   "I3eg1nner/mbtfuzz/mutate",

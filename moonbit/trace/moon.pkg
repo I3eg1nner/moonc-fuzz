@@ -1,1 +1,4 @@
-// trace package: no dependencies
+import {
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/exec",
+}

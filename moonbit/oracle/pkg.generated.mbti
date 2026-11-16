@@ -18,6 +18,8 @@ pub async fn diff_program(String, String, String, String, String, String, String
 
 pub async fn link(String, String, String, String, String, String, String, Int32) -> @exec.RunResult
 
+pub fn link_args(String, String, String, String, String, String, String) -> Array[String]
+
 pub fn outcomes_agree(String, Int32, String, String, Int32, String) -> Bool
 
 pub fn stage_name(Stage) -> String

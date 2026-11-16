@@ -33,7 +33,7 @@ moon check && moon test
 
 | Package | Role |
 |---|---|
-| `trace/` | `nm -n` symbol table + QEMU `-d exec` trace → function set |
+| `trace/` | `nm -n` symbol table + QEMU `-d exec`; structured `TraceResult` collector |
 | `cov/` | JSON function-set algebra, union/intersection/diff, greedy minimization |
 | `mutate/` | structure-aware mutator, deterministic splitmix64 RNG |
 | `exec/` | async child-process runner with hard timeout and output cap |
@@ -41,7 +41,7 @@ moon check && moon test
 | `oracle/` | wasm/js and wasm/native build + link + run differential |
 | `cmd/trace2funcs` | offline trace converter |
 | `cmd/cov` | coverage JSON CLI |
-| `cmd/fuzz` | T1/T2/T3 campaign driver with dynamic corpus and sampled QEMU coverage |
+| `cmd/fuzz` | T1/T2/T3 campaign driver with dynamic corpus and background trace queue |
 | `cmd/bytefuzz` | byte-level fuzzer for invalid UTF-8 |
 | `cmd/diffprobe` | one-program differential probe |
 | `cmd/regress` | 12-case defect regression (F1–F6, P1) |
@@ -59,7 +59,8 @@ moon test
 moon run cmd/fuzz -- \
   --root .. --out ../out/mb_campaign \
   --mode mbt --workers 48 --duration 120 --p-deep 50 --p-run 10 \
-  --cov-every 64 --body-only
+  --trace-t1 20 --trace-t2 70 --trace-t3 10 \
+  --trace-workers 3 --trace-queue 32 --trace-cpu 25 --body-only
 
 # Or use the launcher presets: parser, typer, semantic-diff, hybrid.
 ../run.sh hybrid 8 120
@@ -97,10 +98,12 @@ Python.
 - `regress`: 12/12, including the 10-line F6 native-export repro.
 - Campaigns: 126k mbt, 223k moon.pkg, 83k .mbt.md, 111k .mbti, 140k moon.mod.
   F1b/F2b/F4b are extra witnesses grouped with F1/F2/F4, not new root causes.
-- Feedback: T1 JSON signatures retain code/message/location; novel inputs enter a
-  shared corpus; sampled `qemu -d exec` coverage raises parent energy. A 3 s,
-  2-worker parser smoke produced 1,166 distinct `camlMoonc*` functions from 4
-  samples in the local environment. Admitted inputs have `.mbt` + `.json`
+- Feedback: fast T1/T2/T3 paths only produce candidates. A bounded background
+  queue replays the exact argv under QEMU; T2 gets 70% of the trace budget,
+  T1 20%, link 10%. Coverage is keyed by `(config, stage, outcome)`, and only a
+  non-empty `Coverage(x) - U` admits and rewards a parent. A mixed 10 s smoke
+  observed 1,539 baseline functions, 1,689 observed and 150 seed-relative new
+  functions with two trace workers. Admitted inputs have `.mbt` + `.json`
   sidecars with reason and coverage set.
 
 ## Boundaries
@@ -112,10 +115,12 @@ Python.
 - The differential oracle compares a declared output contract (rc, stdout,
   failure class) only after both sides reach `run`; build/link failures are
   classified separately and never reported as `same=true`.
-- Coverage feedback samples T1 only; T2/T3 remain gated by T1 behaviour and T2
-  success. Campaign T1/T2/T3 use `run_isolated` (GNU timeout process-group
-  cleanup + `prlimit`); raw `@exec.run` call sites remain unisolated. Output is
-  capped after collection.
+- Coverage is function-level: a new branch inside an already-covered function
+  does not increase the set. QEMU execution events are used, not translation
+  events. T3 has no seed baseline in the first version.
+- Campaign T1/T2/T3 use `run_isolated` (GNU timeout process-group cleanup +
+  `prlimit`); raw `@exec.run` call sites remain unisolated. Output is capped
+  after collection.
 
 ## License
 

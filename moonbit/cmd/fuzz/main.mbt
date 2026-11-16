@@ -25,8 +25,15 @@ struct Config {
   mut seed : UInt64
   mut run_id : String
   mut campaign : String
-  mut cov_every : Int32
   mut qemu : String
+  mut trace_t1 : Double
+  mut trace_t2 : Double
+  mut trace_t3 : Double
+  mut trace_workers : Int32
+  mut trace_queue : Int32
+  mut trace_max_mb : Int32
+  mut trace_cpu_pct : Int32
+  mut baseline_seeds : Int32
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -44,8 +51,6 @@ struct Stats {
   mut crashes : Int32
   mut witnesses : Int32
   mut timeouts : Int32
-  mut cov_samples : Int32
-  mut cov_funcs : Int32
   sigs : Map[String, Unit]
 }
 
@@ -63,8 +68,6 @@ fn stats_new() -> Stats {
     crashes: 0,
     witnesses: 0,
     timeouts: 0,
-    cov_samples: 0,
-    cov_funcs: 0,
     sigs: Map([]),
   }
 }
@@ -83,8 +86,9 @@ struct Progress {
   mut t3_inconclusive : Int32
   mut crashes : Int32
   mut witnesses : Int32
-  mut cov_samples : Int32
-  mut cov_funcs : Int32
+  mut trace_completed : Int32
+  mut trace_failed : Int32
+  mut trace_dropped : Int32
   mut done : Int32
 }
 
@@ -101,8 +105,9 @@ fn progress_new() -> Progress {
     t3_inconclusive: 0,
     crashes: 0,
     witnesses: 0,
-    cov_samples: 0,
-    cov_funcs: 0,
+    trace_completed: 0,
+    trace_failed: 0,
+    trace_dropped: 0,
     done: 0,
   }
 }
@@ -123,18 +128,11 @@ struct Parent {
 struct Feedback {
   entries : Array[Parent]
   index : Map[String, Int32]
-  mut total_cov : @cov.FuncSet
-  mut coverage_adds : Int32
 }
 
 ///|
 fn feedback_new() -> Feedback {
-  {
-    entries: [],
-    index: Map([]),
-    total_cov: @cov.FuncSet::new([]),
-    coverage_adds: 0,
-  }
+  { entries: [], index: Map([]), }
 }
 
 ///|
@@ -146,9 +144,6 @@ fn feedback_upsert(
 ) -> Bool {
   let h = @corpus.sha1_hex(src)
   let bonus = if added > 0 { 32 } else if cov.len() > 0 { 6 } else { 1 }
-  if added > 0 {
-    f.coverage_adds += added
-  }
   match f.index.get(h) {
     Some(i) => {
       let e = f.entries[i]
@@ -165,27 +160,6 @@ fn feedback_upsert(
       true
     }
   }
-}
-
-///|
-/// Observe a real compiler-function cover set.  Returns the number of functions
-/// this input added to the campaign union.
-fn feedback_cover(f : Feedback, src : String, funcs : Array[String]) -> Int32 {
-  let cov = @cov.FuncSet::new(funcs)
-  let added = cov.difference(f.total_cov).len()
-  if added > 0 {
-    f.total_cov = f.total_cov.union(cov)
-    ignore(feedback_upsert(f, src, cov, added))
-  } else {
-    // Record the observation on an already-admitted parent, but do not admit a
-    // new input and do not grant energy when the campaign union did not grow.
-    let h = @corpus.sha1_hex(src)
-    match f.index.get(h) {
-      Some(i) => f.entries[i].cov = f.entries[i].cov.union(cov)
-      None => ()
-    }
-  }
-  added
 }
 
 ///|
@@ -217,6 +191,198 @@ struct CovCtx {
   enabled : Bool
   qemu : String
   sym : @trace.SymTab
+  config_hash : String
+  moonc : String
+  builtin : String
+  prelude : String
+  all_pkgs : String
+  pkg : String
+  bundle : String
+  core_dir : String
+  pkg_config : String
+}
+
+///|
+struct TraceTask {
+  stage : String
+  input_hash : String
+  config_hash : String
+  src : String
+  compiled : String
+  fname : String
+  core_path : String
+  baseline : Bool
+}
+
+///|
+struct TraceQueue {
+  tasks : Array[TraceTask]
+  seen : Map[String, Unit]
+  mut dropped : Int32
+  mut fast_done : Int32
+  mut completed : Int32
+  mut accepted : Int32
+  mut rejected : Int32
+  mut aborts : Int32
+  mut failed : Int32
+  mut baseline_done : Int32
+  mut baseline_ms : Int64
+  mut t1_ms : Int64
+  mut t2_ms : Int64
+  mut t3_ms : Int64
+  mut trace_ms : Int64
+  mut trace_bytes : Int64
+}
+
+///|
+fn trace_queue_new() -> TraceQueue {
+  {
+    tasks: [],
+    seen: Map([]),
+    dropped: 0,
+    fast_done: 0,
+    completed: 0,
+    accepted: 0,
+    rejected: 0,
+    aborts: 0,
+    failed: 0,
+    baseline_done: 0,
+    baseline_ms: 0L,
+    t1_ms: 0L,
+    t2_ms: 0L,
+    t3_ms: 0L,
+    trace_ms: 0L,
+    trace_bytes: 0L,
+  }
+}
+
+///|
+fn trace_priority(task : TraceTask) -> Int32 {
+  if task.baseline {
+    0
+  } else if task.stage == "t2" {
+    1
+  } else if task.stage == "t3" {
+    2
+  } else {
+    3
+  }
+}
+
+///|
+fn trace_stage_ms(q : TraceQueue, stage : String) -> Int64 {
+  if stage == "t1" {
+    q.t1_ms
+  } else if stage == "t2" {
+    q.t2_ms
+  } else {
+    q.t3_ms
+  }
+}
+
+///|
+fn trace_stage_share(stage : String) -> Int64 {
+  if stage == "t2" {
+    70L
+  } else if stage == "t1" {
+    20L
+  } else {
+    10L
+  }
+}
+
+///|
+/// Pop the highest-priority task whose stage is still below its trace-time
+/// share.  This is a time budget, not a submission probability: T2 traces cost
+/// more than T1, so equal candidate counts would not give a 70/20/10 split.
+fn trace_pop(q : TraceQueue) -> TraceTask? {
+  if q.tasks.length() == 0 {
+    return None
+  }
+  let total = q.t1_ms + q.t2_ms + q.t3_ms
+  let mut best = -1
+  let mut best_p = 99
+  for i in 0..<q.tasks.length() {
+    let task = q.tasks[i]
+    if task.baseline {
+      return Some(q.tasks.remove(i))
+    }
+    let over = total > 0L &&
+      trace_stage_ms(q, task.stage) * 100L >=
+      total * trace_stage_share(task.stage)
+    if !over {
+      let p = trace_priority(task)
+      if p < best_p {
+        best = i
+        best_p = p
+      }
+    }
+  }
+  if best < 0 {
+    None
+  } else {
+    Some(q.tasks.remove(best))
+  }
+}
+
+///|
+fn trace_key(task : TraceTask) -> String {
+  task.stage + "|" + task.input_hash + "|" + task.config_hash
+}
+
+///|
+fn trace_submit(
+  cfg : Config,
+  q : TraceQueue,
+  stage : String,
+  src : String,
+  compiled : String,
+  fname : String,
+  core_path : String,
+  baseline : Bool,
+  config_hash : String,
+) -> Bool {
+  let task : TraceTask = {
+    stage,
+    input_hash: @corpus.sha1_hex(src),
+    config_hash: config_hash + "|entry=" + stage,
+    src,
+    compiled,
+    fname,
+    core_path,
+    baseline,
+  }
+  let key = trace_key(task)
+  if q.seen.contains(key) {
+    return false
+  }
+  if q.tasks.length() >= cfg.trace_queue {
+    q.dropped += 1
+    return false
+  }
+  q.seen.set(key, ())
+  q.tasks.push(task)
+  true
+}
+
+///|
+struct TraceUniverse {
+  by_key : Map[String, @cov.FuncSet]
+  rewarded : Map[String, Unit]
+  mut baseline_total : @cov.FuncSet
+  mut observed_total : @cov.FuncSet
+  mut coverage_adds : Int32
+}
+
+///|
+fn trace_universe_new() -> TraceUniverse {
+  {
+    by_key: Map([]),
+    rewarded: Map([]),
+    baseline_total: @cov.FuncSet::new([]),
+    observed_total: @cov.FuncSet::new([]),
+    coverage_adds: 0,
+  }
 }
 
 ///|
@@ -509,6 +675,12 @@ fn persist_parent(
 }
 
 ///|
+fn file_sha1(path : String) -> String {
+  let b = @fs.read_file_to_bytes(path) catch { _ => Bytes::new(0) }
+  @crypto.bytes_to_hex_string(@crypto.sha1(b))
+}
+
+///|
 fn moonc_path(home : String) -> String {
   join(join(home, ".moon/bin"), "moonc")
 }
@@ -573,6 +745,39 @@ fn t1_args(
 }
 
 ///|
+fn t2_args(
+  pkg : String,
+  builtin : String,
+  prelude : String,
+  all_pkgs : String,
+) -> Array[String] {
+  [
+    "build-package",
+    "in.mbt",
+    "-o",
+    "out_wasm.core",
+    "-pkg",
+    pkg,
+    "-pkg-type",
+    "executable",
+    "-i",
+    builtin + ":moonbitlang/core/builtin",
+    "-i",
+    prelude + ":prelude",
+    "-pkg-sources",
+    pkg + ":.",
+    "-target",
+    "wasm",
+    "-g",
+    "-O0",
+    "-workspace-path",
+    ".",
+    "-all-pkgs",
+    all_pkgs,
+  ]
+}
+
+///|
 async fn run_t1(
   moonc : String,
   wd : String,
@@ -592,53 +797,171 @@ async fn run_t1(
 }
 
 ///|
-/// Run T1 under QEMU, then symbolize the executed PCs with the campaign's nm
-/// table.  This is the real coverage source used by the feedback loop; it is
-/// sampled (default: every 64th input) because tracing costs about one second
-/// and writes ~17 MiB even for a tiny input.
-async fn trace_t1(
-  ctx : CovCtx,
-  moonc : String,
-  wd : String,
-  mode : String,
-  fname : String,
-  builtin : String,
-  prelude : String,
-  tag : String,
-  timeout_ms : Int32,
-) -> Array[String] {
-  if !ctx.enabled {
-    return []
+fn trace_apply(
+  cfg : Config,
+  task : TraceTask,
+  tr : @trace.TraceResult,
+  cov : TraceUniverse,
+  feed : Feedback,
+  q : TraceQueue,
+) -> Unit {
+  q.trace_ms += tr.elapsed_ms
+  q.trace_bytes += tr.trace_bytes
+  if !tr.complete {
+    q.failed += 1
+    @corpus.append_line(
+      join(cfg.out, "trace_failures.jsonl"),
+      "{\"input_hash\":\"" +
+      tr.input_hash +
+      "\",\"stage\":\"" +
+      tr.stage +
+      "\",\"outcome\":\"" +
+      @trace.trace_outcome_name(tr.outcome) +
+      "\",\"trace_bytes\":" +
+      tr.trace_bytes.to_string() +
+      ",\"elapsed_ms\":" +
+      tr.elapsed_ms.to_string() +
+      ",\"detail\":\"" +
+      @corpus.json_escape(tr.detail) +
+      "\"}",
+    )
+    return
   }
-  let trace_path = join(wd, "qemu_" + tag + ".log")
-  @fs.remove_file(trace_path) catch {
-    _ => ()
-  }
-  let args = ["-d", "exec", "-D", trace_path, "--", moonc] +
-    t1_args(mode, fname, builtin, prelude)
-  let r = @exec.run_isolated(ctx.qemu, args, wd, timeout_ms, mem_mb=4096)
-  if r.timed_out {
-    return []
-  }
-  let trace = @fs.read_file_to_string(trace_path) catch { _ => "" }
-  @fs.remove_file(trace_path) catch {
-    _ => ()
-  }
-  // A runaway log is a sign the sample is not representative; skip it rather
-  // than pinning the worker's heap.
-  if trace.length() == 0 || trace.length() > 134217728 {
-    return []
-  }
-  let all = @trace.summarize_trace(trace, ctx.sym).funcs
-  // Keep the same denominator as the frozen coverage report: camlMoonc*
-  // symbols only, not OCaml runtime/CRT startup.
-  let funcs : Array[String] = []
-  for f in all {
-    if f.has_prefix("camlMoonc") {
-      funcs.push(f)
+  q.completed += 1
+  if !task.baseline {
+    match tr.outcome {
+      Accepted => q.accepted += 1
+      Rejected => q.rejected += 1
+      CompilerAbort => q.aborts += 1
+      CollectorFailed => ()
+    }
+    if task.stage == "t1" {
+      q.t1_ms += tr.elapsed_ms
+    } else if task.stage == "t2" {
+      q.t2_ms += tr.elapsed_ms
+    } else {
+      q.t3_ms += tr.elapsed_ms
     }
   }
-  funcs
+  let covset = @cov.FuncSet::new(tr.functions)
+  cov.observed_total = cov.observed_total.union(covset)
+  let key = task.stage +
+    "|" +
+    @trace.trace_outcome_name(tr.outcome) +
+    "|" +
+    tr.config_hash
+  let old = match cov.by_key.get(key) {
+    Some(s) => s
+    None => @cov.FuncSet::new([])
+  }
+  if task.baseline {
+    cov.by_key.set(key, old.union(covset))
+    cov.baseline_total = cov.baseline_total.union(covset)
+    q.baseline_done += 1
+    q.baseline_ms += tr.elapsed_ms
+    return
+  }
+  let delta = covset.difference(old)
+  if delta.len() > 0 {
+    cov.by_key.set(key, old.union(covset))
+    cov.coverage_adds += delta.len()
+    let reward_key = task.input_hash + "|" + task.config_hash + "|" + task.stage
+    if !cov.rewarded.contains(reward_key) {
+      cov.rewarded.set(reward_key, ())
+      ignore(feedback_upsert(feed, task.src, covset, delta.len()))
+      persist_parent(cfg, task.src, "coverage:" + task.stage, tr.functions)
+    }
+  }
+}
+
+///|
+async fn trace_worker(
+  cfg : Config,
+  id : Int32,
+  q : TraceQueue,
+  feed : Feedback,
+  cov : TraceUniverse,
+  ctx : CovCtx,
+  prog : Progress,
+) -> Stats {
+  let tag = @corpus.short_hash(cfg.run_id)
+  let wd = join(join("/tmp/mbtfuzz_mb", tag), "tw" + id.to_string())
+  rm_rf(wd)
+  @corpus.ensure_dir(wd)
+  let max_bytes = cfg.trace_max_mb.to_int64() * 1048576L
+  let start = @async.now()
+  let budget = if cfg.trace_cpu_pct > 0 {
+    let b = cfg.duration_s.to_int64() * cfg.trace_cpu_pct.to_int64() * 10L
+    if b < 2000L {
+      2000L
+    } else {
+      b
+    }
+  } else {
+    0L
+  }
+  let deadline = start + cfg.duration_s.to_int64() * 1000L + 10000L
+  while @async.now() < deadline &&
+        (q.fast_done < cfg.workers || q.tasks.length() > 0) {
+    if q.tasks.length() == 0 {
+      @async.sleep(50)
+      continue
+    }
+    let task = match trace_pop(q) {
+      Some(t) => t
+      None => {
+        q.dropped += q.tasks.length()
+        q.tasks.clear()
+        break
+      }
+    }
+    if !task.baseline && budget > 0L && q.trace_ms - q.baseline_ms >= budget {
+      q.dropped += q.tasks.length() + 1
+      q.tasks.clear()
+      break
+    }
+    let args = if task.stage == "t1" {
+      ignore(write(join(wd, task.fname), task.compiled))
+      t1_args(cfg.mode, task.fname, ctx.builtin, ctx.prelude)
+    } else if task.stage == "t2" {
+      ignore(write(join(wd, "in.mbt"), task.compiled))
+      t2_args(ctx.pkg, ctx.builtin, ctx.prelude, ctx.all_pkgs)
+    } else {
+      @oracle.link_args(
+        "wasm",
+        ctx.bundle,
+        ctx.core_dir,
+        ctx.pkg,
+        ctx.pkg_config,
+        task.core_path,
+        "out_t3.wasm",
+      )
+    }
+    let tr = @trace.collect(
+      ctx.qemu,
+      ctx.moonc,
+      args,
+      wd,
+      task.stage + "_" + id.to_string(),
+      ctx.sym,
+      task.input_hash,
+      task.config_hash,
+      task.stage,
+      cfg.t2_timeout,
+      max_bytes,
+    )
+    let before = q.completed
+    let failed_before = q.failed
+    trace_apply(cfg, task, tr, cov, feed, q)
+    if q.completed > before {
+      prog.trace_completed += 1
+    }
+    if q.failed > failed_before {
+      prog.trace_failed += 1
+    }
+    prog.trace_dropped = q.dropped
+  }
+  stats_new()
 }
 
 ///|
@@ -723,6 +1046,7 @@ async fn worker(
   feed : Feedback,
   covctx : CovCtx,
   prog : Progress,
+  q : TraceQueue,
 ) -> Stats {
   let s = stats_new()
   let tag = @corpus.short_hash(cfg.run_id)
@@ -735,6 +1059,7 @@ async fn worker(
     local_pool.push(p)
   }
   let local_sigs : Map[String, Unit] = Map([])
+  let local_t2_sigs : Map[String, Unit] = Map([])
   let end = @async.now() + cfg.duration_s.to_int64() * 1000L
   let bundle = join(join(home, ".moon/lib/core/_build/wasm/release/bundle"), "")
   let builtin = join(bundle, "builtin/builtin.mi")
@@ -768,32 +1093,26 @@ async fn worker(
       s.timeouts += 1
     }
     let k1 = @exec.classify(r1)
-    let mut cov_funcs : Array[String] = []
-    let mut cov_admitted = false
-    if cfg.cov_every > 0 && !r1.timed_out && s.it % cfg.cov_every == 0 {
-      let funcs = trace_t1(
-        covctx,
-        moonc,
-        wd,
-        cfg.mode,
-        fname,
-        builtin,
-        prelude,
-        "w" + id.to_string(),
-        cfg.t2_timeout,
+    let sig = behavior_sig("t1", r1)
+    let novel = !local_sigs.contains(sig)
+    if covctx.enabled &&
+      !r1.timed_out &&
+      (k1 == "OK" || k1 == "ERR") &&
+      q.tasks.length() < cfg.trace_queue / 2 &&
+      (novel || rng.chance(cfg.trace_t1)) {
+      ignore(
+        trace_submit(
+          cfg,
+          q,
+          "t1",
+          src,
+          src,
+          fname,
+          "",
+          false,
+          covctx.config_hash,
+        ),
       )
-      if funcs.length() > 0 {
-        s.cov_samples += 1
-        prog.cov_samples += 1
-        let added = feedback_cover(feed, src, funcs)
-        if added > 0 {
-          cov_funcs = funcs
-          cov_admitted = true
-          persist_parent(cfg, src, "coverage", funcs)
-        }
-        s.cov_funcs = feed.total_cov.len()
-        prog.cov_funcs = feed.total_cov.len()
-      }
     }
     if k1 != "OK" && k1 != "ERR" {
       s.crashes += 1
@@ -948,30 +1267,7 @@ async fn worker(
       }
       let r2 = @exec.run_isolated(
         moonc,
-        [
-          "build-package",
-          "in.mbt",
-          "-o",
-          "out_wasm.core",
-          "-pkg",
-          pkg,
-          "-pkg-type",
-          "executable",
-          "-i",
-          builtin + ":moonbitlang/core/builtin",
-          "-i",
-          prelude + ":prelude",
-          "-pkg-sources",
-          pkg + ":.",
-          "-target",
-          "wasm",
-          "-g",
-          "-O0",
-          "-workspace-path",
-          ".",
-          "-all-pkgs",
-          all_pkgs,
-        ],
+        t2_args(pkg, builtin, prelude, all_pkgs),
         wd,
         cfg.t2_timeout,
         mem_mb=6144,
@@ -994,6 +1290,56 @@ async fn worker(
           prog.witnesses += 1
         }
         continue
+      }
+      let sig2 = behavior_sig("t2", r2)
+      s.sigs.set(sig2, ())
+      let novel2 = !local_t2_sigs.contains(sig2)
+      if novel2 {
+        local_t2_sigs.set(sig2, ())
+        ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
+        persist_parent(cfg, src, "behavior_t2", [])
+      }
+      if covctx.enabled && (novel2 || rng.chance(cfg.trace_t2)) {
+        ignore(
+          trace_submit(
+            cfg,
+            q,
+            "t2",
+            src,
+            src2,
+            "in.mbt",
+            "",
+            false,
+            covctx.config_hash,
+          ),
+        )
+      }
+      if k2 == "OK" && covctx.enabled && rng.chance(cfg.trace_t3) {
+        let core = join(wd, "out_wasm.core")
+        if @fs.path_exists(core) {
+          let snap_dir = join(cfg.out, "trace_cores")
+          @corpus.ensure_dir(snap_dir)
+          let core_path = join(snap_dir, @corpus.sha1_hex(src) + ".core")
+          let bytes = @fs.read_file_to_bytes(core) catch { _ => Bytes::new(0) }
+          if bytes.length() > 0 {
+            @fs.write_bytes_to_file(core_path, bytes) catch {
+              _ => ()
+            }
+            ignore(
+              trace_submit(
+                cfg,
+                q,
+                "t3",
+                src,
+                "",
+                "",
+                core_path,
+                false,
+                covctx.config_hash,
+              ),
+            )
+          }
+        }
       }
       if k2 == "OK" && rng.chance(cfg.p_run) {
         let d = if cfg.native_diff {
@@ -1047,20 +1393,13 @@ async fn worker(
         }
       }
     }
-    let sig = behavior_sig("t1", r1)
     s.sigs.set(sig, ())
-    let novel = !local_sigs.contains(sig)
     if novel {
       local_sigs.set(sig, ())
       // Only inputs that produced a new compiler behaviour enter the dynamic
       // corpus.  Coverage samples can also admit an input with a higher energy.
       ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
-      let reason = if cov_admitted { "behavior+coverage" } else { "behavior" }
-      if cov_admitted {
-        persist_parent(cfg, src, reason, cov_funcs)
-      } else {
-        persist_parent(cfg, src, reason, [])
-      }
+      persist_parent(cfg, src, "behavior", [])
       // Keep the splice pool fresh even after it reaches its cap.
       if local_pool.length() < 400 {
         local_pool.push(src)
@@ -1070,6 +1409,7 @@ async fn worker(
     }
   }
   prog.done += 1
+  q.fast_done += 1
   s
 }
 
@@ -1099,10 +1439,12 @@ async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
       prog.crashes.to_string() +
       ",\"unique_witnesses\":" +
       prog.witnesses.to_string() +
-      ",\"cov_samples\":" +
-      prog.cov_samples.to_string() +
-      ",\"cov_funcs\":" +
-      prog.cov_funcs.to_string() +
+      ",\"trace_completed\":" +
+      prog.trace_completed.to_string() +
+      ",\"trace_failed\":" +
+      prog.trace_failed.to_string() +
+      ",\"trace_dropped\":" +
+      prog.trace_dropped.to_string() +
       "}"
     @corpus.append_line(join(out, "stats.jsonl"), line)
     println("[mb-fuzz progress] \{line}")
@@ -1145,7 +1487,7 @@ fn parse_int(s : String, dflt : Int32) -> Int32 {
 fn main_usage() -> Unit {
   println("usage: fuzz [--root DIR] [--out DIR] [--workers N] [--duration S]")
   println(
-    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--cov-every N] [--qemu PATH]",
+    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--qemu PATH] [--trace-t1 P] [--trace-t2 P] [--trace-t3 P] [--trace-workers N] [--trace-queue N] [--trace-max-mb M] [--trace-cpu P] [--baseline-seeds N]",
   )
 }
 
@@ -1171,8 +1513,15 @@ async fn main {
     seed: 1UL,
     run_id: "",
     campaign: "default",
-    cov_every: 64,
     qemu: "/tmp/AFLplusplus/afl-qemu-trace",
+    trace_t1: 0.20,
+    trace_t2: 0.70,
+    trace_t3: 0.10,
+    trace_workers: 3,
+    trace_queue: 32,
+    trace_max_mb: 256,
+    trace_cpu_pct: 25,
+    baseline_seeds: 8,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -1221,11 +1570,32 @@ async fn main {
     } else if a == "--campaign" && i + 1 < args.length() {
       cfg.campaign = args[i + 1]
       i += 2
-    } else if a == "--cov-every" && i + 1 < args.length() {
-      cfg.cov_every = parse_int(args[i + 1], cfg.cov_every)
-      i += 2
     } else if a == "--qemu" && i + 1 < args.length() {
       cfg.qemu = args[i + 1]
+      i += 2
+    } else if a == "--trace-t1" && i + 1 < args.length() {
+      cfg.trace_t1 = parse_int(args[i + 1], 20).to_double() / 100.0
+      i += 2
+    } else if a == "--trace-t2" && i + 1 < args.length() {
+      cfg.trace_t2 = parse_int(args[i + 1], 70).to_double() / 100.0
+      i += 2
+    } else if a == "--trace-t3" && i + 1 < args.length() {
+      cfg.trace_t3 = parse_int(args[i + 1], 10).to_double() / 100.0
+      i += 2
+    } else if a == "--trace-workers" && i + 1 < args.length() {
+      cfg.trace_workers = parse_int(args[i + 1], cfg.trace_workers)
+      i += 2
+    } else if a == "--trace-queue" && i + 1 < args.length() {
+      cfg.trace_queue = parse_int(args[i + 1], cfg.trace_queue)
+      i += 2
+    } else if a == "--trace-max-mb" && i + 1 < args.length() {
+      cfg.trace_max_mb = parse_int(args[i + 1], cfg.trace_max_mb)
+      i += 2
+    } else if a == "--trace-cpu" && i + 1 < args.length() {
+      cfg.trace_cpu_pct = parse_int(args[i + 1], cfg.trace_cpu_pct)
+      i += 2
+    } else if a == "--baseline-seeds" && i + 1 < args.length() {
+      cfg.baseline_seeds = parse_int(args[i + 1], cfg.baseline_seeds)
       i += 2
     } else {
       main_usage()
@@ -1263,16 +1633,88 @@ async fn main {
   }
   let dict = @mutate.parse_dict(dict_text)
   let moonc = moonc_path(home)
+  let bundle = join(join(home, ".moon/lib/core/_build/wasm/release/bundle"), "")
+  let builtin = join(bundle, "builtin/builtin.mi")
+  let prelude = join(bundle, "prelude/prelude.mi")
+  let all_pkgs = join(join(cfg.root, "harness"), "all_pkgs.json")
+  let pkg = "I3eg1nner/tpl/cmd/main"
+  let core_dir = join(home, ".moon/lib/core")
+  let pkg_config = join(join(cfg.root, "harness"), "moon.pkg")
   let nm = @exec.run("nm", ["-n", moonc], cfg.root, 30000)
   let sym = @trace.SymTab::parse(nm.stdout)
-  let cov_on = cfg.cov_every > 0 &&
+  let cov_on = cfg.trace_t1 + cfg.trace_t2 + cfg.trace_t3 > 0.0 &&
     @fs.path_exists(cfg.qemu) &&
     nm.rc == 0 &&
     sym.len() > 0
-  let covctx : CovCtx = { enabled: cov_on, qemu: cfg.qemu, sym, }
+  let config_hash = @corpus.short_hash(
+    file_sha1(moonc) +
+    "|" +
+    file_sha1(all_pkgs) +
+    "|" +
+    file_sha1(builtin) +
+    "|" +
+    file_sha1(prelude) +
+    "|" +
+    file_sha1(pkg_config) +
+    "|wasm|-g|-O0",
+  )
+  let covctx : CovCtx = {
+    enabled: cov_on,
+    qemu: cfg.qemu,
+    sym,
+    config_hash,
+    moonc,
+    builtin,
+    prelude,
+    all_pkgs,
+    pkg,
+    bundle,
+    core_dir,
+    pkg_config,
+  }
   let feed = feedback_new()
   for src in seeds {
     ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
+  }
+  let q = trace_queue_new()
+  let cov = trace_universe_new()
+  if cov_on && cfg.baseline_seeds > 0 {
+    let n = if cfg.baseline_seeds < seeds.length() {
+      cfg.baseline_seeds
+    } else {
+      seeds.length()
+    }
+    for i in 0..<n {
+      let src = seeds[i]
+      ignore(
+        trace_submit(
+          cfg,
+          q,
+          "t1",
+          src,
+          src,
+          fname_of(cfg.mode),
+          "",
+          true,
+          config_hash,
+        ),
+      )
+      if cfg.mode == "mbt" {
+        ignore(
+          trace_submit(
+            cfg,
+            q,
+            "t2",
+            src,
+            with_main(src),
+            "in.mbt",
+            "",
+            true,
+            config_hash,
+          ),
+        )
+      }
+    }
   }
   let plan = "{\"run_id\":\"" +
     @corpus.json_escape(run_id) +
@@ -1294,9 +1736,25 @@ async fn main {
     (if cfg.body_only { "true" } else { "false" }) +
     ",\"native_diff\":" +
     (if cfg.native_diff { "true" } else { "false" }) +
-    ",\"cov_every\":" +
-    cfg.cov_every.to_string() +
-    ",\"coverage\":" +
+    ",\"trace_t1\":" +
+    cfg.trace_t1.to_string() +
+    ",\"trace_t2\":" +
+    cfg.trace_t2.to_string() +
+    ",\"trace_t3\":" +
+    cfg.trace_t3.to_string() +
+    ",\"trace_workers\":" +
+    cfg.trace_workers.to_string() +
+    ",\"trace_queue\":" +
+    cfg.trace_queue.to_string() +
+    ",\"trace_max_mb\":" +
+    cfg.trace_max_mb.to_string() +
+    ",\"trace_cpu_pct\":" +
+    cfg.trace_cpu_pct.to_string() +
+    ",\"baseline_seeds\":" +
+    cfg.baseline_seeds.to_string() +
+    ",\"config_hash\":\"" +
+    @corpus.json_escape(config_hash) +
+    "\",\"coverage\":" +
     (if cov_on { "true" } else { "false" }) +
     ",\"qemu\":\"" +
     @corpus.json_escape(cfg.qemu) +
@@ -1314,11 +1772,18 @@ async fn main {
   for id in 0..<cfg.workers {
     let w = id
     tasks.push(() => {
-      worker(cfg, w, seeds, seeds, dict, moonc, home, feed, covctx, prog)
+      worker(cfg, w, seeds, seeds, dict, moonc, home, feed, covctx, prog, q)
     })
   }
+  for id in 0..<cfg.trace_workers {
+    let w = id
+    tasks.push(() => trace_worker(cfg, w, q, feed, cov, covctx, prog))
+  }
   tasks.push(() => monitor(cfg, prog, out))
-  let results = @async.all(tasks, max_concurrent=cfg.workers + 1)
+  let results = @async.all(
+    tasks,
+    max_concurrent=cfg.workers + cfg.trace_workers + 1,
+  )
   let total = stats_new()
   for r in results {
     total.it += r.it
@@ -1332,10 +1797,6 @@ async fn main {
     total.crashes += r.crashes
     total.witnesses += r.witnesses
     total.timeouts += r.timeouts
-    total.cov_samples += r.cov_samples
-    if r.cov_funcs > total.cov_funcs {
-      total.cov_funcs = r.cov_funcs
-    }
     for k in r.sigs.keys() {
       total.sigs.set(k, ())
     }
@@ -1364,12 +1825,36 @@ async fn main {
     total.witnesses.to_string() +
     ",\"behavior_sigs\":" +
     total.sigs.length().to_string() +
-    ",\"cov_samples\":" +
-    total.cov_samples.to_string() +
-    ",\"cov_funcs\":" +
-    feed.total_cov.len().to_string() +
+    ",\"trace_completed\":" +
+    q.completed.to_string() +
+    ",\"trace_failed\":" +
+    q.failed.to_string() +
+    ",\"trace_accepted\":" +
+    q.accepted.to_string() +
+    ",\"trace_rejected\":" +
+    q.rejected.to_string() +
+    ",\"trace_aborts\":" +
+    q.aborts.to_string() +
+    ",\"trace_dropped\":" +
+    q.dropped.to_string() +
+    ",\"trace_ms\":" +
+    q.trace_ms.to_string() +
+    ",\"trace_bytes\":" +
+    q.trace_bytes.to_string() +
+    ",\"baseline_done\":" +
+    q.baseline_done.to_string() +
+    ",\"baseline_ms\":" +
+    q.baseline_ms.to_string() +
+    ",\"baseline_funcs\":" +
+    cov.baseline_total.len().to_string() +
+    ",\"observed_funcs\":" +
+    cov.observed_total.len().to_string() +
+    ",\"relative_new\":" +
+    cov.observed_total.difference(cov.baseline_total).len().to_string() +
     ",\"coverage_adds\":" +
-    feed.coverage_adds.to_string() +
+    cov.coverage_adds.to_string() +
+    ",\"coverage_keys\":" +
+    cov.by_key.length().to_string() +
     ",\"corpus\":" +
     feed.entries.length().to_string() +
     ",\"persisted\":" +

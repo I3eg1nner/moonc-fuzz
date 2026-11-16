@@ -87,23 +87,107 @@ test "json diagnostics do not collapse into one ERR bucket" {
 }
 
 ///|
-test "feedback corpus deduplicates and promotes coverage inputs" {
+fn trace_test_cfg() -> Config {
+  {
+    root: "",
+    out: "/tmp/mbtfuzz_trace_wbtest",
+    workers: 1,
+    duration_s: 1,
+    p_deep: 0.0,
+    p_run: 0.0,
+    body_only: true,
+    mode: "mbt",
+    seed_dir: "",
+    fmt_check: false,
+    native_diff: false,
+    seed: 1UL,
+    run_id: "wbtest",
+    campaign: "test",
+    qemu: "",
+    trace_t1: 0.0,
+    trace_t2: 1.0,
+    trace_t3: 0.0,
+    trace_workers: 1,
+    trace_queue: 8,
+    trace_max_mb: 1,
+    trace_cpu_pct: 25,
+    baseline_seeds: 0,
+    t1_timeout: 1000,
+    t2_timeout: 1000,
+  }
+}
+
+///|
+fn trace_test_task(src : String) -> TraceTask {
+  {
+    stage: "t2",
+    input_hash: @corpus.sha1_hex(src),
+    config_hash: "cfg",
+    src,
+    compiled: src,
+    fname: "in.mbt",
+    core_path: "",
+    baseline: false,
+  }
+}
+
+///|
+fn trace_test_result(functions : Array[String]) -> @trace.TraceResult {
+  {
+    input_hash: "ih",
+    config_hash: "cfg",
+    stage: "t2",
+    outcome: @trace.Accepted,
+    complete: true,
+    functions,
+    elapsed_ms: 1L,
+    trace_bytes: 1L,
+    detail: "",
+  }
+}
+
+///|
+test "trace coverage admits and rewards only real deltas" {
+  let cfg = trace_test_cfg()
   let f = feedback_new()
-  assert_true(feedback_upsert(f, "a", @cov.FuncSet::new([]), 0))
-  assert_true(!feedback_upsert(f, "a", @cov.FuncSet::new([]), 0))
-  let added = feedback_cover(f, "b", ["f1", "f2"])
-  assert_eq(added, 2)
-  assert_eq(f.total_cov.len(), 2)
-  assert_eq(feedback_cover(f, "b", ["f1", "f2", "f3"]), 1)
-  assert_eq(f.total_cov.len(), 3)
-  assert_eq(f.coverage_adds, 3)
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  let task = trace_test_task("src")
+  trace_apply(cfg, task, trace_test_result(["f1", "f2"]), cov, f, q)
+  assert_eq(cov.coverage_adds, 2)
+  assert_eq(f.entries.length(), 1)
+  let rewarded = f.entries[0].energy
+  trace_apply(cfg, task, trace_test_result(["f1", "f2"]), cov, f, q)
+  assert_eq(cov.coverage_adds, 2)
+  assert_eq(f.entries.length(), 1)
+  assert_eq(f.entries[0].energy, rewarded)
+  trace_apply(
+    cfg,
+    trace_test_task("src2"),
+    trace_test_result(["f1", "f2", "f3"]),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(cov.coverage_adds, 3)
+  assert_eq(f.entries.length(), 2)
 }
 
 ///|
 test "feedback parent selection returns a retained input" {
   let f = feedback_new()
   ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0))
-  ignore(feedback_cover(f, "new", ["x", "y"]))
+  let cfg = trace_test_cfg()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  trace_apply(
+    cfg,
+    trace_test_task("new"),
+    trace_test_result(["x", "y"]),
+    cov,
+    f,
+    q,
+  )
   let rng = @mutate.Rng::new(7UL)
   let mut saw_seed = false
   let mut saw_new = false
@@ -124,13 +208,28 @@ test "feedback parent selection returns a retained input" {
 
 ///|
 test "zero coverage growth does not admit or reward a parent" {
+  let cfg = trace_test_cfg()
   let f = feedback_new()
   ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0))
-  assert_eq(f.entries.length(), 1)
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  trace_apply(
+    cfg,
+    trace_test_task("seed"),
+    trace_test_result(["f1"]),
+    cov,
+    f,
+    q,
+  )
   let before = f.entries[0].energy
-  assert_eq(feedback_cover(f, "seed", ["f1"]), 1)
+  trace_apply(
+    cfg,
+    trace_test_task("other"),
+    trace_test_result(["f1"]),
+    cov,
+    f,
+    q,
+  )
   assert_eq(f.entries.length(), 1)
-  assert_eq(feedback_cover(f, "other", ["f1"]), 0)
-  assert_eq(f.entries.length(), 1)
-  assert_eq(f.entries[0].energy, before + 32)
+  assert_eq(f.entries[0].energy, before)
 }

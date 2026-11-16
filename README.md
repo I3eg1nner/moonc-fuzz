@@ -23,7 +23,8 @@ MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不
 - **T2**：`moonc build-package`，覆盖 typer、core IR 和 wasm codegen。
 - **T3**：`link-core` + `moonrun`/`node`，并做 wasm/js、wasm/native 差分。
 - **覆盖**：QEMU `-d exec` 记录 PC，按 `nm -n` 最近前置符号归因到函数；
-  campaign 内按 `--cov-every` 采样，并把新增函数送回父本选择。
+  T1/T2/T3 候选进入有界后台 trace 队列，按阶段和配置计算真实增量后
+  才保留输入并奖励父本。
 - **oracle**：崩溃/ICE/OOM/超时分类；跨后端阶段感知判定；JSON 诊断签名。
 - **变异**：括号/字符串配平的 token 级变异，以及字节级无效 UTF-8 变异。
 
@@ -60,8 +61,11 @@ moon run cmd/accept -- /path/to/moonc-fuzz
 ./run.sh semantic-diff 4 120   # 每个可构建输入都做 wasm/js 差分
 ```
 
-运行目录是 `out/mb_runs/<UTC 时间>-<pid>/`，包含 `manifest.json`、
-`stats.jsonl` 和 `summary.json`；同一 `OUT` 下并发启动不会互相清理。
+trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 的
+完成时间份额约束；3 个后台 worker 消费一个有界队列，`TRACE_CPU=25`
+限制自适应 trace 时间。运行目录是
+`out/mb_runs/<UTC 时间>-<pid>/`，包含 `manifest.json`、`stats.jsonl`、
+`summary.json` 和 `trace_failures.jsonl`。
 
 最小可运行示例（`nm -n` + QEMU `-d exec` 日志 → 函数集 JSON）：
 
@@ -172,24 +176,29 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 
 ### 6.1 campaign 内的反馈闭环
 
-`cmd/fuzz` 不再从固定 seed 数组选父本：
+快速路径只负责产生候选；trace 流水线负责判断候选是否值得保留：
 
 1. T1 用 `-error-format json`，签名保留 `error_code`、`message` 和 `loc`；
-   不同诊断不再合并成 `ERR`。
-2. 新签名对应输入进入共享 corpus；T1 的 QEMU trace 若带来新函数，该输入
-   获得更高的变异预算（energy）。
-3. 所有 worker 从同一动态 corpus 加权选择父本；splice 池满了以后用新输入
-   替换旧槽位，而不是拒绝新输入。
-4. T2/T3 分别统计 build 成功、run 完成、语义差分、纯运行期差分、接受性差分、
+   不同诊断不再合并成 `ERR`。T1 正常接受/报错、T2 的接受/拒绝、T2 成功
+   后的 link 都是候选。
+2. 候选在提交时冻结源码、阶段和配置；后台 worker 在独立目录里重放完全
+   相同的 argv，不读取正在被 fuzz worker 覆写的 `in.mbt`。
+3. 有界队列默认 32，3 个 trace worker；T2 优先于 T3，T1 只使用半队列。
+   队列满、trace 超预算或日志超限都会记录，不伪装成“零覆盖”。
+4. 覆盖按 `(config, stage, outcome)` 分开维护。只有
+   `Coverage(x) − U` 非空才保存输入、更新 U、准入并发放覆盖 energy；
+   无增量的重复 trace 不再次奖励。
+5. 启动时先对少量种子测 U0；summary 同时报告 `baseline_funcs`、
+   `observed_funcs` 和 `relative_new`，避免把种子已有覆盖算成变异收益。
+6. T2/T3 分别统计 build 成功、run 完成、语义差分、纯运行期差分、接受性差分、
    编译器异常和 inconclusive；编译器异常和 inconclusive 不会以 `same=true`
    进入 finding。
-5. 输出截断只作用于证据；完整 stdout 的 SHA-1 和字节数参与差分判定，截断后
+7. 输出截断只作用于证据；完整 stdout 的 SHA-1 和字节数参与差分判定，截断后
    的后缀差异不会变成 `SAME`。
-6. 被接纳的输入、准入原因和覆盖集合写入 `corpus/<hash>.mbt` 与
+8. 被接纳的输入、准入原因和覆盖集合写入 `corpus/<hash>.mbt` 与
    `<hash>.json`；可用 `--seed-dir <run>/corpus` 重放。
 
-`cmd/diffprobe --inject` 对构建/链接故障做真实判定函数的注入检查。当前
-coverage 采样只覆盖 T1；T2/T3 仍由行为签名和 T2 成功门控驱动。
+`cmd/diffprobe --inject` 对构建/链接故障做真实判定函数的注入检查。
 
 ## 7. 复现
 
@@ -218,8 +227,10 @@ moon test --target native
 - F1 根因仍是基于符号和栈的假设；IDE/LSP 调用路径未验证。
 - 旧编译器、接口往返、类型生成等 pilot 是有限样本的负结果，不是普遍结论。
 - 诊断字符串数量不作为覆盖率；F6 不计为误编译。
-- campaign 的 QEMU 采样默认每 64 个 T1 输入一次，开销约 1 s/样本；它提高
-  反馈质量，不提高单次执行吞吐。
+- trace 由有界后台队列执行，默认 T2/T1/T3 候选权重 70/20/10，3 个 worker，
+  队列 32；过载会丢弃并记录 `trace_dropped`。`TRACE_CPU=25` 是软预算，
+  已在飞的 T3 trace 仍可能超出。
+- 覆盖仍是函数级；同一函数内的新分支不会增加集合。T3 第一版没有种子基线。
 - campaign 的 T1/T2/T3 走 `run_isolated`：GNU `timeout` 负责进程组回收，
   `prlimit` 设地址空间上限（T1 2 GiB、T2 6 GiB、T3 4–6 GiB）。原始
   `@exec.run` 仍不隔离，formatter 等直连路径未覆盖；输出在收集后截断到

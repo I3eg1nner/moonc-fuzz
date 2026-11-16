@@ -18,6 +18,12 @@ type Progress
 
 type Stats
 
+type TraceQueue
+
+type TraceTask
+
+type TraceUniverse
+
 // Type aliases
 
 // Traits

@@ -205,26 +205,24 @@ fn core_files(bundle : String) -> Array[String] {
 }
 
 ///|
-pub async fn link(
-  moonc : String,
-  wd : String,
+pub fn link_args(
   target : String,
   bundle : String,
   core_dir : String,
   pkg : String,
   pkg_config : String,
-  timeout_ms : Int32,
-) -> @exec.RunResult {
-  let out = "out_" + target + (if target == "js" { ".js" } else { ".wasm" })
+  core_path : String,
+  out_path : String,
+) -> Array[String] {
   let args : Array[String] = ["link-core"]
   for c in core_files(bundle) {
     args.push(c)
   }
-  args.push("out_" + target + ".core")
+  args.push(core_path)
   args.push("-main")
   args.push(pkg)
   args.push("-o")
-  args.push(out)
+  args.push(out_path)
   args.push("-pkg-config-path")
   args.push(pkg_config)
   args.push("-pkg-sources")
@@ -238,7 +236,35 @@ pub async fn link(
   if target == "wasm" {
     args.push("-wasi")
   }
-  @exec.run(moonc, args, wd, timeout_ms)
+  args
+}
+
+///|
+pub async fn link(
+  moonc : String,
+  wd : String,
+  target : String,
+  bundle : String,
+  core_dir : String,
+  pkg : String,
+  pkg_config : String,
+  timeout_ms : Int32,
+) -> @exec.RunResult {
+  let out = "out_" + target + (if target == "js" { ".js" } else { ".wasm" })
+  @exec.run(
+    moonc,
+    link_args(
+      target,
+      bundle,
+      core_dir,
+      pkg,
+      pkg_config,
+      "out_" + target + ".core",
+      out,
+    ),
+    wd,
+    timeout_ms,
+  )
 }
 
 ///|

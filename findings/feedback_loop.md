@@ -1,7 +1,7 @@
 # Fuzz feedback loop: from random multi-entry runs to a closed loop
 
-Date: 2026-11-15. Scope: `moonbit/cmd/fuzz`, `moonbit/oracle`, `moonbit/exec`,
-`run.sh`. This note records the audit findings, the changes, and the checks that
+Date: 2026-11-16. Scope: `moonbit/cmd/fuzz`, `moonbit/trace`,
+`moonbit/oracle`, `moonbit/exec`, `run.sh`. This note records the audit findings, the changes, and the checks that
 were run; it does not claim new compiler defects.
 
 ## 1. Audit findings reproduced
@@ -32,28 +32,64 @@ Non-JSON output falls back to the legacy `[E####]` extractor, then to
 `rc=<n>`. The signature includes the T1 stage prefix. Unit tests cover two
 different messages with the same `error_code` and different locations.
 
-### 2.2 Dynamic corpus and parent energy
+### 2.2 Background trace pipeline
 
-A campaign-wide `Feedback` object now holds:
+The fast path no longer calls QEMU. It submits a frozen `TraceTask`:
 
-- content-hash-indexed `Parent` entries;
-- each parent's observed `FuncSet`, energy, and use count;
-- the union cover set.
+- original source and the exact compiled source (with `fn main` for T2);
+- stage (`t1`, `t2`, `t3`) and filename;
+- content hash and `config_hash`;
+- for T3, a private snapshot of the produced `.core` file.
 
-Only a new T1 behaviour or a coverage-adding input is admitted. A coverage
-addition grants energy 32; a new behaviour grants 1. Selection is weighted by
-`1 + energy`, and energy decays by one per selection, so newly discovered
-coverage dominates briefly instead of permanently. The splice pool still has a
-400-entry cap, but now replaces a random slot when full instead of dropping new
-inputs.
+`config_hash` covers the `moonc` binary, `all_pkgs.json`, builtin/prelude
+interfaces, target, `-g`, and `-O0`. Trace workers have their own working
+directories, so a background task never reads an `in.mbt` that a fast worker is
+about to overwrite.
 
-`--cov-every N` runs T1 under
-`afl-qemu-trace -d exec -D <trace> -- moonc ...`, symbolizes with the `nm -n`
-table loaded once per campaign, unions `camlMoonc`-reachable functions, and
-returns new-function counts to the shared corpus. Default is 64; `0` disables
-it. A trace larger than 128 MiB is skipped.
+`TraceQueue` is bounded (default 32) and de-duplicates by
+`(stage, input_hash, config_hash)`. Submission probabilities default to T2 70%, T1
+20%, link 10%, but the scheduler also enforces a 70/20/10 share of completed
+trace time (`t2_ms`/`t1_ms`/`t3_ms`), because a T2 trace costs several times a
+T1 trace. Baseline tasks run first; otherwise T2, T3, T1 priority applies, and
+T1 may only use half the queue. Three trace workers are the default. The queue records
+`completed`, `failed`, `dropped`, `trace_ms`, `trace_bytes`, `baseline_ms`, and
+`baseline_done`.
 
-### 2.3 Stage-aware differential verdict
+`@trace.collect` returns a structured `TraceResult`:
+
+```text
+input_hash, config_hash, stage, outcome, complete,
+functions, elapsed_ms, trace_bytes, detail
+```
+
+`outcome` is `accepted`, `rejected`, `compiler_abort`, or
+`collector_failed`. QEMU timeout, zero log, and log overflow are
+`collector_failed` with `complete=false`; they are written to
+`trace_failures.jsonl` and never enter a coverage union. This removes the old
+`[]` ambiguity between “no coverage” and “collection failed”.
+
+Coverage is maintained as `U[config, stage, outcome]`. For a complete result:
+
+```text
+Δ = Coverage(x) − U
+```
+
+Only `Δ != ∅` updates U, admits the input, writes
+`corpus/<hash>.mbt` + `<hash>.json`, and grants coverage energy. A repeated
+trace of an already-rewarded input updates the coverage record but cannot claim
+the reward twice. A new behaviour without new coverage is admitted with lower
+energy by the fast path. Neither means no parent and no energy.
+
+A small seed baseline is traced at startup for T1 and T2. `summary.json`
+reports `baseline_funcs`, `observed_funcs`, `relative_new =
+|observed − baseline|`, `coverage_adds`, and `coverage_keys`; the 7,916
+historical union is not used as the campaign baseline.
+
+`trace_cpu_pct` (default 25) is a soft budget: adaptive tracing stops submitting
+once completed trace time exceeds the budget. A single in-flight trace can
+overshoot it.
+
+### 2.3 Stage-aware differential verdict### 2.3 Stage-aware differential verdict
 
 `@oracle.DiffClass` has six outcomes:
 
@@ -121,7 +157,7 @@ cmd/accept   -> 10/10 gates, including 25-template wasm/js differential
 
 ### 3.2 Signature cardinality
 
-Parser campaign, 2 workers, 3 s, `--cov-every 0`:
+Parser campaign, 2 workers, 3 s, trace disabled:
 
 ```text
 it=541 t1=541 behavior_sigs=377
@@ -132,19 +168,37 @@ not a defect count; it measures distinguishable diagnostic behaviour.
 
 ### 3.3 Coverage feedback
 
-Parser campaign, 2 workers, 3 s, `--cov-every 32`:
+Mixed campaign, 2 fast workers, 2 trace workers, queue 32, 10 s, 25% CPU
+budget, 2 baseline seeds:
 
 ```text
-it=128 t1=128 cov_samples=4 cov_funcs=1166 coverage_adds=1166
+it=1125 t1=1125 t2=153 t2_ok=15
+trace_completed=6 trace_failed=0 trace_dropped=165
+baseline_funcs=1539 observed_funcs=1689 relative_new=150
+coverage_adds=150 coverage_keys=2
 ```
 
-Hybrid campaign, 2 workers, 5 s, `--cov-every 0`:
+T2-only campaign, 1 fast worker, 2 trace workers, 100% T2 sampling:
 
 ```text
-it=660 t1=660 t2=90 t2_ok=12 t3_ok=3 t3_diff=0 t3_runtime=0 t3_inconclusive=0
+it=296 t1=296 t2=97 t2_ok=8
+trace_completed=3 trace_failed=0 trace_dropped=87
+baseline_funcs=1348 observed_funcs=1488 relative_new=140
+coverage_adds=140
 ```
 
-### 3.4 Differential fault injection
+T3 link trace, 100% link sampling, one successful core snapshot:
+
+```text
+trace_completed=2 trace_failed=0 trace_dropped=5
+observed_funcs=568 relative_new=568 coverage_keys=1
+```
+
+The queue is deliberately allowed to drop under overload; `trace_dropped` and
+`trace_failures.jsonl` make that visible. The numbers above are smoke evidence
+that T1/T2/T3 each reach the collector, not a claim of optimal sampling.
+
+### 3.4 Differential fault injection### 3.4 Differential fault injection
 
 ```text
 $ diffprobe --inject wasm-link-vs-js-build
@@ -196,25 +250,28 @@ Native now separates `moon run --build-only` from executing the artifact. An
 `abort` is therefore `native-run / SIG`, and comparable runtime failure
 classes are `RUNTIME_DIFF`, not a build error or a miscompile finding.
 
-Coverage sampling no longer admits a parent when `added == 0` or rewards it
-with energy. In the persistence smoke, 91 admitted inputs produced 91 `.mbt` files and 91
-`.json` sidecars; reasons were 87 `behavior` and 4 `behavior+coverage`. Sidecars contain the full SHA-1, reason, byte length, and
-the covered-function set, and `--seed-dir <run>/corpus` replays them.
+Coverage admission is now driven by `trace_apply`, not by the fast path:
+`added == 0` neither admits nor rewards. Admitted inputs are persisted with
+their reason (`behavior`, `behavior_t2`, `coverage:t1`, `coverage:t2`, or
+`coverage:t3`), full SHA-1, byte length, and covered-function set.
+`--seed-dir <run>/corpus` replays them.
 
 The SIGKILL test (`trap '' TERM` + `timeout -k`) reports `timed_out=true`,
 `rc=-999`, and strips timeout controller messages from stderr.
 
 ## 4. Remaining limits
 
-- Coverage sampling currently instruments T1 only. T2 and T3 are driven by T1
-  behaviour and T2 success, not by their own trace feedback. Tracing
-  `build-package` or `link-core` is substantially more expensive and needs a
-  separate sampling policy.
-- The QEMU sample costs about one second and ~17 MiB of trace for a tiny input.
-  It improves direction, not throughput.
-- Memory caps are per process group and only on `run_isolated` paths. Formatting
-  and direct `@exec.run` probes are not covered.
-- `run_isolated` assumes GNU coreutils (`timeout`, `prlimit`) on Linux; it is not
-  portable to macOS/Windows. The raw runner remains available for those hosts.
+- Coverage is function-level. Entering the same `camlMoonc*` function through a
+  new branch does not increase the set; a compact TB/edge bitmap is future work.
+- T3 has no seed baseline in this version, so `relative_new` is not directly
+  comparable across T1/T2/T3.
+- The collector stats the log before reading and rejects oversized files, but
+  an accepted log is still read whole; PCs are not streamed/deduplicated before
+  symbolization. QEMU `-d exec` is execution-event logging, not
+  translation-only logging.
+- `trace_cpu_pct` is soft: a long T3 trace already in flight can exceed the
+  budget.
+- Memory caps are per process group and only on `run_isolated` paths.
+- `run_isolated` assumes GNU coreutils (`timeout`, `prlimit`) on Linux.
 - Signature cardinality is not coverage. The 7,916/26,611 frozen coverage
   number remains a separate, offline union with its own provenance audit.
