@@ -137,7 +137,8 @@ deliberate implementation change; it does not yet exercise the full
 single-arm-change -> candidate -> exit 1 chain.
 
 The default link-only mode does not isolate `build-package` optimization;
-`--four-cell` does. Do not describe link-only output as a full optimization
+`--four-cell` does. The default link-only mode's `--aa` and source-mutation
+candidate control remain separate from the four-cell A/A. Do not describe link-only output as a full optimization
 differential. A missing requested test ID, a
 duplicate result, a missing `-O0`, a missing runtime command, a timeout, or a
 link failure is an error, not a `SAME` result. Exit codes are `0` for a clean
@@ -157,12 +158,19 @@ guarantee metadata consistency if a test structure is mutated.
 `-O0`), and `BdLd` (both default). The default build arm is produced by
 removing `-O0` from the replayed `build-package` argv; it does not use
 `moon test --release` and therefore does not switch `assert.mbt` to
-`assert_release.mbt`. The four-cell mode currently handles one package. `--repeats N` relinks and
-reruns every arm N times and rejects unstable test states (the build arms are
-built once; link/run are repeated). `--aa` requires `--repeats >= 2` and uses
-the repeated B0L0 arm as the A/A check; an A/A instability is an error. A
-single candidate still needs independent confirmation before being called a
-bug.
+`assert_release.mbt`. The four-cell mode accepts a comma-separated package
+list; each package gets its own source copy, build tree, evidence and summary,
+keyed by the sanitized package name plus a short hash (so `a/b__c` and
+`a__b/c` cannot collide). Artifact basenames must be unique within a package;
+ambiguity is an error, not a merge. `--repeats N` relinks and reruns every arm N times and rejects
+unstable test states (the build arms are built once; link/run are repeated).
+`--aa` requires `--repeats >= 2` and uses the repeated B0L0 arm as the A/A
+check; an A/A instability is an error. A single candidate still needs
+independent confirmation before being called a bug. `--four-cell-control`
+remains single-package; it needs a concrete package core to inject, and matches
+that core by basename suffix in the link argv (a residual identity boundary).
+Duplicate package names in one four-cell run are rejected rather than
+overwriting each other.
 `--four-cell-control` is a link-injection harness control, not an optimizer
 correctness claim. It restricts to artifacts whose link argv actually contains
 the package core; artifacts without that core are skipped rather than treated
@@ -182,7 +190,7 @@ Python.
 
 ## Measured results
 
-- Tests: 130 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 131 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the

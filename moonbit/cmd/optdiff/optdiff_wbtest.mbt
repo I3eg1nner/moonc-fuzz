@@ -207,3 +207,9 @@ test "link plan pairs by artifact name" {
   assert_eq(parsed.unwrap().length(), 2)
   assert_true(find_link_line(parsed.unwrap(), "b.wasm") is Some(_))
 }
+
+///|
+test "package tags remain distinct when safe_name collides" {
+  assert_eq(safe_name("a/b__c"), safe_name("a__b/c"))
+  assert_true(package_tag("a/b__c") != package_tag("a__b/c"))
+}

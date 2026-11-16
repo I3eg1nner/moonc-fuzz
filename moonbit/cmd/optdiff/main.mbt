@@ -141,6 +141,11 @@ fn safe_name(pkg : String) -> String {
 }
 
 ///|
+fn package_tag(pkg : String) -> String {
+  safe_name(pkg) + "-" + @corpus.short_hash(pkg)
+}
+
+///|
 /// Split a command printed by `moon` into argv.  It supports single and double
 /// quotes but deliberately rejects shell metacharacters; the command is then
 /// executed directly, not through a shell.
@@ -906,18 +911,19 @@ async fn run_test_arm(
 }
 
 ///|
-async fn run_four_cell(cfg : Config) -> Unit {
-  if cfg.packages.length() != 1 ||
-    (cfg.target != "wasm" && cfg.target != "wasm-gc") {
-    println("[optdiff] four-cell needs one package and wasm/wasm-gc")
+async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
+  if cfg.target != "wasm" && cfg.target != "wasm-gc" {
+    println("[optdiff] four-cell needs wasm/wasm-gc")
     @env.exit(2)
   }
-  let pkg = cfg.packages[0]
+  let pkg_tag = package_tag(pkg)
+  let base_dir = @corpus.join(cfg.out, "four/" + pkg_tag)
   let home = match @env.get_env_var("HOME") {
     Some(h) => h
     None => "/home/user"
   }
-  let work = @corpus.join(cfg.out, "module")
+  @corpus.ensure_dir(base_dir)
+  let work = @corpus.join(base_dir, "module")
   if !work.has_prefix(cfg.out + "/") {
     println("[optdiff] unsafe four-cell work path")
     @env.exit(2)
@@ -959,12 +965,12 @@ async fn run_four_cell(cfg : Config) -> Unit {
     @env.exit(2)
   }
   cfg.module_dir = work
-  if !write_manifest(cfg, home) {
+  if !write_manifest_to(cfg, home, @corpus.join(base_dir, "manifest.json")) {
     println("[optdiff] cannot write four-cell manifest")
     @env.exit(2)
   }
-  let b0 = @corpus.join(cfg.out, "four/build/O0")
-  let bd = @corpus.join(cfg.out, "four/build/default")
+  let b0 = @corpus.join(base_dir, "build/O0")
+  let bd = @corpus.join(base_dir, "build/default")
   let (links_o0, ok_o0) = build_arm(cfg, pkg, work, b0, false, home)
   if !ok_o0 {
     @env.exit(2)
@@ -1096,8 +1102,8 @@ async fn run_four_cell(cfg : Config) -> Unit {
     }
     override_core = Some(core)
   }
-  let arm_root = @corpus.join(cfg.out, "four/arms")
-  let evidence = @corpus.join(cfg.out, "four/evidence")
+  let arm_root = @corpus.join(base_dir, "arms")
+  let evidence = @corpus.join(base_dir, "evidence")
   @corpus.ensure_dir(evidence)
   let mut artifacts = 0
   let mut errors = 0
@@ -1271,6 +1277,10 @@ async fn run_four_cell(cfg : Config) -> Unit {
   }
   let summary = "{\"source_module\":\"" +
     @corpus.json_escape(cfg.source_dir) +
+    "\",\"package\":\"" +
+    @corpus.json_escape(pkg) +
+    "\",\"target\":\"" +
+    @corpus.json_escape(cfg.target) +
     "\",\"mode\":\"" +
     (if cfg.four_control { "four-cell-control" } else { "four-cell" }) +
     "\",\"packages\":1,\"artifacts\":" +
@@ -1279,6 +1289,57 @@ async fn run_four_cell(cfg : Config) -> Unit {
     candidates.to_string() +
     ",\"changed\":" +
     changed_total.to_string() +
+    ",\"errors\":" +
+    errors.to_string() +
+    ",\"repeats\":" +
+    cfg.repeats.to_string() +
+    ",\"aa\":" +
+    (if cfg.aa { "true" } else { "false" }) +
+    "}"
+  if !write_json(@corpus.join(base_dir, "summary.json"), summary) {
+    errors += 1
+  }
+  println("[optdiff] \{summary}")
+  (artifacts, candidates, errors)
+}
+
+///|
+async fn run_four_cell(cfg : Config) -> Unit {
+  if cfg.packages.length() == 0 {
+    println("[optdiff] four-cell needs at least one package")
+    @env.exit(2)
+  }
+  if cfg.four_control && cfg.packages.length() != 1 {
+    println("[optdiff] four-cell-control needs exactly one package")
+    @env.exit(2)
+  }
+  let seen_pkgs : Map[String, Unit] = Map([])
+  for pkg in cfg.packages {
+    if seen_pkgs.contains(pkg) {
+      println("[optdiff] duplicate package in four-cell list: \{pkg}")
+      @env.exit(2)
+    }
+    seen_pkgs.set(pkg, ())
+  }
+  let mut artifacts = 0
+  let mut candidates = 0
+  let mut errors = 0
+  for pkg in cfg.packages {
+    let (a, c, e) = run_four_package(cfg, pkg)
+    artifacts += a
+    candidates += c
+    errors += e
+  }
+  let summary = "{\"source_module\":\"" +
+    @corpus.json_escape(cfg.source_dir) +
+    "\",\"mode\":\"" +
+    (if cfg.four_control { "four-cell-control" } else { "four-cell" }) +
+    "\",\"packages\":" +
+    cfg.packages.length().to_string() +
+    ",\"artifacts\":" +
+    artifacts.to_string() +
+    ",\"candidates\":" +
+    candidates.to_string() +
     ",\"errors\":" +
     errors.to_string() +
     ",\"repeats\":" +
@@ -1870,7 +1931,7 @@ async fn process_task(
   evidence : String,
 ) -> (Bool, Bool, Int32) {
   // (candidate, error, changed_count)
-  let pkg_tag = safe_name(pkg)
+  let pkg_tag = package_tag(pkg)
   let a_dir = @corpus.join(@corpus.join(cfg.out, "link/O0"), pkg_tag)
   let b_dir = @corpus.join(@corpus.join(cfg.out, "link/default"), pkg_tag)
   let a_path = @corpus.join(a_dir, task.base)
@@ -2059,7 +2120,7 @@ async fn process_package(
 ) -> (Int32, Int32, Int32, Int32) {
   // (artifacts, candidates, changed, errors)
   let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
-  let pkg_tag = safe_name(pkg)
+  let pkg_tag = package_tag(pkg)
   let plan_dir = @corpus.join(@corpus.join(cfg.out, "plan"), pkg_tag)
   let evidence = @corpus.join(@corpus.join(cfg.out, "evidence"), pkg_tag)
   @corpus.ensure_dir(plan_dir)
@@ -2192,7 +2253,7 @@ async fn process_package(
 }
 
 ///|
-async fn write_manifest(cfg : Config, home : String) -> Bool {
+async fn write_manifest_to(cfg : Config, home : String, path : String) -> Bool {
   let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
   let moonc = @corpus.join(@corpus.join(home, ".moon/bin"), "moonc")
   let moon_v = @exec.run(moon, ["version"], "/tmp", 10000)
@@ -2221,7 +2282,12 @@ async fn write_manifest(cfg : Config, home : String) -> Bool {
     "\",\"moon_mod_sha1\":\"" +
     @corpus.sha1_hex(mod_text) +
     "\"}"
-  write_json(@corpus.join(cfg.out, "manifest.json"), manifest)
+  write_json(path, manifest)
+}
+
+///|
+async fn write_manifest(cfg : Config, home : String) -> Bool {
+  write_manifest_to(cfg, home, @corpus.join(cfg.out, "manifest.json"))
 }
 
 ///|
