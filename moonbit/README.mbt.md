@@ -47,7 +47,7 @@ moon check && moon test
 | `cmd/regress` | 12-case defect regression (F1–F6, P1) |
 | `cmd/f6matrix` | F6 native-export boundary matrix (8 closure shapes + 2 controls) |
 | `cmd/accept` | migration acceptance gate |
-| `cmd/optdiff` | controlled real-package test differential (link-only first) |
+| `cmd/optdiff` | controlled real-package test differential (link-only / four-cell) |
 
 ## Commands
 
@@ -101,6 +101,24 @@ moon run cmd/optdiff -- \
   --out /tmp/optdiff-candidate \
   --packages moonbitlang/core/argparse \
   --candidate-check argparse/help_render.mbt 'Usage: ' 'Use: '
+
+# Four-cell source-identical optimization localization. One package only;
+# build/link O0/default arms are compared against B0L0.
+moon run cmd/optdiff -- \
+  --module /data/audit/mbtfuzz/seeds \
+  --out /tmp/optdiff-four \
+  --packages moonbitlang/core/argparse \
+  --target wasm-gc --four-cell
+
+# Four-cell link-injection control. The mutant package core is substituted only
+# in the link-default arms; expected link_changed>0, build_changed=0,
+# both_changed>0, candidate=true, exit 1.
+moon run cmd/optdiff -- \
+  --module /data/audit/mbtfuzz/seeds \
+  --out /tmp/optdiff-four-control \
+  --packages moonbitlang/core/argparse \
+  --target wasm-gc \
+  --four-cell-control argparse/help_render.mbt 'Usage: ' 'Use: '
 ```
 
 `cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
@@ -118,8 +136,9 @@ panic reason. `--fault-check` only proves that the package assertions detect a
 deliberate implementation change; it does not yet exercise the full
 single-arm-change -> candidate -> exit 1 chain.
 
-It does not yet isolate `build-package` optimization; do not describe its
-output as a full optimization differential. A missing requested test ID, a
+The default link-only mode does not isolate `build-package` optimization;
+`--four-cell` does. Do not describe link-only output as a full optimization
+differential. A missing requested test ID, a
 duplicate result, a missing `-O0`, a missing runtime command, a timeout, or a
 link failure is an error, not a `SAME` result. Exit codes are `0` for a clean
 comparison, `1` for a candidate status difference, and `2` for an invalid,
@@ -130,6 +149,18 @@ is the separate end-to-end control: it freezes A, mutates one implementation
 file, rebuilds B, and must report a status change and exit 1. It is a harness
 control only: it does not prove optimization correctness, and it does not
 guarantee metadata consistency if a test structure is mutated.
+
+`--four-cell` keeps one source set and compares `B0L0` (build `-O0`, link
+`-O0`), `B0Ld` (build `-O0`, link default), `BdL0` (build default, link
+`-O0`), and `BdLd` (both default). The default build arm is produced by
+removing `-O0` from the replayed `build-package` argv; it does not use
+`moon test --release` and therefore does not switch `assert.mbt` to
+`assert_release.mbt`. The four-cell mode currently handles one package and
+does not yet run repeats or an A/A control; those remain in link-only mode.
+`--four-cell-control` is a link-injection harness control, not an optimizer
+correctness claim. It restricts to artifacts whose link argv actually contains
+the package core; artifacts without that core are skipped rather than treated
+as a pass.
 
 Minimal runnable example, no campaign required:
 
@@ -145,7 +176,7 @@ Python.
 
 ## Measured results
 
-- Tests: 127 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 130 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the

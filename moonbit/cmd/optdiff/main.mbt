@@ -21,6 +21,8 @@ struct Config {
   mut timeout_ms : Int32
   mut repeats : Int32
   mut aa : Bool
+  mut four_cell : Bool
+  mut four_control : Bool
   mut candidate : Bool
   mut fault_file : String
   mut fault_from : String
@@ -51,9 +53,15 @@ struct LinkTask {
 }
 
 ///|
+struct LinkLine {
+  argv : Array[String]
+  base : String
+}
+
+///|
 fn usage() -> Unit {
   println(
-    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc] [--timeout MS] [--repeats N] [--aa] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
+    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc] [--timeout MS] [--repeats N] [--aa] [--four-cell] [--four-cell-control FILE FROM TO] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
   )
 }
 
@@ -554,7 +562,12 @@ fn exact_coverage(
 
 ///|
 fn parse_runs(runs : Array[String]) -> Array[RunTask]? {
+  if runs.length() == 0 {
+    return None
+  }
   let out : Array[RunTask] = []
+  let seen : Map[String, Unit] = Map([])
+  let seen_base : Map[String, Unit] = Map([])
   for line in runs {
     let argv = match shell_split(line) {
       Some(a) => a
@@ -582,9 +595,12 @@ fn parse_runs(runs : Array[String]) -> Array[RunTask]? {
         wasm_path = a
       }
     }
-    if wasm_i < 0 {
+    let base = @corpus.basename(wasm_path)
+    if wasm_i < 0 || seen.contains(wasm_path) || seen_base.contains(base) {
       return None
     }
+    seen.set(wasm_path, ())
+    seen_base.set(base, ())
     out.push({ argv, wasm_index: wasm_i, wasm_path, expected, })
   }
   Some(out)
@@ -657,6 +673,577 @@ async fn copy_one(src : String, dst : String, timeout_ms : Int32) -> Bool {
   @corpus.ensure_dir(@corpus.dirname(dst))
   let r = @exec.run("/bin/cp", [src, dst], "/tmp", timeout_ms)
   r.rc == 0
+}
+
+///|
+fn strip_o0_arg(argv : Array[String]) -> Array[String]? {
+  if count_arg(argv, "-O0") != 1 {
+    return None
+  }
+  let i = match find_arg(argv, "-O0") {
+    Some(i) => i
+    None => return None
+  }
+  Some(remove_arg(argv, i))
+}
+
+///|
+fn parse_link_lines(links : Array[String]) -> Array[LinkLine]? {
+  let out : Array[LinkLine] = []
+  let seen : Map[String, Unit] = Map([])
+  for line in links {
+    let argv = match shell_split(line) {
+      Some(a) => a
+      None => return None
+    }
+    let o_i = match find_arg(argv, "-o") {
+      Some(i) => i
+      None => return None
+    }
+    if o_i + 1 >= argv.length() {
+      return None
+    }
+    let base = @corpus.basename(argv[o_i + 1])
+    if seen.contains(base) {
+      return None
+    }
+    seen.set(base, ())
+    out.push({ argv, base, })
+  }
+  Some(out)
+}
+
+///|
+fn find_link_line(lines : Array[LinkLine], base : String) -> LinkLine? {
+  for line in lines {
+    if line.base == base {
+      return Some(line)
+    }
+  }
+  None
+}
+
+///|
+async fn build_arm(
+  cfg : Config,
+  pkg : String,
+  root : String,
+  build_root : String,
+  remove_o0 : Bool,
+  home : String,
+) -> (Array[String], Bool) {
+  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  @corpus.ensure_dir(build_root)
+  // Generate all_pkgs.json, test drivers and a complete O0 build first.  A
+  // bare dry-run cannot be replayed: it prints commands that depend on these
+  // generated files.
+  let prep = @exec.run(
+    moon,
+    [
+      "test",
+      "-p",
+      pkg,
+      "--target",
+      cfg.target,
+      "--debug",
+      "--build-only",
+      "--target-dir",
+      build_root,
+    ],
+    root,
+    cfg.timeout_ms,
+    max_output_bytes=32 * 1024 * 1024,
+  )
+  if prep.rc != 0 {
+    println("[optdiff] prebuild failed for \{build_root}: \{prep.rc}")
+    return ([], false)
+  }
+  let dry = @exec.run(
+    moon,
+    [
+      "test",
+      "-p",
+      pkg,
+      "--target",
+      cfg.target,
+      "--debug",
+      "--dry-run",
+      "-v",
+      "--target-dir",
+      build_root,
+    ],
+    root,
+    cfg.timeout_ms,
+    max_output_bytes=32 * 1024 * 1024,
+  )
+  let dry_path = @corpus.join(build_root, "dryrun.stdout")
+  if dry.rc != 0 || !write_json(dry_path, dry.stdout) {
+    println("[optdiff] cannot build dry-run for \{build_root}")
+    return ([], false)
+  }
+  let links : Array[String] = []
+  for line in dry.stdout.split("\n") {
+    let t = line.trim()
+    if t.has_prefix("moonc link-core ") {
+      links.push(t.to_owned())
+    } else if t.has_prefix("moonc build-package ") ||
+      t.has_prefix("moon generate-test-driver ") {
+      let argv = match shell_split(t.to_owned()) {
+        Some(a) => a
+        None => return ([], false)
+      }
+      if remove_o0 &&
+        argv.length() > 1 &&
+        argv[0] == "moonc" &&
+        argv[1] == "build-package" {
+        let cmd = match strip_o0_arg(argv) {
+          Some(a) => a
+          None => {
+            println("[optdiff] build command has no unique -O0: \{t}")
+            return ([], false)
+          }
+        }
+        let r = run_argv(cmd, root, cfg.timeout_ms, home)
+        if r.rc != 0 {
+          println("[optdiff] build command failed for \{build_root}: \{r.rc}")
+          return ([], false)
+        }
+      }
+    }
+  }
+  (links, true)
+}
+
+///|
+fn link_has_core(link : LinkLine, core_name : String) -> Bool {
+  for a in link.argv {
+    if a.has_suffix("/" + core_name + ".core") {
+      return true
+    }
+  }
+  false
+}
+
+///|
+async fn run_test_arm(
+  cfg : Config,
+  root : String,
+  run : RunTask,
+  link : LinkLine,
+  arm_path : String,
+  remove_o0 : Bool,
+  home : String,
+  evidence : String,
+  label : String,
+  override_core : String?,
+  core_name : String,
+) -> Map[String, String]? {
+  let mut link_argv = link.argv
+  if remove_o0 && override_core is Some(core) {
+    let mut replaced = false
+    for i, a in link.argv {
+      if a.has_suffix("/" + core_name + ".core") {
+        link_argv = replace_arg(link_argv, i, core)
+        replaced = true
+      }
+    }
+    if !replaced {
+      return None
+    }
+  }
+  let link_cmd = match make_link_argv(link_argv, arm_path, remove_o0) {
+    Some(a) => a
+    None => return None
+  }
+  let lr = run_argv(link_cmd, root, cfg.timeout_ms, home)
+  if lr.rc != 0 {
+    println("[optdiff] link failed for \{arm_path}: \{lr.rc}")
+    println("[optdiff] link stderr: \{lr.stderr}")
+    return None
+  }
+  let rr = run_argv(make_run_argv(run, arm_path), root, cfg.timeout_ms, home)
+  let parsed = collect_results(rr.stdout)
+  let tag = @corpus.basename(run.wasm_path) + "." + label
+  if !write_json(@corpus.join(evidence, tag + ".stdout"), rr.stdout) ||
+    !write_json(@corpus.join(evidence, tag + ".stderr"), rr.stderr) {
+    return None
+  }
+  if rr.rc != 0 ||
+    rr.timed_out ||
+    rr.stdout_truncated ||
+    parsed.bad ||
+    parsed.duplicate ||
+    !exact_coverage(parsed.results, run.expected) {
+    println("[optdiff] test run invalid for \{arm_path}")
+    return None
+  }
+  Some(parsed.results)
+}
+
+///|
+async fn run_four_cell(cfg : Config) -> Unit {
+  if cfg.packages.length() != 1 ||
+    (cfg.target != "wasm" && cfg.target != "wasm-gc") {
+    println("[optdiff] four-cell needs one package and wasm/wasm-gc")
+    @env.exit(2)
+  }
+  let pkg = cfg.packages[0]
+  let home = match @env.get_env_var("HOME") {
+    Some(h) => h
+    None => "/home/user"
+  }
+  let work = @corpus.join(cfg.out, "module")
+  if !work.has_prefix(cfg.out + "/") {
+    println("[optdiff] unsafe four-cell work path")
+    @env.exit(2)
+  }
+  let rm = @exec.run("/bin/rm", ["-rf", work], "/tmp", cfg.timeout_ms)
+  if rm.rc != 0 {
+    println("[optdiff] cannot clean four-cell work")
+    @env.exit(2)
+  }
+  let cp = @exec.run(
+    "/bin/cp",
+    ["-a", cfg.source_dir, work],
+    "/tmp",
+    cfg.timeout_ms,
+  )
+  if cp.rc != 0 {
+    println("[optdiff] cannot copy four-cell work")
+    @env.exit(2)
+  }
+  match real_path(work) {
+    Some(p) =>
+      if p != work {
+        println("[optdiff] four-cell work is a symlink")
+        @env.exit(2)
+      }
+    None => {
+      println("[optdiff] cannot resolve four-cell work")
+      @env.exit(2)
+    }
+  }
+  let clean = @exec.run(
+    "/bin/rm",
+    ["-rf", @corpus.join(work, "_build")],
+    "/tmp",
+    cfg.timeout_ms,
+  )
+  if clean.rc != 0 {
+    println("[optdiff] cannot clean four-cell cache")
+    @env.exit(2)
+  }
+  cfg.module_dir = work
+  if !write_manifest(cfg, home) {
+    println("[optdiff] cannot write four-cell manifest")
+    @env.exit(2)
+  }
+  let b0 = @corpus.join(cfg.out, "four/build/O0")
+  let bd = @corpus.join(cfg.out, "four/build/default")
+  let (links_o0, ok_o0) = build_arm(cfg, pkg, work, b0, false, home)
+  if !ok_o0 {
+    @env.exit(2)
+  }
+  let (links_d, ok_d) = build_arm(cfg, pkg, work, bd, true, home)
+  if !ok_d {
+    @env.exit(2)
+  }
+  let parsed_o0_links = match parse_link_lines(links_o0) {
+    Some(l) => l
+    None => {
+      println("[optdiff] duplicate/invalid O0 link plan")
+      @env.exit(2)
+    }
+  }
+  let parsed_d_links = match parse_link_lines(links_d) {
+    Some(l) => l
+    None => {
+      println("[optdiff] duplicate/invalid default link plan")
+      @env.exit(2)
+    }
+  }
+  // Run the O0 build once to capture official runtime args. The artifacts are
+  // already built; this is also the green baseline check.
+  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  let actual = @exec.run(
+    moon,
+    [
+      "test",
+      "-p",
+      pkg,
+      "--target",
+      cfg.target,
+      "--debug",
+      "--no-parallelize",
+      "-v",
+      "--target-dir",
+      b0,
+    ],
+    work,
+    cfg.timeout_ms,
+    max_output_bytes=32 * 1024 * 1024,
+  )
+  if actual.rc != 0 || summary_failures(actual.stdout) > 0 {
+    println("[optdiff] four-cell O0 baseline is not green")
+    @env.exit(2)
+  }
+  let runs : Array[String] = []
+  for line in actual.stderr.split("\n") {
+    let t = line.trim()
+    if t.has_prefix("moonrun --test-args ") {
+      runs.push(t.to_owned())
+    }
+  }
+  let run_tasks = match parse_runs(runs) {
+    Some(r) => r
+    None => {
+      println("[optdiff] cannot parse four-cell runtime commands")
+      @env.exit(2)
+    }
+  }
+  if parsed_o0_links.length() != run_tasks.length() ||
+    parsed_d_links.length() != run_tasks.length() {
+    println("[optdiff] link/runtime plan sizes differ")
+    @env.exit(2)
+  }
+  let mut override_core : String? = None
+  if cfg.four_control {
+    if !fault_file_ok(cfg.fault_file) {
+      println("[optdiff] unsafe four-cell control file")
+      @env.exit(2)
+    }
+    let ctrl = @corpus.join(cfg.out, "four/control_module")
+    let rm = @exec.run("/bin/rm", ["-rf", ctrl], "/tmp", cfg.timeout_ms)
+    let cp = @exec.run(
+      "/bin/cp",
+      ["-a", cfg.source_dir, ctrl],
+      "/tmp",
+      cfg.timeout_ms,
+    )
+    if rm.rc != 0 || cp.rc != 0 {
+      println("[optdiff] cannot prepare four-cell control module")
+      @env.exit(2)
+    }
+    let ctrl_path = @corpus.join(ctrl, cfg.fault_file)
+    let real = @exec.run("/usr/bin/readlink", ["-f", ctrl_path], "/tmp", 5000)
+    if real.rc != 0 || !real.stdout.trim().has_prefix(ctrl + "/") {
+      println("[optdiff] four-cell control file escapes copy")
+      @env.exit(2)
+    }
+    let src = read_text(ctrl_path)
+    let next = match replace_once(src, cfg.fault_from, cfg.fault_to) {
+      Some(v) => v
+      None => {
+        println("[optdiff] four-cell control mutation not found")
+        @env.exit(2)
+      }
+    }
+    if next == src || !write_json(ctrl_path, next) {
+      println("[optdiff] four-cell control mutation failed")
+      @env.exit(2)
+    }
+    let ctrl_build = @corpus.join(cfg.out, "four/control_build")
+    let ctrl_test = @exec.run(
+      moon,
+      [
+        "test",
+        "-p",
+        pkg,
+        "--target",
+        cfg.target,
+        "--debug",
+        "--build-only",
+        "--target-dir",
+        ctrl_build,
+      ],
+      ctrl,
+      cfg.timeout_ms,
+      max_output_bytes=32 * 1024 * 1024,
+    )
+    if ctrl_test.rc != 0 {
+      println("[optdiff] four-cell control build failed")
+      @env.exit(2)
+    }
+    let core = package_core_path(ctrl_build, cfg.target, pkg)
+    if !@fs.path_exists(core) {
+      println("[optdiff] four-cell control core missing")
+      @env.exit(2)
+    }
+    override_core = Some(core)
+  }
+  let arm_root = @corpus.join(cfg.out, "four/arms")
+  let evidence = @corpus.join(cfg.out, "four/evidence")
+  @corpus.ensure_dir(evidence)
+  let mut artifacts = 0
+  let mut errors = 0
+  let mut candidates = 0
+  let mut changed_total = 0
+  for run in run_tasks {
+    let base = @corpus.basename(run.wasm_path)
+    let link_o0 = match find_link_line(parsed_o0_links, base) {
+      Some(l) => l
+      None => {
+        errors += 1
+        continue
+      }
+    }
+    let link_d = match find_link_line(parsed_d_links, base) {
+      Some(l) => l
+      None => {
+        errors += 1
+        continue
+      }
+    }
+    let meta = match metadata_path_at(b0, cfg.target, pkg, base) {
+      Some(path) => load_test_meta(path)
+      None => None
+    }
+    let meta = match meta {
+      Some(m) => m
+      None => {
+        println("[optdiff] four-cell metadata missing for \{base}")
+        errors += 1
+        continue
+      }
+    }
+    if !subset_ids(run.expected, meta.known) {
+      println("[optdiff] four-cell metadata incomplete for \{base}")
+      errors += 1
+      continue
+    }
+    if cfg.four_control {
+      let core_name = @corpus.basename(pkg)
+      if !link_has_core(link_o0, core_name) || !link_has_core(link_d, core_name) {
+        continue
+      }
+    }
+    let arm_base = @corpus.join(arm_root, base)
+    @corpus.ensure_dir(arm_base)
+    let a0 = @corpus.join(arm_base, "B0L0.wasm")
+    let ald = @corpus.join(arm_base, "B0Ld.wasm")
+    let ad0 = @corpus.join(arm_base, "BdL0.wasm")
+    let add = @corpus.join(arm_base, "BdLd.wasm")
+    let core_name = @corpus.basename(pkg)
+    let m00 = run_test_arm(
+      cfg,
+      work,
+      run,
+      link_o0,
+      a0,
+      false,
+      home,
+      evidence,
+      "B0L0",
+      None,
+      core_name,
+    )
+    let m0d = run_test_arm(
+      cfg, work, run, link_o0, ald, true, home, evidence, "B0Ld", override_core,
+      core_name,
+    )
+    let md0 = run_test_arm(
+      cfg,
+      work,
+      run,
+      link_d,
+      ad0,
+      false,
+      home,
+      evidence,
+      "BdL0",
+      None,
+      core_name,
+    )
+    let mdd = run_test_arm(
+      cfg, work, run, link_d, add, true, home, evidence, "BdLd", override_core, core_name,
+    )
+    let (m00, m0d, md0, mdd) = match (m00, m0d, md0, mdd) {
+      (Some(a), Some(b), Some(c), Some(d)) => (a, b, c, d)
+      _ => {
+        errors += 1
+        continue
+      }
+    }
+    if count_failures(m00, meta.panic_ids) > 0 {
+      println("[optdiff] relinked B0L0 is not green for \{base}")
+      errors += 1
+      continue
+    }
+    let c_link = compare_results(m00, m0d, meta.panic_ids)
+    let c_build = compare_results(m00, md0, meta.panic_ids)
+    let c_both = compare_results(m00, mdd, meta.panic_ids)
+    if cfg.four_control {
+      let link_n = c_link.changed + c_link.missing + c_link.extra
+      let build_n = c_build.changed + c_build.missing + c_build.extra
+      let both_n = c_both.changed + c_both.missing + c_both.extra
+      if link_n == 0 || build_n != 0 || both_n == 0 {
+        println("[optdiff] four-cell control pattern failed for \{base}")
+        errors += 1
+      }
+    }
+    let changed = c_link.changed +
+      c_link.missing +
+      c_link.extra +
+      c_build.changed +
+      c_build.missing +
+      c_build.extra +
+      c_both.changed +
+      c_both.missing +
+      c_both.extra
+    let candidate = changed > 0
+    if candidate {
+      candidates += 1
+      changed_total += changed
+    }
+    artifacts += 1
+    let row = "{\"package\":\"" +
+      @corpus.json_escape(pkg) +
+      "\",\"artifact\":\"" +
+      @corpus.json_escape(base) +
+      "\",\"expected\":" +
+      run.expected.length().to_string() +
+      ",\"changed\":" +
+      changed.to_string() +
+      ",\"link_changed\":" +
+      (c_link.changed + c_link.missing + c_link.extra).to_string() +
+      ",\"build_changed\":" +
+      (c_build.changed + c_build.missing + c_build.extra).to_string() +
+      ",\"both_changed\":" +
+      (c_both.changed + c_both.missing + c_both.extra).to_string() +
+      ",\"candidate\":" +
+      (if candidate { "true" } else { "false" }) +
+      "}"
+    if !write_json(@corpus.join(evidence, base + ".row.json"), row) {
+      errors += 1
+    }
+  }
+  if cfg.four_control && artifacts == 0 {
+    println("[optdiff] four-cell control produced no eligible artifact")
+    errors += 1
+  }
+  let summary = "{\"source_module\":\"" +
+    @corpus.json_escape(cfg.source_dir) +
+    "\",\"mode\":\"" +
+    (if cfg.four_control { "four-cell-control" } else { "four-cell" }) +
+    "\",\"packages\":1,\"artifacts\":" +
+    artifacts.to_string() +
+    ",\"candidates\":" +
+    candidates.to_string() +
+    ",\"changed\":" +
+    changed_total.to_string() +
+    ",\"errors\":" +
+    errors.to_string() +
+    "}"
+  if !write_json(@corpus.join(cfg.out, "summary.json"), summary) {
+    errors += 1
+  }
+  println("[optdiff] \{summary}")
+  if errors > 0 {
+    @env.exit(2)
+  }
+  if candidates > 0 {
+    @env.exit(1)
+  }
 }
 
 ///|
@@ -1095,8 +1682,8 @@ fn make_run_argv(run : RunTask, new_path : String) -> Array[String] {
 }
 
 ///|
-fn metadata_path(
-  module_dir : String,
+fn metadata_path_at(
+  build_root : String,
   target : String,
   pkg : String,
   base : String,
@@ -1116,13 +1703,38 @@ fn metadata_path(
     return None
   }
   let dir = @corpus.join(
-    @corpus.join(
-      @corpus.join(@corpus.join(module_dir, "_build"), target),
-      "debug/test",
-    ),
+    @corpus.join(@corpus.join(build_root, target), "debug/test"),
     rel,
   )
   Some(@corpus.join(dir, "__" + kind + "_test_info.json"))
+}
+
+///|
+fn metadata_path(
+  module_dir : String,
+  target : String,
+  pkg : String,
+  base : String,
+) -> String? {
+  metadata_path_at(@corpus.join(module_dir, "_build"), target, pkg, base)
+}
+
+///|
+fn package_core_path(
+  build_root : String,
+  target : String,
+  pkg : String,
+) -> String {
+  let rel = if pkg.has_prefix("moonbitlang/core/") {
+    pkg[17:].to_owned()
+  } else {
+    pkg
+  }
+  let dir = @corpus.join(
+    @corpus.join(@corpus.join(build_root, target), "debug/test"),
+    rel,
+  )
+  @corpus.join(dir, @corpus.basename(pkg) + ".core")
 }
 
 ///|
@@ -1572,6 +2184,8 @@ async fn main {
     timeout_ms: 300000,
     repeats: 1,
     aa: false,
+    four_cell: false,
+    four_control: false,
     candidate: false,
     fault_file: "",
     fault_from: "",
@@ -1602,6 +2216,16 @@ async fn main {
     } else if a == "--aa" {
       cfg.aa = true
       i += 1
+    } else if a == "--four-cell" {
+      cfg.four_cell = true
+      i += 1
+    } else if a == "--four-cell-control" && i + 3 < args.length() {
+      cfg.four_cell = true
+      cfg.four_control = true
+      cfg.fault_file = args[i + 1]
+      cfg.fault_from = args[i + 2]
+      cfg.fault_to = args[i + 3]
+      i += 4
     } else if a == "--candidate-check" && i + 3 < args.length() {
       cfg.candidate = true
       cfg.fault_file = args[i + 1]
@@ -1660,6 +2284,14 @@ async fn main {
   }
   if cfg.candidate {
     run_candidate_check(cfg)
+    return
+  }
+  if cfg.four_cell {
+    if cfg.repeats != 1 || cfg.aa {
+      println("[optdiff] four-cell does not support --repeats or --aa")
+      @env.exit(2)
+    }
+    run_four_cell(cfg)
     return
   }
   if cfg.fault_file != "" {
@@ -1733,6 +2365,10 @@ async fn main {
     candidates += c
     changed += d
     errors += e
+  }
+  if cfg.four_control && artifacts == 0 {
+    println("[optdiff] four-cell control produced no eligible artifact")
+    errors += 1
   }
   let summary = "{\"source_module\":\"" +
     @corpus.json_escape(cfg.source_dir) +

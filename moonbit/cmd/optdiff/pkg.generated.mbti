@@ -12,6 +12,8 @@ type Compare
 
 type Config
 
+type LinkLine
+
 type LinkTask
 
 type ParsedRun

@@ -176,3 +176,34 @@ test "non-string non-null metadata name is rejected" {
   }
   assert_true(load_test_meta(path) is None)
 }
+
+///|
+test "strip O0 requires exactly one flag" {
+  let a = shell_split("moonc build-package a.mbt -O0 -o a.core")
+  assert_true(a is Some(_))
+  let s = strip_o0_arg(a.unwrap())
+  assert_true(s is Some(_))
+  assert_eq(count_arg(s.unwrap(), "-O0"), 0)
+  let b = shell_split("moonc build-package a.mbt -o a.core")
+  assert_true(b is Some(_))
+  assert_eq(strip_o0_arg(b.unwrap()), None)
+}
+
+///|
+test "link plan rejects duplicate artifact names" {
+  let links = [
+    "moonc link-core a.core -o ./x/a.wasm -O0", "moonc link-core b.core -o ./y/a.wasm -O0",
+  ]
+  assert_true(parse_link_lines(links) is None)
+}
+
+///|
+test "link plan pairs by artifact name" {
+  let links = [
+    "moonc link-core a.core -o ./x/a.wasm -O0", "moonc link-core b.core -o ./y/b.wasm -O0",
+  ]
+  let parsed = parse_link_lines(links)
+  assert_true(parsed is Some(_))
+  assert_eq(parsed.unwrap().length(), 2)
+  assert_true(find_link_line(parsed.unwrap(), "b.wasm") is Some(_))
+}
