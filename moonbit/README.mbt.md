@@ -48,6 +48,8 @@ moon check && moon test
 | `cmd/f6matrix` | F6 native-export boundary matrix (8 closure shapes + 2 controls) |
 | `cmd/accept` | migration acceptance gate |
 | `cmd/optdiff` | controlled real-package test differential (link-only / four-cell) |
+| `ir/` | small typed IR, interpreter and MoonBit emitter |
+| `cmd/irprobe` | IR interpreter vs compiled wasm/js sample oracle |
 
 ## Commands
 
@@ -119,6 +121,9 @@ moon run cmd/optdiff -- \
   --packages moonbitlang/core/argparse \
   --target wasm-gc \
   --four-cell-control argparse/help_render.mbt 'Usage: ' 'Use: '
+
+# Small typed-IR prototype: interpreter events vs compiled wasm and js.
+moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irprobe
 ```
 
 `cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
@@ -188,9 +193,26 @@ JSON, real F4 trace (599 functions against a Python-golden fixture), coverage
 union, 25-template wasm/js oracle, and a negative control. It does not invoke
 Python.
 
+`ir/` is a deliberately restricted prototype, not a MoonBit parser: values are
+`Int`, `Bool`, `Unit`, and `Array[Int]`; expressions cover arithmetic,
+comparison, `if`, first-order calls, arrays and length; statements cover
+mutable locals, array element writes, bounded loops, emits and returns.
+Array rebinding is rejected (only `ArraySet`); `Emit` accepts `Int`/`Bool` only;
+a bounded loop stops after at most `bound` condition-true iterations, without a
+final extra condition evaluation. Division, floats, strings, closures, generics,
+traits and trap semantics are excluded. The interpreter fuel is a screening
+budget: exhaustion is a failed/invalid sample, not a program result. Locals and
+parameters may not shadow functions, `println`, or generated `__` names.
+Random IR generation, reduction and four-cell integration are not yet
+connected. The interpreter is the semantic oracle;
+`cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output
+and byte-equal event text (including the final newline) for three hand
+calibration programs. Passing these
+samples does not establish general compiler correctness or a complete IR.
+
 ## Measured results
 
-- Tests: 131 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 140 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the

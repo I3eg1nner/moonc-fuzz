@@ -1,0 +1,76 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/ir"
+
+// Values
+pub fn check_program(Program) -> Unit raise Failure
+
+pub fn emit_program(Program) -> String
+
+pub fn run(Program, Int32) -> Array[String] raise Failure
+
+pub fn sample_programs() -> Array[Program]
+
+pub fn show_value(Value) -> String
+
+pub fn ty_name(Ty) -> String
+
+// Errors
+
+// Types and methods
+pub(all) enum Expr {
+  ConstI32(Int32)
+  ConstBool(Bool)
+  Var(String)
+  Add(Expr, Expr)
+  Sub(Expr, Expr)
+  Mul(Expr, Expr)
+  Lt(Expr, Expr)
+  Eq(Expr, Expr)
+  If(Expr, Expr, Expr)
+  Call(String, Array[Expr])
+  ArrayLit(Array[Expr])
+  Index(Expr, Expr)
+  Len(Expr)
+}
+
+pub(all) struct Func {
+  name : String
+  params : Array[(String, Ty)]
+  ret : Ty
+  body : Array[Stmt]
+}
+
+pub(all) struct Program {
+  funcs : Array[Func]
+}
+
+pub(all) enum Stmt {
+  Let(String, Ty, Expr, Bool)
+  Assign(String, Expr)
+  ArraySet(String, Expr, Expr)
+  Emit(Int32, Expr)
+  If(Expr, Array[Stmt], Array[Stmt])
+  While(Expr, Array[Stmt], Int32)
+  Return(Expr)
+}
+
+#derive(Eq)
+pub(all) enum Ty {
+  I32
+  Bool
+  Unit
+  I32Array
+}
+pub fn Ty::equal(Self, Self) -> Bool
+pub fn Ty::not_equal(Self, Self) -> Bool
+
+pub(all) enum Value {
+  VI32(Int32)
+  VBool(Bool)
+  VUnit
+  VArray(Array[Int32])
+}
+
+// Type aliases
+
+// Traits
