@@ -88,7 +88,7 @@ Python.
 
 ## Measured results
 
-- Tests: 92 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 102 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the
@@ -100,11 +100,23 @@ Python.
   F1b/F2b/F4b are extra witnesses grouped with F1/F2/F4, not new root causes.
 - Feedback: fast T1/T2/T3 paths only produce candidates. A bounded background
   queue replays the exact argv under QEMU; T2 gets 70% of the trace budget,
-  T1 20%, link 10%. Coverage is keyed by `(config, stage, outcome)`, and only a
-  non-empty `Coverage(x) - U` admits and rewards a parent. A mixed 10 s smoke
+  T1 20%, link 10%. In-flight reservations count toward the share; a
+  temporarily unschedulable queue waits, it is not cleared. Coverage is keyed
+  by `(config, stage, outcome)`, and only a non-empty `Coverage(x) - U` admits
+  and rewards a parent. Baseline results are frozen behind a completion
+  barrier; a failed or dropped baseline marks U0 incomplete and suppresses
+  candidate rewards.
+- Persistence: source is stored once as `corpus/<sha1>.mbt`. Coverage evidence
+  is one file per `(input_hash, config_hash, stage, outcome)` under
+  `corpus/coverage/<stage>/<outcome>/`; behaviour evidence lives under
+  `corpus/behavior/<sha1>/` and cannot overwrite coverage. A mixed 10 s smoke
   observed 1,539 baseline functions, 1,689 observed and 150 seed-relative new
-  functions with two trace workers. Admitted inputs have `.mbt` + `.json`
-  sidecars with reason and coverage set.
+  functions with two trace workers.
+- Fault injection: a synthetic collector made a T1-only 2 s campaign complete
+  304 traces instead of stopping after one. Exit 127 after a valid PC produced
+  348 `collector_failed` records, zero accepted/rejected, and zero coverage
+  adds. A delayed-baseline run completed 516 traces with all four baseline
+  tasks done and `coverage_adds=0` for seed-duplicate coverage.
 
 ## Boundaries
 
@@ -117,7 +129,9 @@ Python.
   classified separately and never reported as `same=true`.
 - Coverage is function-level: a new branch inside an already-covered function
   does not increase the set. QEMU execution events are used, not translation
-  events. T3 has no seed baseline in the first version.
+  events. T3 has no seed baseline in the first version. If any baseline task
+  fails or is dropped, `baseline_state=incomplete`; `relative_new` and
+  `coverage_adds` are not a trusted campaign result in that run.
 - Campaign T1/T2/T3 use `run_isolated` (GNU timeout process-group cleanup +
   `prlimit`); raw `@exec.run` call sites remain unisolated. Output is capped
   after collection.

@@ -1,7 +1,7 @@
 ///|
 /// Structured result of one background coverage collection.  `complete=false`
 /// means the result must not enter a coverage union: QEMU failed, the log was
-/// truncated, or the timeout fired.
+/// truncated, or the outcome could not be attributed to the compiler.
 pub(all) enum TraceOutcome {
   Accepted
   Rejected
@@ -24,6 +24,36 @@ pub impl Eq for TraceOutcome with fn equal(a, b) {
 pub extend TraceOutcome with Eq::{not_equal, equal}
 
 ///|
+/// The three compiler entry points are a closed set.  Scheduling, command
+/// construction, and report keys all switch on this type instead of silently
+/// treating an unknown string as T1 or T3.
+pub(all) enum TraceStage {
+  T1
+  T2
+  T3
+}
+
+///|
+pub impl Eq for TraceStage with fn equal(a, b) {
+  match (a, b) {
+    (T1, T1) | (T2, T2) | (T3, T3) => true
+    _ => false
+  }
+}
+
+///|
+pub extend TraceStage with Eq::{not_equal, equal}
+
+///|
+pub fn trace_stage_name(stage : TraceStage) -> String {
+  match stage {
+    T1 => "t1"
+    T2 => "t2"
+    T3 => "t3"
+  }
+}
+
+///|
 pub fn trace_outcome_name(o : TraceOutcome) -> String {
   match o {
     Accepted => "accepted"
@@ -37,12 +67,16 @@ pub fn trace_outcome_name(o : TraceOutcome) -> String {
 pub(all) struct TraceResult {
   input_hash : String
   config_hash : String
-  stage : String
+  stage : TraceStage
   outcome : TraceOutcome
   complete : Bool
   functions : Array[String]
   elapsed_ms : Int64
   trace_bytes : Int64
+  /// Exit status of the traced command.  Negative values are signals.
+  rc : Int32
+  /// Machine-readable failure category; empty for a usable result.
+  failure : String
   detail : String
 }
 
@@ -52,7 +86,65 @@ fn is_compiler_abort(kind : String) -> Bool {
   kind == "OOM" ||
   kind == "OCAML_EXN" ||
   kind == "STACK" ||
-  kind == "ASSERT"
+  kind == "ASSERT" ||
+  kind == "SIG"
+}
+
+///|
+/// Exit statuses used by the shell/timeout wrapper itself, not by moonc.  A
+/// valid-looking PC written before such an exit is not evidence that this run
+/// exercised the requested compiler path.
+fn is_collector_exit(rc : Int32) -> Bool {
+  rc == 124 || rc == 125 || rc == 126 || rc == 127 || rc >= 128
+}
+
+///|
+/// A normal compiler rejection must carry a diagnostic.  Without one, a
+/// non-zero exit is indistinguishable from a broken collector and is kept out
+/// of the coverage union.
+fn has_compiler_diagnostic(r : @exec.RunResult) -> Bool {
+  let text = r.stderr + "\n" + r.stdout
+  text.contains("[E") ||
+  text.contains("Error:") ||
+  text.contains("\"level\":\"error\"")
+}
+
+///|
+fn clipped(text : String, limit : Int32) -> String {
+  let s = text.trim()
+  if s.char_length() <= limit {
+    s.to_owned()
+  } else {
+    s.exact_view(start=0, end=limit).to_owned() + "..."
+  }
+}
+
+///|
+/// Pure decision function, kept separate so fault-injection tests can exercise
+/// exit 127, signals, empty traces, and unclassified failures without running
+/// QEMU.
+fn classify_collection(
+  r : @exec.RunResult,
+  trace_bytes : Int64,
+  max_trace_bytes : Int64,
+) -> (TraceOutcome, String) {
+  if r.timed_out {
+    (CollectorFailed, "timeout")
+  } else if trace_bytes == 0L {
+    (CollectorFailed, "empty_trace")
+  } else if trace_bytes > max_trace_bytes {
+    (CollectorFailed, "trace_too_large")
+  } else if r.rc == 0 {
+    (Accepted, "")
+  } else if is_compiler_abort(@exec.classify(r)) {
+    (CompilerAbort, "")
+  } else if is_collector_exit(r.rc) {
+    (CollectorFailed, "collector_exit=" + r.rc.to_string())
+  } else if has_compiler_diagnostic(r) {
+    (Rejected, "")
+  } else {
+    (CollectorFailed, "unclassified_exit=" + r.rc.to_string())
+  }
 }
 
 ///|
@@ -94,7 +186,7 @@ pub async fn collect(
   sym : SymTab,
   input_hash : String,
   config_hash : String,
-  stage : String,
+  stage : TraceStage,
   timeout_ms : Int32,
   max_trace_bytes : Int64,
 ) -> TraceResult {
@@ -139,19 +231,18 @@ pub async fn collect(
     }
     out
   }
-  let kind = @exec.classify(r)
-  let outcome = if r.timed_out || trace_bytes == 0L {
-    CollectorFailed
-  } else if trace_bytes > max_trace_bytes {
-    CollectorFailed
-  } else if r.rc == 0 {
-    Accepted
-  } else if is_compiler_abort(kind) {
-    CompilerAbort
-  } else {
-    Rejected
-  }
+  let (outcome, failure) = classify_collection(r, trace_bytes, max_trace_bytes)
   let complete = outcome != CollectorFailed
+  let detail = if complete {
+    @exec.ice_detail(r)
+  } else {
+    let stderr = clipped(r.stderr, 240)
+    if stderr == "" {
+      failure
+    } else {
+      failure + "; stderr=" + stderr
+    }
+  }
   {
     input_hash,
     config_hash,
@@ -161,6 +252,8 @@ pub async fn collect(
     functions,
     elapsed_ms: r.ms,
     trace_bytes,
-    detail: @exec.ice_detail(r),
+    rc: r.rc,
+    failure,
+    detail,
   }
 }

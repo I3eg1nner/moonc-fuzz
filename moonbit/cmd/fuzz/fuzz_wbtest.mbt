@@ -118,32 +118,62 @@ fn trace_test_cfg() -> Config {
 }
 
 ///|
-fn trace_test_task(src : String) -> TraceTask {
+fn trace_test_task_stage(
+  src : String,
+  stage : @trace.TraceStage,
+  baseline : Bool,
+) -> TraceTask {
   {
-    stage: "t2",
+    stage,
     input_hash: @corpus.sha1_hex(src),
     config_hash: "cfg",
     src,
     compiled: src,
     fname: "in.mbt",
     core_path: "",
-    baseline: false,
+    baseline,
+    reserved_ms: 0L,
+  }
+}
+
+///|
+fn trace_test_task(src : String) -> TraceTask {
+  trace_test_task_stage(src, @trace.T2, false)
+}
+
+///|
+fn trace_test_result_full(
+  functions : Array[String],
+  stage : @trace.TraceStage,
+  outcome : @trace.TraceOutcome,
+  complete : Bool,
+) -> @trace.TraceResult {
+  {
+    input_hash: "ih",
+    config_hash: "cfg",
+    stage,
+    outcome,
+    complete,
+    functions,
+    elapsed_ms: 1L,
+    trace_bytes: 1L,
+    rc: if outcome == @trace.Accepted {
+      0
+    } else {
+      2
+    },
+    failure: if complete {
+      ""
+    } else {
+      "injected"
+    },
+    detail: "",
   }
 }
 
 ///|
 fn trace_test_result(functions : Array[String]) -> @trace.TraceResult {
-  {
-    input_hash: "ih",
-    config_hash: "cfg",
-    stage: "t2",
-    outcome: @trace.Accepted,
-    complete: true,
-    functions,
-    elapsed_ms: 1L,
-    trace_bytes: 1L,
-    detail: "",
-  }
+  trace_test_result_full(functions, @trace.T2, @trace.Accepted, true)
 }
 
 ///|
@@ -232,4 +262,230 @@ test "zero coverage growth does not admit or reward a parent" {
   )
   assert_eq(f.entries.length(), 1)
   assert_eq(f.entries[0].energy, before)
+}
+
+///|
+test "trace scheduler borrows a share instead of closing the queue" {
+  let cfg = trace_test_cfg()
+  let f = feedback_new()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  assert_true(
+    trace_submit(cfg, q, @trace.T1, "a", "a", "in.mbt", "", false, "cfg"),
+  )
+  let first = match trace_pop(q) {
+    Ready(t) => t
+    _ => {
+      assert_true(false)
+      trace_test_task("fallback")
+    }
+  }
+  trace_apply(
+    cfg,
+    first,
+    trace_test_result_full(["f1"], @trace.T1, @trace.Accepted, true),
+    cov,
+    f,
+    q,
+  )
+  assert_true(
+    trace_submit(cfg, q, @trace.T1, "b", "b", "in.mbt", "", false, "cfg"),
+  )
+  match trace_pop(q) {
+    Ready(t) => assert_true(t.stage == @trace.T1)
+    _ => assert_true(false)
+  }
+}
+
+///|
+test "trace scheduler counts in-flight reservations" {
+  let cfg = trace_test_cfg()
+  let f = feedback_new()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  assert_true(
+    trace_submit(cfg, q, @trace.T2, "a", "a", "in.mbt", "", false, "cfg"),
+  )
+  assert_true(
+    trace_submit(cfg, q, @trace.T2, "b", "b", "in.mbt", "", false, "cfg"),
+  )
+  let first = match trace_pop(q) {
+    Ready(t) => t
+    _ => {
+      assert_true(false)
+      trace_test_task("fallback")
+    }
+  }
+  assert_eq(q.t2_reserved_ms, 250L)
+  assert_eq(q.inflight, 1)
+  match trace_pop(q) {
+    Wait => ()
+    _ => assert_true(false)
+  }
+  trace_apply(
+    cfg,
+    first,
+    trace_test_result_full(["f1"], @trace.T2, @trace.Accepted, true),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(q.t2_reserved_ms, 0L)
+  assert_eq(q.inflight, 0)
+  match trace_pop(q) {
+    Ready(t) => assert_true(t.stage == @trace.T2)
+    _ => assert_true(false)
+  }
+}
+
+///|
+test "candidate waits for baseline and gains no seed coverage" {
+  let cfg = trace_test_cfg()
+  let f = feedback_new()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  q.baseline_expected = 1
+  q.baseline_settled = false
+  q.baseline_complete = false
+  trace_apply(
+    cfg,
+    trace_test_task("candidate"),
+    trace_test_result(["f1"]),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(cov.coverage_adds, 0)
+  assert_eq(cov.pending.length(), 1)
+  assert_eq(f.entries.length(), 0)
+  trace_apply(
+    cfg,
+    trace_test_task_stage("seed", @trace.T2, true),
+    trace_test_result(["f1"]),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(q.baseline_complete, true)
+  assert_eq(cov.pending.length(), 0)
+  assert_eq(cov.coverage_adds, 0)
+  assert_eq(f.entries.length(), 0)
+}
+
+///|
+test "failed baseline marks candidates unresolved and unrewarded" {
+  let cfg = trace_test_cfg()
+  let f = feedback_new()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  q.baseline_expected = 1
+  q.baseline_settled = false
+  q.baseline_complete = false
+  trace_apply(
+    cfg,
+    trace_test_task("candidate"),
+    trace_test_result(["f1"]),
+    cov,
+    f,
+    q,
+  )
+  trace_apply(
+    cfg,
+    trace_test_task_stage("seed", @trace.T2, true),
+    trace_test_result_full([], @trace.T2, @trace.CollectorFailed, false),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(q.baseline_complete, false)
+  assert_eq(q.baseline_unresolved, 1)
+  assert_eq(cov.coverage_adds, 0)
+  assert_eq(f.entries.length(), 0)
+}
+
+///|
+test "coverage evidence is keyed by stage and behavior cannot erase it" {
+  let cfg = trace_test_cfg()
+  cfg.out = "/tmp/mbtfuzz_sidecar_wbtest"
+  rm_rf(cfg.out)
+  let src = "fn f() { () }"
+  let f = feedback_new()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  trace_apply(
+    cfg,
+    trace_test_task_stage(src, @trace.T1, false),
+    trace_test_result_full(["f1"], @trace.T1, @trace.Accepted, true),
+    cov,
+    f,
+    q,
+  )
+  trace_apply(
+    cfg,
+    trace_test_task_stage(src, @trace.T2, false),
+    trace_test_result_full(["f2"], @trace.T2, @trace.Accepted, true),
+    cov,
+    f,
+    q,
+  )
+  persist_behavior(cfg, src, "behavior")
+  assert_eq(cov.evidence.length(), 2)
+  let corpus = join(cfg.out, "corpus")
+  assert_true(@fs.path_exists(join(corpus, @corpus.sha1_hex(src) + ".mbt")))
+  let cov_root = join(corpus, "coverage")
+  let t1dir = join(join(cov_root, "t1"), "accepted")
+  let t2dir = join(join(cov_root, "t2"), "accepted")
+  let t1files = @fs.read_dir(t1dir) catch { _ => [] }
+  let t2files = @fs.read_dir(t2dir) catch { _ => [] }
+  assert_eq(t1files.length(), 1)
+  assert_eq(t2files.length(), 1)
+  let t1meta = @fs.read_file_to_string(join(t1dir, t1files[0])) catch {
+    _ => ""
+  }
+  let t2meta = @fs.read_file_to_string(join(t2dir, t2files[0])) catch {
+    _ => ""
+  }
+  assert_true(t1meta.contains("\"stage\":\"t1\""))
+  assert_true(t1meta.contains("f1"))
+  assert_true(t2meta.contains("\"stage\":\"t2\""))
+  assert_true(t2meta.contains("f2"))
+  let behavior = join(join(corpus, "behavior"), @corpus.sha1_hex(src))
+  assert_true(@fs.path_exists(join(behavior, "behavior.json")))
+}
+
+///|
+test "a dropped baseline task makes U0 incomplete" {
+  let cfg = trace_test_cfg()
+  cfg.trace_queue = 1
+  let f = feedback_new()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  assert_true(
+    trace_submit(cfg, q, @trace.T2, "seed1", "seed1", "in.mbt", "", true, "cfg"),
+  )
+  assert_true(
+    !trace_submit(
+      cfg,
+      q,
+      @trace.T2,
+      "seed2",
+      "seed2",
+      "in.mbt",
+      "",
+      true,
+      "cfg",
+    ),
+  )
+  assert_eq(q.baseline_expected, 2)
+  assert_eq(q.baseline_failed, 1)
+  trace_apply(
+    cfg,
+    trace_test_task_stage("seed1", @trace.T2, true),
+    trace_test_result_full([], @trace.T2, @trace.Accepted, true),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(trace_baseline_state(q), "incomplete")
+  assert_eq(q.baseline_complete, false)
 }

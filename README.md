@@ -62,8 +62,9 @@ moon run cmd/accept -- /path/to/moonc-fuzz
 ```
 
 trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 的
-完成时间份额约束；3 个后台 worker 消费一个有界队列，`TRACE_CPU=25`
-限制自适应 trace 时间。运行目录是
+完成时间份额约束，并把在飞任务的预留时间计入份额；没有其他阶段候选时
+借用份额，暂不可调度时等待而不是清空队列。3 个后台 worker 消费一个有界
+队列，`TRACE_CPU=25` 限制自适应 trace 时间。运行目录是
 `out/mb_runs/<UTC 时间>-<pid>/`，包含 `manifest.json`、`stats.jsonl`、
 `summary.json` 和 `trace_failures.jsonl`。
 
@@ -184,19 +185,27 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 2. 候选在提交时冻结源码、阶段和配置；后台 worker 在独立目录里重放完全
    相同的 argv，不读取正在被 fuzz worker 覆写的 `in.mbt`。
 3. 有界队列默认 32，3 个 trace worker；T2 优先于 T3，T1 只使用半队列。
-   队列满、trace 超预算或日志超限都会记录，不伪装成“零覆盖”。
+   份额计算包含已完成时间和在飞预留；缺少其他阶段候选时借用份额。
+   `Wait`（暂时不可调度）与 `Closed`（生产者结束且队列为空）分开，
+   前者不会清空队列。队列满、trace 超预算或日志超限都会记录，不伪装成
+   “零覆盖”。
 4. 覆盖按 `(config, stage, outcome)` 分开维护。只有
    `Coverage(x) − U` 非空才保存输入、更新 U、准入并发放覆盖 energy；
    无增量的重复 trace 不再次奖励。
-5. 启动时先对少量种子测 U0；summary 同时报告 `baseline_funcs`、
-   `observed_funcs` 和 `relative_new`，避免把种子已有覆盖算成变异收益。
+5. 启动时先对少量种子测 U0，并用完成屏障冻结：baseline 未完成前候选结果
+   只缓存，不计算增量。任一 baseline 失败或丢弃时，summary 标记
+   `baseline_state=incomplete`，缓存候选转为 `baseline_unresolved`，不发放
+   覆盖奖励；不会把部分 U0 当作完整基线。
 6. T2/T3 分别统计 build 成功、run 完成、语义差分、纯运行期差分、接受性差分、
    编译器异常和 inconclusive；编译器异常和 inconclusive 不会以 `same=true`
    进入 finding。
 7. 输出截断只作用于证据；完整 stdout 的 SHA-1 和字节数参与差分判定，截断后
    的后缀差异不会变成 `SAME`。
-8. 被接纳的输入、准入原因和覆盖集合写入 `corpus/<hash>.mbt` 与
-   `<hash>.json`；可用 `--seed-dir <run>/corpus` 重放。
+8. 源码按内容 SHA-1 写入 `corpus/<sha1>.mbt`；覆盖证据按
+   `(input_hash, config_hash, stage, outcome)` 分文件写到
+   `corpus/coverage/<stage>/<outcome>/`，行为证据写到
+   `corpus/behavior/<sha1>/`，二者不互相覆盖。可用
+   `--seed-dir <run>/corpus` 重放源码。
 
 `cmd/diffprobe --inject` 对构建/链接故障做真实判定函数的注入检查。
 
@@ -231,6 +240,9 @@ moon test --target native
   队列 32；过载会丢弃并记录 `trace_dropped`。`TRACE_CPU=25` 是软预算，
   已在飞的 T3 trace 仍可能超出。
 - 覆盖仍是函数级；同一函数内的新分支不会增加集合。T3 第一版没有种子基线。
+- 采集器返回非零时，只有带编译器诊断的退出才算正常拒绝；shell 的
+  124–127、≥128、无诊断退出和信号前置的异常都进入
+  `collector_failed`/`compiler_abort`，失败记录保留 rc 和原因。
 - campaign 的 T1/T2/T3 走 `run_isolated`：GNU `timeout` 负责进程组回收，
   `prlimit` 设地址空间上限（T1 2 GiB、T2 6 GiB、T3 4–6 GiB）。原始
   `@exec.run` 仍不隔离，formatter 等直连路径未覆盖；输出在收集后截断到

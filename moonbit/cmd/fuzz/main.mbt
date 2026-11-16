@@ -204,7 +204,7 @@ struct CovCtx {
 
 ///|
 struct TraceTask {
-  stage : String
+  stage : @trace.TraceStage
   input_hash : String
   config_hash : String
   src : String
@@ -212,12 +212,17 @@ struct TraceTask {
   fname : String
   core_path : String
   baseline : Bool
+  /// Time reserved at dequeue time.  In-flight work must count toward the
+  /// stage share or several workers can all dequeue the same oversubscribed
+  /// stage before any completion is recorded.
+  reserved_ms : Int64
 }
 
 ///|
 struct TraceQueue {
   tasks : Array[TraceTask]
   seen : Map[String, Unit]
+  mut closed : Bool
   mut dropped : Int32
   mut fast_done : Int32
   mut completed : Int32
@@ -225,11 +230,23 @@ struct TraceQueue {
   mut rejected : Int32
   mut aborts : Int32
   mut failed : Int32
+  mut baseline_expected : Int32
   mut baseline_done : Int32
+  mut baseline_failed : Int32
+  mut baseline_settled : Bool
+  mut baseline_complete : Bool
+  mut baseline_unresolved : Int32
   mut baseline_ms : Int64
   mut t1_ms : Int64
   mut t2_ms : Int64
   mut t3_ms : Int64
+  mut t1_done : Int32
+  mut t2_done : Int32
+  mut t3_done : Int32
+  mut t1_reserved_ms : Int64
+  mut t2_reserved_ms : Int64
+  mut t3_reserved_ms : Int64
+  mut inflight : Int32
   mut trace_ms : Int64
   mut trace_bytes : Int64
 }
@@ -239,6 +256,7 @@ fn trace_queue_new() -> TraceQueue {
   {
     tasks: [],
     seen: Map([]),
+    closed: false,
     dropped: 0,
     fast_done: 0,
     completed: 0,
@@ -246,11 +264,23 @@ fn trace_queue_new() -> TraceQueue {
     rejected: 0,
     aborts: 0,
     failed: 0,
+    baseline_expected: 0,
     baseline_done: 0,
+    baseline_failed: 0,
+    baseline_settled: true,
+    baseline_complete: true,
+    baseline_unresolved: 0,
     baseline_ms: 0L,
     t1_ms: 0L,
     t2_ms: 0L,
     t3_ms: 0L,
+    t1_done: 0,
+    t2_done: 0,
+    t3_done: 0,
+    t1_reserved_ms: 0L,
+    t2_reserved_ms: 0L,
+    t3_reserved_ms: 0L,
+    inflight: 0,
     trace_ms: 0L,
     trace_bytes: 0L,
   }
@@ -260,81 +290,199 @@ fn trace_queue_new() -> TraceQueue {
 fn trace_priority(task : TraceTask) -> Int32 {
   if task.baseline {
     0
-  } else if task.stage == "t2" {
-    1
-  } else if task.stage == "t3" {
-    2
   } else {
-    3
+    match task.stage {
+      @trace.T2 => 1
+      @trace.T3 => 2
+      @trace.T1 => 3
+    }
   }
 }
 
 ///|
-fn trace_stage_ms(q : TraceQueue, stage : String) -> Int64 {
-  if stage == "t1" {
-    q.t1_ms
-  } else if stage == "t2" {
-    q.t2_ms
-  } else {
-    q.t3_ms
+fn trace_stage_ms(q : TraceQueue, stage : @trace.TraceStage) -> Int64 {
+  match stage {
+    @trace.T1 => q.t1_ms
+    @trace.T2 => q.t2_ms
+    @trace.T3 => q.t3_ms
   }
 }
 
 ///|
-fn trace_stage_share(stage : String) -> Int64 {
-  if stage == "t2" {
-    70L
-  } else if stage == "t1" {
-    20L
-  } else {
-    10L
+fn trace_stage_reserved_ms(q : TraceQueue, stage : @trace.TraceStage) -> Int64 {
+  match stage {
+    @trace.T1 => q.t1_reserved_ms
+    @trace.T2 => q.t2_reserved_ms
+    @trace.T3 => q.t3_reserved_ms
   }
+}
+
+///|
+fn trace_stage_done(q : TraceQueue, stage : @trace.TraceStage) -> Int32 {
+  match stage {
+    @trace.T1 => q.t1_done
+    @trace.T2 => q.t2_done
+    @trace.T3 => q.t3_done
+  }
+}
+
+///|
+fn trace_stage_share(stage : @trace.TraceStage) -> Int64 {
+  match stage {
+    @trace.T2 => 70L
+    @trace.T1 => 20L
+    @trace.T3 => 10L
+  }
+}
+
+///|
+/// Reserve an estimated cost before the trace starts.  Once at least one
+/// sample exists, use its observed average; otherwise use conservative
+/// defaults.  The actual elapsed time replaces this reservation on completion.
+fn trace_stage_estimate(q : TraceQueue, stage : @trace.TraceStage) -> Int64 {
+  let done = trace_stage_done(q, stage)
+  if done > 0 {
+    let avg = trace_stage_ms(q, stage) / done.to_int64()
+    if avg < 10L {
+      10L
+    } else {
+      avg
+    }
+  } else {
+    match stage {
+      @trace.T1 => 20L
+      @trace.T2 => 250L
+      @trace.T3 => 4000L
+    }
+  }
+}
+
+///|
+fn trace_stage_used(q : TraceQueue, stage : @trace.TraceStage) -> Int64 {
+  trace_stage_ms(q, stage) + trace_stage_reserved_ms(q, stage)
+}
+
+///|
+fn trace_reserve(q : TraceQueue, task : TraceTask) -> TraceTask {
+  if task.baseline {
+    return task
+  }
+  let ms = trace_stage_estimate(q, task.stage)
+  match task.stage {
+    @trace.T1 => q.t1_reserved_ms += ms
+    @trace.T2 => q.t2_reserved_ms += ms
+    @trace.T3 => q.t3_reserved_ms += ms
+  }
+  q.inflight += 1
+  { ..task, reserved_ms: ms, }
+}
+
+///|
+fn trace_release(q : TraceQueue, task : TraceTask) -> Unit {
+  if task.baseline {
+    return
+  }
+  match task.stage {
+    @trace.T1 =>
+      q.t1_reserved_ms = if q.t1_reserved_ms >= task.reserved_ms {
+        q.t1_reserved_ms - task.reserved_ms
+      } else {
+        0L
+      }
+    @trace.T2 =>
+      q.t2_reserved_ms = if q.t2_reserved_ms >= task.reserved_ms {
+        q.t2_reserved_ms - task.reserved_ms
+      } else {
+        0L
+      }
+    @trace.T3 =>
+      q.t3_reserved_ms = if q.t3_reserved_ms >= task.reserved_ms {
+        q.t3_reserved_ms - task.reserved_ms
+      } else {
+        0L
+      }
+  }
+  if q.inflight > 0 {
+    q.inflight -= 1
+  }
+}
+
+///|
+/// Queue state is distinct from a temporary scheduling pause.  `Wait` is used
+/// while another trace is in flight and every remaining stage is above its
+/// share; the consumer must not clear the queue for `Wait`.
+priv enum TracePick {
+  Ready(TraceTask)
+  Wait
+  Closed
 }
 
 ///|
 /// Pop the highest-priority task whose stage is still below its trace-time
-/// share.  This is a time budget, not a submission probability: T2 traces cost
-/// more than T1, so equal candidate counts would not give a 70/20/10 split.
-fn trace_pop(q : TraceQueue) -> TraceTask? {
+/// share.  In-flight estimates count toward the share.  If no stage is below
+/// share and nothing is in flight, shares are mathematically unsatisfiable for
+/// the current queue, so borrow the highest-priority task instead of stalling
+/// forever.  If work is in flight, wait for its actual cost to replace the
+/// estimate.
+fn trace_pop(q : TraceQueue) -> TracePick {
   if q.tasks.length() == 0 {
-    return None
+    return if q.closed { Closed } else { Wait }
   }
-  let total = q.t1_ms + q.t2_ms + q.t3_ms
+  let total = trace_stage_used(q, @trace.T1) +
+    trace_stage_used(q, @trace.T2) +
+    trace_stage_used(q, @trace.T3)
   let mut best = -1
   let mut best_p = 99
+  let mut any = -1
+  let mut any_p = 99
   for i in 0..<q.tasks.length() {
     let task = q.tasks[i]
     if task.baseline {
-      return Some(q.tasks.remove(i))
+      let picked = q.tasks.remove(i)
+      return Ready(trace_reserve(q, picked))
     }
+    let p = trace_priority(task)
+    if p < any_p {
+      any = i
+      any_p = p
+    }
+    let used = trace_stage_used(q, task.stage)
     let over = total > 0L &&
-      trace_stage_ms(q, task.stage) * 100L >=
-      total * trace_stage_share(task.stage)
-    if !over {
-      let p = trace_priority(task)
-      if p < best_p {
-        best = i
-        best_p = p
-      }
+      used * 100L >= total * trace_stage_share(task.stage)
+    if !over && p < best_p {
+      best = i
+      best_p = p
     }
   }
-  if best < 0 {
+  let choose = if best >= 0 {
+    Some(best)
+  } else if q.inflight > 0 {
     None
+  } else if any >= 0 {
+    Some(any)
   } else {
-    Some(q.tasks.remove(best))
+    None
+  }
+  match choose {
+    Some(i) => Ready(trace_reserve(q, q.tasks.remove(i)))
+    None => Wait
   }
 }
 
 ///|
 fn trace_key(task : TraceTask) -> String {
-  task.stage + "|" + task.input_hash + "|" + task.config_hash
+  @trace.trace_stage_name(task.stage) +
+  "|" +
+  task.input_hash +
+  "|" +
+  task.config_hash
 }
 
 ///|
 fn trace_submit(
   cfg : Config,
   q : TraceQueue,
-  stage : String,
+  stage : @trace.TraceStage,
   src : String,
   compiled : String,
   fname : String,
@@ -345,29 +493,55 @@ fn trace_submit(
   let task : TraceTask = {
     stage,
     input_hash: @corpus.sha1_hex(src),
-    config_hash: config_hash + "|entry=" + stage,
+    config_hash: config_hash + "|entry=" + @trace.trace_stage_name(stage),
     src,
     compiled,
     fname,
     core_path,
     baseline,
+    reserved_ms: 0L,
   }
   let key = trace_key(task)
   if q.seen.contains(key) {
     return false
   }
+  if baseline {
+    // Count every unique baseline attempt, including one that cannot enter
+    // the queue.  Otherwise expected/done/failed would not describe the same
+    // set and an incomplete U0 could look settled.
+    q.baseline_expected += 1
+  }
   if q.tasks.length() >= cfg.trace_queue {
     q.dropped += 1
+    if baseline {
+      // A seed that never entered the queue cannot be part of a complete U0.
+      q.baseline_failed += 1
+      q.baseline_complete = false
+      q.baseline_settled = q.baseline_done + q.baseline_failed >=
+        q.baseline_expected
+    }
     return false
   }
   q.seen.set(key, ())
   q.tasks.push(task)
+  if baseline {
+    q.baseline_settled = false
+    q.baseline_complete = false
+  }
   true
+}
+
+///|
+struct PendingTrace {
+  task : TraceTask
+  result : @trace.TraceResult
 }
 
 ///|
 struct TraceUniverse {
   by_key : Map[String, @cov.FuncSet]
+  evidence : Map[String, @cov.FuncSet]
+  pending : Array[PendingTrace]
   rewarded : Map[String, Unit]
   mut baseline_total : @cov.FuncSet
   mut observed_total : @cov.FuncSet
@@ -378,6 +552,8 @@ struct TraceUniverse {
 fn trace_universe_new() -> TraceUniverse {
   {
     by_key: Map([]),
+    evidence: Map([]),
+    pending: [],
     rewarded: Map([]),
     baseline_total: @cov.FuncSet::new([]),
     observed_total: @cov.FuncSet::new([]),
@@ -649,29 +825,79 @@ fn save_crash(
 }
 
 ///|
-/// Persist one admitted parent and the evidence that justified admission.
-/// Source and sidecar share a content-derived name; `--seed-dir <run>/corpus`
-/// can therefore replay or resume from a previous run.
-fn persist_parent(
-  cfg : Config,
-  src : String,
-  reason : String,
-  funcs : Array[String],
-) -> Unit {
-  let h = @corpus.short_hash(src)
+/// Source bytes are stored once per content hash.  Evidence records point at
+/// this file instead of duplicating the source in every coverage record.
+fn persist_source(cfg : Config, src : String) -> String {
+  let h = @corpus.sha1_hex(src)
   let dir = join(cfg.out, "corpus")
   @corpus.ensure_dir(dir)
   ignore(write(join(dir, h + ".mbt"), src))
+  h
+}
+
+///|
+/// Behaviour evidence is intentionally separate from coverage evidence.  A
+/// fast-path behaviour observation must never overwrite a later trace record
+/// for the same source.
+fn persist_behavior(cfg : Config, src : String, reason : String) -> Unit {
+  let h = persist_source(cfg, src)
+  let dir = join(join(join(cfg.out, "corpus"), "behavior"), h)
+  @corpus.ensure_dir(dir)
   let meta = "{\"sha1\":\"" +
-    @corpus.sha1_hex(src) +
+    h +
     "\",\"reason\":\"" +
     @corpus.json_escape(reason) +
     "\",\"bytes\":" +
     src.length().to_string() +
+    ",\"source\":\"corpus/" +
+    h +
+    ".mbt\"}"
+  ignore(write(join(dir, reason + ".json"), meta))
+}
+
+///|
+/// One record per `(input_hash, config_hash, stage, outcome)`.  The record
+/// carries the full key, so a run can reconstruct per-config/stage/outcome
+/// coverage subsets without relying on the short sidecar filename.
+fn persist_coverage(
+  cfg : Config,
+  task : TraceTask,
+  tr : @trace.TraceResult,
+  funcs : Array[String],
+) -> Unit {
+  let source_hash = persist_source(cfg, task.src)
+  let stage = @trace.trace_stage_name(tr.stage)
+  let outcome = @trace.trace_outcome_name(tr.outcome)
+  let dir = join(
+    join(join(join(cfg.out, "corpus"), "coverage"), stage),
+    outcome,
+  )
+  @corpus.ensure_dir(dir)
+  // The full config hash contains separators; hash it for a stable filename
+  // while keeping the complete value in the JSON body.
+  let config_name = @corpus.sha1_hex(tr.config_hash)
+  let meta = "{\"input_hash\":\"" +
+    tr.input_hash +
+    "\",\"config_hash\":\"" +
+    @corpus.json_escape(tr.config_hash) +
+    "\",\"stage\":\"" +
+    stage +
+    "\",\"outcome\":\"" +
+    outcome +
+    "\",\"complete\":true,\"source_sha1\":\"" +
+    source_hash +
+    "\",\"source\":\"corpus/" +
+    source_hash +
+    ".mbt\",\"trace_rc\":" +
+    tr.rc.to_string() +
+    ",\"elapsed_ms\":" +
+    tr.elapsed_ms.to_string() +
+    ",\"trace_bytes\":" +
+    tr.trace_bytes.to_string() +
     ",\"coverage_funcs\":" +
     @trace.json_string_array(funcs) +
     "}"
-  ignore(write(join(dir, h + ".json"), meta))
+  ignore(write(join(dir, tr.input_hash + "_" + config_name + ".json"), meta))
 }
 
 ///|
@@ -797,6 +1023,109 @@ async fn run_t1(
 }
 
 ///|
+fn trace_baseline_state(q : TraceQueue) -> String {
+  if q.baseline_expected == 0 && q.baseline_failed == 0 {
+    "disabled"
+  } else if !q.baseline_settled {
+    "pending"
+  } else if q.baseline_complete {
+    "complete"
+  } else {
+    "incomplete"
+  }
+}
+
+///|
+fn trace_record_evidence(
+  cfg : Config,
+  task : TraceTask,
+  tr : @trace.TraceResult,
+  covset : @cov.FuncSet,
+  cov : TraceUniverse,
+) -> Unit {
+  let key = tr.input_hash +
+    "|" +
+    tr.config_hash +
+    "|" +
+    @trace.trace_stage_name(tr.stage) +
+    "|" +
+    @trace.trace_outcome_name(tr.outcome)
+  let old = match cov.evidence.get(key) {
+    Some(s) => s
+    None => @cov.FuncSet::new([])
+  }
+  let all = old.union(covset)
+  cov.evidence.set(key, all)
+  persist_coverage(cfg, task, tr, all.sorted())
+}
+
+///|
+fn trace_apply_delta(
+  task : TraceTask,
+  tr : @trace.TraceResult,
+  covset : @cov.FuncSet,
+  cov : TraceUniverse,
+  feed : Feedback,
+) -> Unit {
+  let key = @trace.trace_stage_name(tr.stage) +
+    "|" +
+    @trace.trace_outcome_name(tr.outcome) +
+    "|" +
+    tr.config_hash
+  let old = match cov.by_key.get(key) {
+    Some(s) => s
+    None => @cov.FuncSet::new([])
+  }
+  let delta = covset.difference(old)
+  if delta.len() > 0 {
+    cov.by_key.set(key, old.union(covset))
+    cov.coverage_adds += delta.len()
+    let reward_key = task.input_hash +
+      "|" +
+      task.config_hash +
+      "|" +
+      @trace.trace_stage_name(task.stage)
+    if !cov.rewarded.contains(reward_key) {
+      cov.rewarded.set(reward_key, ())
+      ignore(feedback_upsert(feed, task.src, covset, delta.len()))
+    }
+  }
+}
+
+///|
+/// Freeze U0 only after every submitted baseline task has completed or
+/// failed.  Until then candidate results are buffered.  If any baseline
+/// collection failed, U0 is incomplete and buffered candidates are not
+/// rewarded; over-rewarding seed coverage is worse than losing that batch.
+fn trace_maybe_settle_baseline(
+  cov : TraceUniverse,
+  feed : Feedback,
+  q : TraceQueue,
+) -> Unit {
+  if q.baseline_settled ||
+    q.baseline_done + q.baseline_failed < q.baseline_expected {
+    return
+  }
+  q.baseline_settled = true
+  if q.baseline_failed == 0 {
+    q.baseline_complete = true
+    for p in cov.pending {
+      trace_apply_delta(
+        p.task,
+        p.result,
+        @cov.FuncSet::new(p.result.functions),
+        cov,
+        feed,
+      )
+    }
+    cov.pending.clear()
+  } else {
+    q.baseline_unresolved += cov.pending.length()
+    cov.pending.clear()
+  }
+}
+
+///|
 fn trace_apply(
   cfg : Config,
   task : TraceTask,
@@ -807,16 +1136,23 @@ fn trace_apply(
 ) -> Unit {
   q.trace_ms += tr.elapsed_ms
   q.trace_bytes += tr.trace_bytes
+  trace_release(q, task)
   if !tr.complete {
     q.failed += 1
     @corpus.append_line(
       join(cfg.out, "trace_failures.jsonl"),
       "{\"input_hash\":\"" +
       tr.input_hash +
+      "\",\"config_hash\":\"" +
+      @corpus.json_escape(tr.config_hash) +
       "\",\"stage\":\"" +
-      tr.stage +
+      @trace.trace_stage_name(tr.stage) +
       "\",\"outcome\":\"" +
       @trace.trace_outcome_name(tr.outcome) +
+      "\",\"rc\":" +
+      tr.rc.to_string() +
+      ",\"failure\":\"" +
+      @corpus.json_escape(tr.failure) +
       "\",\"trace_bytes\":" +
       tr.trace_bytes.to_string() +
       ",\"elapsed_ms\":" +
@@ -825,53 +1161,74 @@ fn trace_apply(
       @corpus.json_escape(tr.detail) +
       "\"}",
     )
+    if task.baseline {
+      q.baseline_failed += 1
+      trace_maybe_settle_baseline(cov, feed, q)
+    }
     return
   }
   q.completed += 1
-  if !task.baseline {
-    match tr.outcome {
-      Accepted => q.accepted += 1
-      Rejected => q.rejected += 1
-      CompilerAbort => q.aborts += 1
-      CollectorFailed => ()
-    }
-    if task.stage == "t1" {
-      q.t1_ms += tr.elapsed_ms
-    } else if task.stage == "t2" {
-      q.t2_ms += tr.elapsed_ms
-    } else {
-      q.t3_ms += tr.elapsed_ms
-    }
-  }
   let covset = @cov.FuncSet::new(tr.functions)
   cov.observed_total = cov.observed_total.union(covset)
-  let key = task.stage +
-    "|" +
-    @trace.trace_outcome_name(tr.outcome) +
-    "|" +
-    tr.config_hash
-  let old = match cov.by_key.get(key) {
-    Some(s) => s
-    None => @cov.FuncSet::new([])
-  }
+  trace_record_evidence(cfg, task, tr, covset, cov)
   if task.baseline {
+    let key = @trace.trace_stage_name(tr.stage) +
+      "|" +
+      @trace.trace_outcome_name(tr.outcome) +
+      "|" +
+      tr.config_hash
+    let old = match cov.by_key.get(key) {
+      Some(s) => s
+      None => @cov.FuncSet::new([])
+    }
     cov.by_key.set(key, old.union(covset))
     cov.baseline_total = cov.baseline_total.union(covset)
     q.baseline_done += 1
     q.baseline_ms += tr.elapsed_ms
+    trace_maybe_settle_baseline(cov, feed, q)
     return
   }
-  let delta = covset.difference(old)
-  if delta.len() > 0 {
-    cov.by_key.set(key, old.union(covset))
-    cov.coverage_adds += delta.len()
-    let reward_key = task.input_hash + "|" + task.config_hash + "|" + task.stage
-    if !cov.rewarded.contains(reward_key) {
-      cov.rewarded.set(reward_key, ())
-      ignore(feedback_upsert(feed, task.src, covset, delta.len()))
-      persist_parent(cfg, task.src, "coverage:" + task.stage, tr.functions)
+  match tr.outcome {
+    @trace.Accepted => q.accepted += 1
+    @trace.Rejected => q.rejected += 1
+    @trace.CompilerAbort => q.aborts += 1
+    @trace.CollectorFailed => ()
+  }
+  match task.stage {
+    @trace.T1 => {
+      q.t1_ms += tr.elapsed_ms
+      q.t1_done += 1
+    }
+    @trace.T2 => {
+      q.t2_ms += tr.elapsed_ms
+      q.t2_done += 1
+    }
+    @trace.T3 => {
+      q.t3_ms += tr.elapsed_ms
+      q.t3_done += 1
     }
   }
+  if !q.baseline_settled {
+    cov.pending.push({ task, result: tr, })
+    return
+  }
+  if !q.baseline_complete {
+    q.baseline_unresolved += 1
+    return
+  }
+  trace_apply_delta(task, tr, covset, cov, feed)
+}
+
+///|
+fn trace_drop_remaining(q : TraceQueue) -> Unit {
+  for t in q.tasks {
+    if t.baseline {
+      q.baseline_failed += 1
+      q.baseline_complete = false
+    }
+  }
+  q.dropped += q.tasks.length()
+  q.tasks.clear()
 }
 
 ///|
@@ -901,48 +1258,51 @@ async fn trace_worker(
     0L
   }
   let deadline = start + cfg.duration_s.to_int64() * 1000L + 10000L
-  while @async.now() < deadline &&
-        (q.fast_done < cfg.workers || q.tasks.length() > 0) {
-    if q.tasks.length() == 0 {
-      @async.sleep(50)
-      continue
-    }
+  while @async.now() < deadline {
     let task = match trace_pop(q) {
-      Some(t) => t
-      None => {
-        q.dropped += q.tasks.length()
-        q.tasks.clear()
-        break
+      Ready(t) => t
+      Wait => {
+        // Either the producer is still running, or all stages are above
+        // share while another trace is in flight.  Neither is a reason to
+        // discard queued work.
+        @async.sleep(25)
+        continue
       }
+      Closed => break
     }
     if !task.baseline && budget > 0L && q.trace_ms - q.baseline_ms >= budget {
-      q.dropped += q.tasks.length() + 1
-      q.tasks.clear()
+      trace_release(q, task)
+      q.dropped += 1
+      trace_drop_remaining(q)
+      trace_maybe_settle_baseline(cov, feed, q)
       break
     }
-    let args = if task.stage == "t1" {
-      ignore(write(join(wd, task.fname), task.compiled))
-      t1_args(cfg.mode, task.fname, ctx.builtin, ctx.prelude)
-    } else if task.stage == "t2" {
-      ignore(write(join(wd, "in.mbt"), task.compiled))
-      t2_args(ctx.pkg, ctx.builtin, ctx.prelude, ctx.all_pkgs)
-    } else {
-      @oracle.link_args(
-        "wasm",
-        ctx.bundle,
-        ctx.core_dir,
-        ctx.pkg,
-        ctx.pkg_config,
-        task.core_path,
-        "out_t3.wasm",
-      )
+    let args = match task.stage {
+      @trace.T1 => {
+        ignore(write(join(wd, task.fname), task.compiled))
+        t1_args(cfg.mode, task.fname, ctx.builtin, ctx.prelude)
+      }
+      @trace.T2 => {
+        ignore(write(join(wd, "in.mbt"), task.compiled))
+        t2_args(ctx.pkg, ctx.builtin, ctx.prelude, ctx.all_pkgs)
+      }
+      @trace.T3 =>
+        @oracle.link_args(
+          "wasm",
+          ctx.bundle,
+          ctx.core_dir,
+          ctx.pkg,
+          ctx.pkg_config,
+          task.core_path,
+          "out_t3.wasm",
+        )
     }
     let tr = @trace.collect(
       ctx.qemu,
       ctx.moonc,
       args,
       wd,
-      task.stage + "_" + id.to_string(),
+      @trace.trace_stage_name(task.stage) + "_" + id.to_string(),
       ctx.sym,
       task.input_hash,
       task.config_hash,
@@ -960,6 +1320,10 @@ async fn trace_worker(
       prog.trace_failed += 1
     }
     prog.trace_dropped = q.dropped
+  }
+  if q.tasks.length() > 0 {
+    trace_drop_remaining(q)
+    trace_maybe_settle_baseline(cov, feed, q)
   }
   stats_new()
 }
@@ -1104,7 +1468,7 @@ async fn worker(
         trace_submit(
           cfg,
           q,
-          "t1",
+          @trace.T1,
           src,
           src,
           fname,
@@ -1297,14 +1661,14 @@ async fn worker(
       if novel2 {
         local_t2_sigs.set(sig2, ())
         ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
-        persist_parent(cfg, src, "behavior_t2", [])
+        persist_behavior(cfg, src, "behavior_t2")
       }
       if covctx.enabled && (novel2 || rng.chance(cfg.trace_t2)) {
         ignore(
           trace_submit(
             cfg,
             q,
-            "t2",
+            @trace.T2,
             src,
             src2,
             "in.mbt",
@@ -1329,7 +1693,7 @@ async fn worker(
               trace_submit(
                 cfg,
                 q,
-                "t3",
+                @trace.T3,
                 src,
                 "",
                 "",
@@ -1399,7 +1763,7 @@ async fn worker(
       // Only inputs that produced a new compiler behaviour enter the dynamic
       // corpus.  Coverage samples can also admit an input with a higher energy.
       ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
-      persist_parent(cfg, src, "behavior", [])
+      persist_behavior(cfg, src, "behavior")
       // Keep the splice pool fresh even after it reaches its cap.
       if local_pool.length() < 400 {
         local_pool.push(src)
@@ -1410,6 +1774,9 @@ async fn worker(
   }
   prog.done += 1
   q.fast_done += 1
+  if q.fast_done >= cfg.workers {
+    q.closed = true
+  }
   s
 }
 
@@ -1690,7 +2057,7 @@ async fn main {
         trace_submit(
           cfg,
           q,
-          "t1",
+          @trace.T1,
           src,
           src,
           fname_of(cfg.mode),
@@ -1704,7 +2071,7 @@ async fn main {
           trace_submit(
             cfg,
             q,
-            "t2",
+            @trace.T2,
             src,
             with_main(src),
             "in.mbt",
@@ -1843,6 +2210,22 @@ async fn main {
     q.trace_bytes.to_string() +
     ",\"baseline_done\":" +
     q.baseline_done.to_string() +
+    ",\"baseline_failed\":" +
+    q.baseline_failed.to_string() +
+    ",\"baseline_expected\":" +
+    q.baseline_expected.to_string() +
+    ",\"baseline_state\":\"" +
+    trace_baseline_state(q) +
+    "\",\"baseline_complete\":" +
+    (if q.baseline_complete && q.baseline_expected > 0 {
+      "true"
+    } else {
+      "false"
+    }) +
+    ",\"baseline_pending\":" +
+    cov.pending.length().to_string() +
+    ",\"baseline_unresolved\":" +
+    q.baseline_unresolved.to_string() +
     ",\"baseline_ms\":" +
     q.baseline_ms.to_string() +
     ",\"baseline_funcs\":" +
@@ -1855,6 +2238,8 @@ async fn main {
     cov.coverage_adds.to_string() +
     ",\"coverage_keys\":" +
     cov.by_key.length().to_string() +
+    ",\"coverage_records\":" +
+    cov.evidence.length().to_string() +
     ",\"corpus\":" +
     feed.entries.length().to_string() +
     ",\"persisted\":" +

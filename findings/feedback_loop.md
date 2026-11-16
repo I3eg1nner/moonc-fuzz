@@ -48,25 +48,35 @@ about to overwrite.
 
 `TraceQueue` is bounded (default 32) and de-duplicates by
 `(stage, input_hash, config_hash)`. Submission probabilities default to T2 70%, T1
-20%, link 10%, but the scheduler also enforces a 70/20/10 share of completed
-trace time (`t2_ms`/`t1_ms`/`t3_ms`), because a T2 trace costs several times a
-T1 trace. Baseline tasks run first; otherwise T2, T3, T1 priority applies, and
-T1 may only use half the queue. Three trace workers are the default. The queue records
-`completed`, `failed`, `dropped`, `trace_ms`, `trace_bytes`, `baseline_ms`, and
-`baseline_done`.
+20%, link 10%, but the scheduler also enforces a 70/20/10 share of trace time
+(`t2_ms`/`t1_ms`/`t3_ms`), because a T2 trace costs several times a T1 trace.
+In-flight tasks carry an estimated reservation, so three workers cannot all
+dequeue the same oversubscribed stage before any completion is recorded. If
+no stage is below share and nothing is in flight, the scheduler borrows the
+highest-priority queued task; if work is still in flight it returns `Wait`.
+`Wait` and `Closed` are distinct, and `Wait` never clears the queue. Baseline
+tasks run first; otherwise T2, T3, T1 priority applies, and T1 may only use
+half the queue. Three trace workers are the default. The queue records
+`completed`, `failed`, `dropped`, `trace_ms`, `trace_bytes`, `baseline_ms`,
+`baseline_done`, `baseline_failed`, and `baseline_unresolved`.
 
 `@trace.collect` returns a structured `TraceResult`:
 
 ```text
 input_hash, config_hash, stage, outcome, complete,
-functions, elapsed_ms, trace_bytes, detail
+functions, elapsed_ms, trace_bytes, rc, failure, detail
 ```
 
-`outcome` is `accepted`, `rejected`, `compiler_abort`, or
+`stage` is the closed `TraceStage` enum (`T1`/`T2`/`T3`), not an arbitrary
+string. `outcome` is `accepted`, `rejected`, `compiler_abort`, or
 `collector_failed`. QEMU timeout, zero log, and log overflow are
 `collector_failed` with `complete=false`; they are written to
-`trace_failures.jsonl` and never enter a coverage union. This removes the old
-`[]` ambiguity between “no coverage” and “collection failed”.
+`trace_failures.jsonl` and never enter a coverage union. A non-zero compiler
+exit is `rejected` only when it carries a compiler diagnostic (`[E...]`,
+`Error:`, or JSON `"level":"error"`). Shell exits 124–127, exits ≥128,
+undiagnosed exits, and signals are classified separately; the failure record
+keeps `rc` and a machine-readable reason. This removes the old `[]` ambiguity
+between “no coverage” and “collection failed”.
 
 Coverage is maintained as `U[config, stage, outcome]`. For a complete result:
 
@@ -74,15 +84,24 @@ Coverage is maintained as `U[config, stage, outcome]`. For a complete result:
 Δ = Coverage(x) − U
 ```
 
-Only `Δ != ∅` updates U, admits the input, writes
-`corpus/<hash>.mbt` + `<hash>.json`, and grants coverage energy. A repeated
-trace of an already-rewarded input updates the coverage record but cannot claim
-the reward twice. A new behaviour without new coverage is admitted with lower
-energy by the fast path. Neither means no parent and no energy.
+Only `Δ != ∅` updates U, admits the input, and grants coverage energy. Source
+bytes are stored once at `corpus/<sha1>.mbt`. Coverage evidence is one file per
+`(input_hash, config_hash, stage, outcome)` under
+`corpus/coverage/<stage>/<outcome>/`, with the full key and function set in the
+body. Behaviour evidence is under `corpus/behavior/<sha1>/`; it cannot overwrite
+a coverage record. A repeated trace of an already-rewarded input updates the
+coverage record but cannot claim the reward twice. A new behaviour without new
+coverage is admitted with lower energy by the fast path. Neither means no
+parent and no energy.
 
-A small seed baseline is traced at startup for T1 and T2. `summary.json`
-reports `baseline_funcs`, `observed_funcs`, `relative_new =
-|observed − baseline|`, `coverage_adds`, and `coverage_keys`; the 7,916
+A small seed baseline is traced at startup for T1 and T2. Candidate results
+are buffered until every submitted baseline task has completed or failed; U0
+is then frozen and deltas are computed. `summary.json` reports
+`baseline_state` (`disabled`/`pending`/`complete`/`incomplete`),
+`baseline_failed`, `baseline_pending`, `baseline_unresolved`, `baseline_funcs`,
+`observed_funcs`, `relative_new = |observed − baseline|`, `coverage_adds`, and
+`coverage_keys`. A failed or dropped baseline task makes U0 incomplete: buffered
+candidates are counted as unresolved and receive no coverage reward. The 7,916
 historical union is not used as the campaign baseline.
 
 `trace_cpu_pct` (default 25) is a soft budget: adaptive tracing stops submitting
@@ -151,7 +170,7 @@ All commands were run after the changes.
 
 ```text
 moon check   -> 0 errors, 0 warnings
-moon test    -> 92/92
+moon test    -> 102/102
 cmd/accept   -> 10/10 gates, including 25-template wasm/js differential
 ```
 
@@ -192,6 +211,32 @@ T3 link trace, 100% link sampling, one successful core snapshot:
 ```text
 trace_completed=2 trace_failed=0 trace_dropped=5
 observed_funcs=568 relative_new=568 coverage_keys=1
+```
+
+Fault injection, using a synthetic collector rather than QEMU:
+
+```text
+T1-only, 2 s, 100% trace sampling, 2 trace workers
+trace_completed=304 trace_failed=0 trace_dropped=0
+observed_funcs=1 coverage_adds=1
+```
+
+The same T1-only campaign with the collector writing a valid PC and exiting
+127:
+
+```text
+trace_completed=0 trace_failed=348 trace_accepted=0 trace_rejected=0
+coverage_adds=0 observed_funcs=0
+trace_failures.jsonl: rc=127 failure="collector_exit=127"
+```
+
+Delayed-baseline ordering (four baseline tasks, one held for 3 s while
+candidates completed after 1 s):
+
+```text
+trace_completed=516 baseline_done=4 baseline_failed=0
+baseline_state=complete baseline_funcs=1 observed_funcs=1
+relative_new=0 coverage_adds=0
 ```
 
 The queue is deliberately allowed to drop under overload; `trace_dropped` and
@@ -251,10 +296,12 @@ Native now separates `moon run --build-only` from executing the artifact. An
 classes are `RUNTIME_DIFF`, not a build error or a miscompile finding.
 
 Coverage admission is now driven by `trace_apply`, not by the fast path:
-`added == 0` neither admits nor rewards. Admitted inputs are persisted with
-their reason (`behavior`, `behavior_t2`, `coverage:t1`, `coverage:t2`, or
-`coverage:t3`), full SHA-1, byte length, and covered-function set.
-`--seed-dir <run>/corpus` replays them.
+`added == 0` neither admits nor rewards. Source bytes are stored once as
+`corpus/<sha1>.mbt`. Behaviour evidence (`behavior`, `behavior_t2`) lives under
+`corpus/behavior/<sha1>/`; coverage evidence is keyed by
+`(input_hash, config_hash, stage, outcome)` under
+`corpus/coverage/<stage>/<outcome>/`. The two evidence kinds cannot overwrite
+each other. `--seed-dir <run>/corpus` replays the source files.
 
 The SIGKILL test (`trap '' TERM` + `timeout -k`) reports `timed_out=true`,
 `rc=-999`, and strips timeout controller messages from stderr.
@@ -264,7 +311,9 @@ The SIGKILL test (`trap '' TERM` + `timeout -k`) reports `timed_out=true`,
 - Coverage is function-level. Entering the same `camlMoonc*` function through a
   new branch does not increase the set; a compact TB/edge bitmap is future work.
 - T3 has no seed baseline in this version, so `relative_new` is not directly
-  comparable across T1/T2/T3.
+  comparable across T1/T2/T3. If a T1/T2 baseline is requested but any baseline
+  task fails or is dropped, U0 is incomplete and that run has no trusted
+  coverage-gain result.
 - The collector stats the log before reading and rejects oversized files, but
   an accepted log is still read whole; PCs are not streamed/deduplicated before
   symbolization. QEMU `-d exec` is execution-event logging, not
