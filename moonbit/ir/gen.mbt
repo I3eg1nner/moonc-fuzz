@@ -27,23 +27,42 @@ fn gen_i32(
   if depth <= 0 {
     pick_i32(rng, vars)
   } else {
-    let choice = rng.int(10)
-    if choice < 3 {
-      pick_i32(rng, vars)
-    } else if choice < 5 {
-      Add(gen_i32(rng, vars, depth - 1), gen_i32(rng, vars, depth - 1))
-    } else if choice < 7 {
-      Sub(gen_i32(rng, vars, depth - 1), gen_i32(rng, vars, depth - 1))
-    } else if choice < 8 {
-      Mul(ConstI32(rng.int(7) - 3), gen_i32(rng, vars, depth - 1))
-    } else if choice < 9 {
-      If(
-        gen_bool(rng, vars, depth - 1),
-        gen_i32(rng, vars, depth - 1),
-        gen_i32(rng, vars, depth - 1),
-      )
+    let arrays : Array[String] = []
+    for v in vars {
+      let (name, ty) = v
+      if ty == I32Array {
+        arrays.push(name)
+      }
+    }
+    if arrays.length() > 0 && rng.chance(0.2) {
+      let name = arrays[rng.int(arrays.length())]
+      if rng.chance(0.5) {
+        Len(Var(name))
+      } else {
+        Index(Var(name), ConstI32(0))
+      }
     } else {
-      Call("add", [gen_i32(rng, vars, depth - 1), gen_i32(rng, vars, depth - 1)])
+      let choice = rng.int(10)
+      if choice < 3 {
+        pick_i32(rng, vars)
+      } else if choice < 5 {
+        Add(gen_i32(rng, vars, depth - 1), gen_i32(rng, vars, depth - 1))
+      } else if choice < 7 {
+        Sub(gen_i32(rng, vars, depth - 1), gen_i32(rng, vars, depth - 1))
+      } else if choice < 8 {
+        Mul(ConstI32(rng.int(7) - 3), gen_i32(rng, vars, depth - 1))
+      } else if choice < 9 {
+        If(
+          gen_bool(rng, vars, depth - 1),
+          gen_i32(rng, vars, depth - 1),
+          gen_i32(rng, vars, depth - 1),
+        )
+      } else {
+        Call("add", [
+          gen_i32(rng, vars, depth - 1),
+          gen_i32(rng, vars, depth - 1),
+        ])
+      }
     }
   }
 }

@@ -215,8 +215,8 @@ budget: exhaustion is a failed/invalid sample, not a program result. Locals and
 parameters may not shadow functions, `println`, or generated `__` names.
 Restricted random generation is connected to `irprobe`; four-cell integration
 is not. The generator uses one fixed main/helper shape, `size=8` in the probe,
-and does not yet generate recursive `Index`/`Len` expressions or nested
-functions. `--reduce` is a statement-level, trace-preserving reducer: it
+and generates `Index`/`Len` in expression positions, but not nested functions
+or array aliasing interactions. `--reduce` is a statement-level, trace-preserving reducer: it
 requires type validity, successful interpretation and an identical event
 sequence, and removes dead lets/no-op assignments. It is not yet a
 compiler-difference reducer; a future predicate must preserve the original
