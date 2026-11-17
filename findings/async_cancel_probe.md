@@ -87,8 +87,33 @@ Case IDs and per-target outcomes (P = all four stages rc=0; `F8` = fails at
 failure. The known F8 signature was separately confirmed on `js` and `wasm`
 for `tw_12` with `moon test --build-only` (rc 1, same assertion).
 
+### 2.1 Evidence regeneration note
+
+The committed `async_cancel_probe_results.jsonl` is a **re-run** of the matrix,
+not the first-pass file. In the first pass the runner labelled every passing
+stage with the placeholder string `rc-fail (no Error line)`, so 481 of 642 stage
+records carried `rc: 0` next to a failure-looking label. The label was a
+cosmetic artefact of the signature function ignoring `rc`, but it makes the
+evidence read as if those stages failed.
+
+The script was fixed (`norm(text, rc)` returns `ok` when `rc == 0`) and the
+whole matrix was re-run serially. The re-run reproduced the first pass exactly:
+
+| Quantity | First pass | Re-run |
+|---|---|---|
+| cases | 55 | 55 |
+| stage records | 642 | 642 |
+| passing stages mislabelled | 481 | 0 |
+| distinct non-zero signatures | 1 | 1 |
+| non-zero stage records | 2 (native `test-build`) | 2 (native `test-build`) |
+| sum of stage wall times | 225.6 s | 224.5 s |
+
+So the conclusion is unchanged; only the labels are now correct. Anything that
+consumes the JSONL should read `rc` first and treat `sig` as meaningful only
+when `rc != 0`.
+
 Total primary-matrix stage invocations: **642** (218 native + 212 js + 212
-wasm). Sum of stage wall times 225.6 s; native is slower only because each
+wasm). Sum of stage wall times 224.5 s; native is slower only because each
 fresh module pays first-build cost, and the two F8 link failures take ~4 s.
 
 ## 3. Results by family and target

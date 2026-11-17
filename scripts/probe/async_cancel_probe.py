@@ -608,7 +608,7 @@ test "control synchronous throw" {
 ''')
 
 
-def norm(text):
+def norm(text, rc=None):
     t = text
     m = re.search(r'File "moonc\.ml", line (\d+)', t)
     if m:
@@ -641,6 +641,8 @@ def norm(text):
     m = re.search(r'failed: ([^\n]+)', t)
     if m:
         return "test-fail: " + re.sub(r'0x[0-9a-f]+', '0x?', m.group(1))[:160]
+    if rc == 0:
+        return "ok"
     return "rc-fail (no Error line)"
 
 
@@ -696,7 +698,7 @@ def run(cid, family, src, aio, targets, note):
             except subprocess.TimeoutExpired as e:
                 out, rc, timed = (e.output or "") + "\n[TIMEOUT 60s]", 124, True
             dt = round(time.time() - t0, 2)
-            trec[stage] = dict(rc=rc, sig=norm(out), crash=is_crash(out),
+            trec[stage] = dict(rc=rc, sig=norm(out, rc), crash=is_crash(out),
                                out=out[-4000:], secs=dt, timeout=timed)
             if rc != 0:
                 break
