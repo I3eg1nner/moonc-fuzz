@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cmd/xdiff"
+
+// Values
+
+// Errors
+
+// Types and methods
+type CaseRec
+
+type Config
+
+type TargetObs
+
+// Type aliases
+
+// Traits

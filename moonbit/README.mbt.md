@@ -54,6 +54,7 @@ moon check && moon test
 | `cmd/featfuzz` | staged oracle for generated layouts: check → build → test --build-only → test |
 | `asyncgen/` | async state-machine matrix (callback shape × suspension × control × type × entry) |
 | `cmd/asyncfuzz` | staged async oracle with the known F8 case as a labelled control |
+| `cmd/xdiff` | cross-backend execution differential for generated feature cases (build → run → stdout/rc) |
 | `cmd/verify` | fresh-copy candidate verifier: repeats, stability, control, JSON |
 
 ## Commands
