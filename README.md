@@ -188,6 +188,14 @@ QEMU TB 边界不等于源码分支，因此不报“分支覆盖率”百分比
 | `cmd/asyncfuzz` + `asyncgen/` | 82 行 async 状态机矩阵，F8 作为带标签的正控 | 82 case：72 OK / 10 `known_f8`，0 新签名 |
 | `cmd/verify` | 每次重复用全新副本，3/3 稳定性 + 控制组 | F9 debug 3/3 `reproduced`，release 3/3 `ok` |
 
+跨后端执行差分（`cmd/xdiff`）对同一份生成源码在 wasm-gc/wasm/js/native 上
+真正执行并比较规范化的 stdout 与 rc：160 个布局 case × 4 target 共 640 次构建、
+620 次执行，得到 **140 ALL_EQUAL / 20 KNOWN_LINK_ICE / 0 OUTPUT_MISMATCH**；
+20 个已知 ICE 全部是 native-only 的 F7 签名，四个字段族各 5 个操作，且每族的
+plain-struct 控制在四个后端都 ALL_EQUAL。async 侧改为比较测试驱动的逐测试状态：
+6 case × 3 target，15 次执行，**5 ALL_EQUAL / 1 KNOWN_LINK_ICE（F8）**，
+无状态分歧。详见 `findings/xdiff_mvp.md`、`findings/xdiff_async.md`。
+
 独立探针（`scripts/probe/native_feature_probe.py`）跑了 269 个 native
 布局/ABI/async case，**只**命中 F7/F8/F9 三个已知签名，没有第四个：
 `findings/feature_probe_negative.md`。同一份记录还说明：并行跑大量 `moon`
@@ -320,6 +328,9 @@ moon test --target native
 | `findings/feature_probe_negative.md` | 269 case 特性探针的负结果与并发伪诊断 |
 | `findings/feature_probe_summary.json` | 该探针的逐族计数与签名集合 |
 | `findings/verify_tool.md` | 新鲜副本候选验证器与 F9 烟测 |
+| `findings/exact_coverage_wiring.md` | 精确块/边覆盖接入 fuzz 证据，调度仍用函数集 |
+| `findings/xdiff_mvp.md` | 跨后端执行差分：布局矩阵、判定优先级 |
+| `findings/xdiff_async.md` | async 逐测试状态差分与 160 case 全矩阵结果 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
 | `examples/trace2funcs.sh` | 最小可运行示例 |
 
