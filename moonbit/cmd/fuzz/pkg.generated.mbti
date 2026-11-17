@@ -18,6 +18,8 @@ type Parent
 
 type PendingTrace
 
+type PersistBudget
+
 type Progress
 
 type Stats

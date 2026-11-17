@@ -113,6 +113,8 @@ fn trace_test_cfg() -> Config {
     trace_cpu_pct: 25,
     baseline_seeds: 0,
     edge_cap: 1000,
+    parent_cap: 20000,
+    persist_cap: 2000,
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
@@ -436,7 +438,8 @@ test "coverage evidence is keyed by stage and behavior cannot erase it" {
     f,
     q,
   )
-  persist_behavior(cfg, src, "behavior")
+  let pb = persist_budget_new(1000)
+  persist_behavior(cfg, pb, src, "behavior")
   assert_eq(cov.evidence.length(), 2)
   let corpus = join(cfg.out, "corpus")
   assert_true(@fs.path_exists(join(corpus, @corpus.sha1_hex(src) + ".mbt")))
@@ -549,7 +552,8 @@ test "coverage sidecar persists exact TB counters" {
   }
   // 7 > 5 and 9 > 3 on purpose: the sidecar must keep both the mapped and the
   // total numbers instead of collapsing them into one.
-  persist_coverage(cfg, task, tr, ["camlMoonc__A", "camlMoonc__B"], true)
+  let pb = persist_budget_new(1000)
+  persist_coverage(cfg, pb, task, tr, ["camlMoonc__A", "camlMoonc__B"], true)
   let dir = join(
     join(join(join(cfg.out, "corpus"), "coverage"), "t2"),
     "accepted",
@@ -706,4 +710,186 @@ test "edgeless traces keep edge counters at zero and do not panic" {
   assert_eq(cov.new_edges, 0)
   assert_false(cov.edge_saturated)
   assert_eq(cov.coverage_adds, 0)
+}
+
+///|
+fn feedback_index_consistent(f : Feedback) -> Bool {
+  let mut ok = f.index.length() == f.entries.length()
+  let mut i = 0
+  while i < f.entries.length() && ok {
+    match f.index.get(f.entries[i].hash) {
+      Some(j) => if j != i { ok = false }
+      None => ok = false
+    }
+    i += 1
+  }
+  ok
+}
+
+///|
+fn feedback_src_set(f : Feedback) -> Map[String, Unit] {
+  let m : Map[String, Unit] = Map([])
+  for e in f.entries {
+    m.set(e.src, ())
+  }
+  m
+}
+
+///|
+test "parent pool cap evicts and keeps the index consistent" {
+  let f = feedback_new()
+  f.cap = 8
+  for i in 0..<108 {
+    ignore(
+      feedback_upsert(f, "parent-" + i.to_string(), @cov.FuncSet::new([]), 0, 0),
+    )
+  }
+  assert_eq(f.entries.length(), 8)
+  assert_eq(f.seen, 108)
+  assert_eq(f.evicted, 100)
+  assert_true(feedback_index_consistent(f))
+  let kept = feedback_src_set(f)
+  // Equal energy: the replacement policy evicts the oldest admission first,
+  // so exactly the last eight admitted inputs survive.
+  for i in 0..<100 {
+    assert_false(kept.contains("parent-" + i.to_string()))
+  }
+  for i in 100..<108 {
+    assert_true(kept.contains("parent-" + i.to_string()))
+  }
+  // An evicted input whose tombstone is still remembered cannot silently
+  // re-enter through a replayed load in the same campaign.
+  ignore(feedback_upsert(f, "parent-99", @cov.FuncSet::new([]), 0, 0))
+  assert_eq(f.entries.length(), 8)
+  assert_eq(f.seen, 108)
+  assert_eq(f.evicted, 100)
+  assert_true(feedback_index_consistent(f))
+}
+
+///|
+test "parent pool cap evicts the lowest-energy parent" {
+  let f = feedback_new()
+  f.cap = 3
+  ignore(feedback_upsert(f, "high", @cov.FuncSet::new(["f"]), 1, 0))
+  ignore(feedback_upsert(f, "mid", @cov.FuncSet::new(["f"]), 0, 0))
+  ignore(feedback_upsert(f, "low", @cov.FuncSet::new([]), 0, 0))
+  ignore(feedback_upsert(f, "new", @cov.FuncSet::new([]), 0, 0))
+  assert_eq(f.entries.length(), 3)
+  assert_eq(f.evicted, 1)
+  let kept = feedback_src_set(f)
+  assert_true(kept.contains("high"))
+  assert_true(kept.contains("mid"))
+  assert_true(kept.contains("new"))
+  assert_false(kept.contains("low"))
+  assert_true(feedback_index_consistent(f))
+}
+
+///|
+test "parent pool survivors are deterministic for a seed and input stream" {
+  let run = fn(seed : UInt64) -> Array[String] {
+    let f = feedback_new()
+    f.cap = 32
+    let rng = @mutate.Rng::new(seed)
+    for i in 0..<200 {
+      let edges = if i % 7 == 0 { 1 } else { 0 }
+      ignore(
+        feedback_upsert(
+          f,
+          "in-" + i.to_string(),
+          @cov.FuncSet::new([]),
+          0,
+          edges,
+        ),
+      )
+      // Selection decays energy, so the RNG stream participates in the
+      // survivor set; the same seed must reproduce it exactly.
+      if i % 3 == 0 {
+        ignore(feedback_pick(f, rng))
+      }
+    }
+    let out : Array[String] = []
+    for e in f.entries {
+      out.push(e.src)
+    }
+    out.sort()
+    out
+  }
+  let a = run(99UL)
+  let b = run(99UL)
+  assert_eq(a.length(), 32)
+  assert_eq(a, b)
+}
+
+///|
+test "evidence cap skips non-candidates but never candidates" {
+  let cfg = trace_test_cfg()
+  cfg.out = "/tmp/mbtfuzz_caps_persist_wbtest"
+  rm_rf(cfg.out)
+  let pb = persist_budget_new(2)
+  persist_behavior(cfg, pb, "alpha", "behavior")
+  persist_behavior(cfg, pb, "beta", "behavior")
+  assert_eq(pb.written, 2)
+  assert_eq(pb.skipped, 0)
+  assert_false(pb.saturated)
+  persist_behavior(cfg, pb, "gamma", "behavior")
+  assert_eq(pb.written, 2)
+  assert_eq(pb.skipped, 1)
+  assert_true(pb.saturated)
+  let corpus = join(cfg.out, "corpus")
+  assert_false(
+    @fs.path_exists(join(corpus, @corpus.sha1_hex("gamma") + ".mbt")),
+  )
+  let src = "fn main { let _ = 1 }"
+  let r : @exec.RunResult = {
+    rc: 2,
+    stdout: "",
+    stderr: "Oops, the compiler has encountered a bug",
+    ms: 1,
+    timed_out: false,
+    stdout_digest: "",
+    stdout_full_len: 0L,
+    stdout_truncated: false,
+  }
+  assert_true(save_crash(cfg, pb, "t1", r, src, 0))
+  assert_eq(pb.written, 3)
+  assert_eq(pb.forced, 1)
+  assert_true(@fs.path_exists(join(corpus, @corpus.sha1_hex(src) + ".mbt")))
+  // Re-persisting an admitted input neither skips nor double-counts.
+  persist_behavior(cfg, pb, "alpha", "behavior")
+  assert_eq(pb.written, 3)
+  assert_eq(pb.skipped, 1)
+}
+
+///|
+test "coverage sidecars stop at the budget but evidence keeps counting" {
+  let cfg = trace_test_cfg()
+  cfg.out = "/tmp/mbtfuzz_caps_covcap_wbtest"
+  rm_rf(cfg.out)
+  let cov = trace_universe_new()
+  cov.persist.cap = 1
+  let pb = cov.persist
+  let f = feedback_new()
+  let q = trace_queue_new()
+  let tr1 : @trace.TraceResult = {
+    ..trace_test_result(["f1"]),
+    input_hash: @corpus.sha1_hex("first"),
+  }
+  let tr2 : @trace.TraceResult = {
+    ..trace_test_result(["f2"]),
+    input_hash: @corpus.sha1_hex("second"),
+  }
+  trace_apply(cfg, trace_test_task("first"), tr1, cov, f, q)
+  trace_apply(cfg, trace_test_task("second"), tr2, cov, f, q)
+  assert_eq(pb.written, 1)
+  assert_eq(pb.skipped, 1)
+  assert_true(pb.saturated)
+  // Both traces are still counted in memory; only the second sidecar is gone.
+  assert_eq(cov.evidence.length(), 2)
+  let dir = join(
+    join(join(join(cfg.out, "corpus"), "coverage"), "t2"),
+    "accepted",
+  )
+  let suffix = "_" + @corpus.sha1_hex(tr1.config_hash) + ".json"
+  assert_true(@fs.path_exists(join(dir, tr1.input_hash + suffix)))
+  assert_false(@fs.path_exists(join(dir, tr2.input_hash + suffix)))
 }

@@ -22,6 +22,32 @@ const EDGE_NOVELTY_BONUS : Int32 = 8
 const EDGE_CAP_DEFAULT : Int32 = 200000
 
 ///|
+/// Default campaign-wide cap on retained parents.  Parent selection is a
+/// linear scan over this array and the on-disk corpus is one source file per
+/// retained parent, so the pool is the two costs that grew without bound in
+/// the 60 s / 16-worker calibration (45,546 parents, 88,775 files).  20k keeps
+/// a campaign's selection scan and its evidence set proportional to a fixed
+/// number instead of to elapsed time.
+const PARENT_CAP_DEFAULT : Int32 = 20000
+
+///|
+/// Default cap on distinct inputs whose evidence is written under
+/// `<out>/corpus` in one campaign.  A persisted input owns at most one source
+/// file, two behaviour records and one coverage sidecar per
+/// `(stage, outcome)`, so this cap bounds total evidence files as well as
+/// source bytes.  Candidate evidence (crash/ICE/diff) is exempt and counted
+/// separately; it is never dropped.
+const PERSIST_CAP_DEFAULT : Int32 = 2000
+
+///|
+/// Maximum number of failure lines kept in `<out>/trace_failures.jsonl`.
+/// `trace_failed` in `summary.json` keeps counting every failure after the
+/// log is full; only the per-event log is bounded (each line is hundreds of
+/// bytes, and `append_line` rewrites the whole file, so an unbounded log is
+/// also quadratic I/O).
+const TRACE_FAILURE_LOG_MAX : Int32 = 2048
+
+///|
 /// MoonBit-native fuzz driver.
 ///
 /// The process model is deliberately the same as the Python driver:
@@ -58,6 +84,8 @@ struct Config {
   mut trace_cpu_pct : Int32
   mut baseline_seeds : Int32
   mut edge_cap : Int32
+  mut parent_cap : Int32
+  mut persist_cap : Int32
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -172,24 +200,83 @@ fn progress_new() -> Progress {
 /// One retained input.  `energy` is the mutation budget: inputs that added
 /// compiler functions get selected more often; ordinary seeds stay at 1.
 /// Edge novelty is a strictly smaller additive bonus on top of these weights.
+///
+/// `hash` is the content SHA-1 used as the index key, cached so eviction does
+/// not have to re-hash the victim.  `seq` is the admission counter, used only
+/// to break equal-energy eviction ties in favour of the oldest parent, which
+/// keeps the replacement policy independent of array slot history.
 struct Parent {
   src : String
+  hash : String
   mut cov : @cov.FuncSet
   mut energy : Int32
+  seq : Int64
 }
 
 ///|
-/// Shared corpus for the whole campaign.  With N workers this is the only
-/// place parent selection reads from, so a discovery in worker 3 is visible to
-/// worker 7 on its next iteration.
+/// Bounded shared corpus for the whole campaign.  With N workers this is the
+/// only place parent selection reads from, so a discovery in worker 3 is
+/// visible to worker 7 on its next iteration.
+///
+/// Growth policy: at `cap` entries a new input evicts the retained parent with
+/// the lowest energy (ties: oldest `seq`).  Eviction is a pure function of the
+/// current pool and the admission order, so it needs no RNG and is
+/// deterministic for a fixed sequence of upserts.  The newcomer is always
+/// admitted, so a saturated pool keeps turning over instead of freezing; the
+/// energy ranking decides which parents survive over time.
+///
+/// Evicted hashes are remembered in a bounded ring (`tombstones` /
+/// `tomb_ring`, at most `cap` entries).  A re-offered evicted input is
+/// refused, so a replayed corpus/seed load cannot silently re-admit it in the
+/// same campaign.  The ring forgets the oldest tombstones first, so memory
+/// stays O(cap) over a multi-hour run; the guarantee therefore covers the most
+/// recent `cap` evictions, which is the window in which the driver re-observes
+/// a just-evicted content.  (The driver never scans its own `out/corpus` back
+/// into `Feedback` at all — persisted sources are replay evidence, not a
+/// resumed parent pool — so there is no older, silent re-entry path.)
 struct Feedback {
+  mut cap : Int32
   entries : Array[Parent]
   index : Map[String, Int32]
+  mut seen : Int32
+  mut evicted : Int32
+  mut next_seq : Int64
+  tombstones : Map[String, Unit]
+  tomb_ring : Array[String]
+  mut tomb_pos : Int32
 }
 
 ///|
 fn feedback_new() -> Feedback {
-  { entries: [], index: Map([]), }
+  {
+    cap: PARENT_CAP_DEFAULT,
+    entries: [],
+    index: Map([]),
+    seen: 0,
+    evicted: 0,
+    next_seq: 0L,
+    tombstones: Map([]),
+    tomb_ring: [],
+    tomb_pos: 0,
+  }
+}
+
+///|
+/// Remember one evicted content hash.  The ring is capped at `cap`, matching
+/// the parent pool, and overwrites the oldest tombstone first.
+fn feedback_tombstone(f : Feedback, h : String) -> Unit {
+  if f.cap <= 0 {
+    return
+  }
+  f.tombstones.set(h, ())
+  if f.tomb_ring.length() < f.cap {
+    f.tomb_ring.push(h)
+  } else if f.tomb_ring.length() > 0 {
+    let old = f.tomb_ring[f.tomb_pos]
+    f.tombstones.remove(old)
+    f.tomb_ring[f.tomb_pos] = h
+    f.tomb_pos = (f.tomb_pos + 1) % f.tomb_ring.length()
+  }
 }
 
 ///|
@@ -198,6 +285,11 @@ fn feedback_new() -> Feedback {
 /// wider** all-mapped scope.  The function term is unchanged and remains
 /// primary; the edge term is additive and smaller.  Edge-only inputs get a
 /// modest bump rather than the top-tier function bonus.
+///
+/// The return value says whether a *new* parent was admitted; energy updates
+/// to an already-retained parent return false.  Admission is capped (see
+/// `Feedback`); a refused or evicted input is still executed and still counts
+/// toward coverage, it just is not retained as a parent.
 fn feedback_upsert(
   f : Feedback,
   src : String,
@@ -224,9 +316,37 @@ fn feedback_upsert(
       false
     }
     None => {
-      let i = f.entries.length()
-      f.index.set(h, i)
-      f.entries.push({ src, cov, energy: bonus, })
+      // Refuse content whose eviction tombstone is still remembered.
+      if f.tombstones.contains(h) || f.cap <= 0 {
+        return false
+      }
+      if f.entries.length() < f.cap {
+        let i = f.entries.length()
+        f.index.set(h, i)
+        f.entries.push({ src, hash: h, cov, energy: bonus, seq: f.next_seq, })
+        f.next_seq = f.next_seq + 1L
+        f.seen += 1
+        return true
+      }
+      // Full: find the lowest-energy parent, oldest first on a tie.
+      let mut victim = 0
+      let mut j = 1
+      while j < f.entries.length() {
+        let e = f.entries[j]
+        let v = f.entries[victim]
+        if e.energy < v.energy || (e.energy == v.energy && e.seq < v.seq) {
+          victim = j
+        }
+        j += 1
+      }
+      let old = f.entries[victim]
+      f.index.remove(old.hash)
+      feedback_tombstone(f, old.hash)
+      f.entries[victim] = { src, hash: h, cov, energy: bonus, seq: f.next_seq, }
+      f.next_seq = f.next_seq + 1L
+      f.index.set(h, victim)
+      f.evicted += 1
+      f.seen += 1
       true
     }
   }
@@ -319,6 +439,10 @@ struct TraceQueue {
   mut inflight : Int32
   mut trace_ms : Int64
   mut trace_bytes : Int64
+  /// Failure log lines actually written / suppressed after
+  /// `TRACE_FAILURE_LOG_MAX`.  `failed` keeps counting every failed trace.
+  mut failure_logged : Int32
+  mut failure_skipped : Int32
 }
 
 ///|
@@ -353,6 +477,8 @@ fn trace_queue_new() -> TraceQueue {
     inflight: 0,
     trace_ms: 0L,
     trace_bytes: 0L,
+    failure_logged: 0,
+    failure_skipped: 0,
   }
 }
 
@@ -636,6 +762,9 @@ struct TraceUniverse {
   mut edge_cap : Int32
   mut edge_saturated : Bool
   mut new_edges : Int32
+  /// Shared budget for full-input evidence on disk (`--persist-cap`).  It is
+  /// campaign-wide, so every worker and every trace path uses this object.
+  persist : PersistBudget
 }
 
 ///|
@@ -652,6 +781,7 @@ fn trace_universe_new() -> TraceUniverse {
     edge_cap: EDGE_CAP_DEFAULT,
     edge_saturated: false,
     new_edges: 0,
+    persist: persist_budget_new(PERSIST_CAP_DEFAULT),
   }
 }
 
@@ -971,8 +1101,11 @@ fn meta_json(
 }
 
 ///|
+/// Crash evidence is a candidate and is never budget-gated: the input is
+/// force-copied into the corpus, then the finding directory is written.
 fn save_crash(
   cfg : Config,
+  pb : PersistBudget,
   stage : String,
   r : @exec.RunResult,
   src : String,
@@ -983,6 +1116,7 @@ fn save_crash(
   let sig = @corpus.short_hash(
     stage + "|" + kind + "|" + detail + "|rc=" + r.rc.to_string(),
   )
+  force_persist_source(cfg, pb, src)
   @corpus.save_finding(
     cfg.out,
     stage,
@@ -995,22 +1129,102 @@ fn save_crash(
 }
 
 ///|
+/// Campaign-wide budget for full-input evidence under `<out>/corpus`.
+///
+/// The unit is one distinct input content hash.  A persisted input owns one
+/// source file plus its behaviour/coverage sidecars, all keyed by that hash,
+/// so bounding inputs bounds the whole evidence tree.
+///
+/// `written` counts every input written (budgeted and forced).  `forced` is
+/// the candidate subset (crash/ICE/diff), which bypasses the cap.  `skipped`
+/// counts non-candidate evidence requests refused after the budget filled;
+/// the run keeps executing and counting, it just stops writing new evidence.
+/// `saturated` makes that visible in `summary.json`.
+struct PersistBudget {
+  mut cap : Int32
+  sources : Map[String, Unit]
+  mut written : Int32
+  mut forced : Int32
+  mut skipped : Int32
+  mut saturated : Bool
+}
+
+///|
+fn persist_budget_new(cap : Int32) -> PersistBudget {
+  {
+    cap,
+    sources: Map([]),
+    written: 0,
+    forced: 0,
+    skipped: 0,
+    saturated: false,
+  }
+}
+
+///|
+/// True when the non-candidate budget is exhausted.  Candidate (forced)
+/// writes never consume the budget, so they cannot starve real evidence.
+fn persist_budget_full(pb : PersistBudget) -> Bool {
+  pb.written - pb.forced >= pb.cap
+}
+
+///|
 /// Source bytes are stored once per content hash.  Evidence records point at
 /// this file instead of duplicating the source in every coverage record.
-fn persist_source(cfg : Config, src : String) -> String {
+///
+/// Returns the hash when the input's source is on disk, `None` when a
+/// non-candidate write was skipped because the budget is full.  Re-persisting
+/// an already-written input rewrites the same path and does not consume the
+/// budget a second time.
+fn persist_admit(
+  cfg : Config,
+  pb : PersistBudget,
+  src : String,
+  force : Bool,
+) -> String? {
   let h = @corpus.sha1_hex(src)
-  let dir = join(cfg.out, "corpus")
-  @corpus.ensure_dir(dir)
-  ignore(write(join(dir, h + ".mbt"), src))
-  h
+  let path = join(join(cfg.out, "corpus"), h + ".mbt")
+  if pb.sources.contains(h) {
+    ignore(write(path, src))
+    return Some(h)
+  }
+  if !force && persist_budget_full(pb) {
+    pb.skipped += 1
+    pb.saturated = true
+    return None
+  }
+  if !write(path, src) {
+    return None
+  }
+  pb.sources.set(h, ())
+  pb.written += 1
+  if force {
+    pb.forced += 1
+  }
+  Some(h)
+}
+
+///|
+/// Candidate evidence is never dropped: crashes, ICEs and diff witnesses are
+/// copied into the corpus even after the budget is saturated.
+fn force_persist_source(cfg : Config, pb : PersistBudget, src : String) -> Unit {
+  ignore(persist_admit(cfg, pb, src, true))
 }
 
 ///|
 /// Behaviour evidence is intentionally separate from coverage evidence.  A
 /// fast-path behaviour observation must never overwrite a later trace record
 /// for the same source.
-fn persist_behavior(cfg : Config, src : String, reason : String) -> Unit {
-  let h = persist_source(cfg, src)
+fn persist_behavior(
+  cfg : Config,
+  pb : PersistBudget,
+  src : String,
+  reason : String,
+) -> Unit {
+  let h = match persist_admit(cfg, pb, src, false) {
+    Some(h) => h
+    None => return
+  }
   let dir = join(join(join(cfg.out, "corpus"), "behavior"), h)
   @corpus.ensure_dir(dir)
   let meta = "{\"sha1\":\"" +
@@ -1040,14 +1254,23 @@ fn persist_behavior(cfg : Config, src : String, reason : String) -> Unit {
 /// construction); `edge_novel` says whether that trace added at least one key
 /// to the campaign edge universe at the time it completed.  The key set itself
 /// is not persisted.
+///
+/// Persistence is budgeted per input content hash: once `--persist-cap` is
+/// reached, traces for inputs that are not already persisted are still
+/// executed and still update the in-memory evidence map, but no new sidecar is
+/// written and `persist_skipped` is incremented.
 fn persist_coverage(
   cfg : Config,
+  pb : PersistBudget,
   task : TraceTask,
   tr : @trace.TraceResult,
   funcs : Array[String],
   edge_novel : Bool,
 ) -> Unit {
-  let source_hash = persist_source(cfg, task.src)
+  let source_hash = match persist_admit(cfg, pb, task.src, false) {
+    Some(h) => h
+    None => return
+  }
   let stage = @trace.trace_stage_name(tr.stage)
   let outcome = @trace.trace_outcome_name(tr.outcome)
   let dir = join(
@@ -1269,7 +1492,7 @@ fn trace_record_evidence(
   }
   let all = old.union(covset)
   cov.evidence.set(key, all)
-  persist_coverage(cfg, task, tr, all.sorted(), edge_novel)
+  persist_coverage(cfg, cov.persist, task, tr, all.sorted(), edge_novel)
 }
 
 ///|
@@ -1350,6 +1573,20 @@ fn trace_maybe_settle_baseline(
 }
 
 ///|
+/// T3 tracing links against a snapshotted `.core` copy of the worker's build
+/// output.  The snapshot is only needed until `@trace.collect` has run, so it
+/// is deleted as soon as the trace settles; live snapshots are therefore
+/// bounded by the trace queue, not by campaign length.
+fn trace_cleanup_core(task : TraceTask) -> Unit {
+  if task.core_path == "" {
+    return
+  }
+  @fs.remove_file(task.core_path) catch {
+    _ => ()
+  }
+}
+
+///|
 fn trace_apply(
   cfg : Config,
   task : TraceTask,
@@ -1361,30 +1598,36 @@ fn trace_apply(
   q.trace_ms += tr.elapsed_ms
   q.trace_bytes += tr.trace_bytes
   trace_release(q, task)
+  trace_cleanup_core(task)
   if !tr.complete {
     q.failed += 1
-    @corpus.append_line(
-      join(cfg.out, "trace_failures.jsonl"),
-      "{\"input_hash\":\"" +
-      tr.input_hash +
-      "\",\"config_hash\":\"" +
-      @corpus.json_escape(tr.config_hash) +
-      "\",\"stage\":\"" +
-      @trace.trace_stage_name(tr.stage) +
-      "\",\"outcome\":\"" +
-      @trace.trace_outcome_name(tr.outcome) +
-      "\",\"rc\":" +
-      tr.rc.to_string() +
-      ",\"failure\":\"" +
-      @corpus.json_escape(tr.failure) +
-      "\",\"trace_bytes\":" +
-      tr.trace_bytes.to_string() +
-      ",\"elapsed_ms\":" +
-      tr.elapsed_ms.to_string() +
-      ",\"detail\":\"" +
-      @corpus.json_escape(tr.detail) +
-      "\"}",
-    )
+    if q.failure_logged < TRACE_FAILURE_LOG_MAX {
+      q.failure_logged += 1
+      @corpus.append_line(
+        join(cfg.out, "trace_failures.jsonl"),
+        "{\"input_hash\":\"" +
+        tr.input_hash +
+        "\",\"config_hash\":\"" +
+        @corpus.json_escape(tr.config_hash) +
+        "\",\"stage\":\"" +
+        @trace.trace_stage_name(tr.stage) +
+        "\",\"outcome\":\"" +
+        @trace.trace_outcome_name(tr.outcome) +
+        "\",\"rc\":" +
+        tr.rc.to_string() +
+        ",\"failure\":\"" +
+        @corpus.json_escape(tr.failure) +
+        "\",\"trace_bytes\":" +
+        tr.trace_bytes.to_string() +
+        ",\"elapsed_ms\":" +
+        tr.elapsed_ms.to_string() +
+        ",\"detail\":\"" +
+        @corpus.json_escape(tr.detail) +
+        "\"}",
+      )
+    } else {
+      q.failure_skipped += 1
+    }
     if task.baseline {
       q.baseline_failed += 1
       trace_maybe_settle_baseline(cov, feed, q)
@@ -1457,6 +1700,7 @@ fn trace_drop_remaining(q : TraceQueue) -> Unit {
       q.baseline_failed += 1
       q.baseline_complete = false
     }
+    trace_cleanup_core(t)
   }
   q.dropped += q.tasks.length()
   q.tasks.clear()
@@ -1503,6 +1747,7 @@ async fn trace_worker(
     }
     if !task.baseline && budget > 0L && q.trace_ms - q.baseline_ms >= budget {
       trace_release(q, task)
+      trace_cleanup_core(task)
       q.dropped += 1
       trace_drop_remaining(q)
       trace_maybe_settle_baseline(cov, feed, q)
@@ -1560,8 +1805,11 @@ async fn trace_worker(
 }
 
 ///|
+/// A differential witness is a candidate too: force-persist the input before
+/// the finding, regardless of the evidence budget.
 fn save_diff(
   cfg : Config,
+  pb : PersistBudget,
   r : @oracle.DiffResult,
   src : String,
   worker : Int32,
@@ -1618,6 +1866,7 @@ fn save_diff(
   b.write_string("\",\"worker\":")
   b.write_string(worker.to_string())
   b.write_string("}")
+  force_persist_source(cfg, pb, src)
   @corpus.save_finding(
     cfg.out,
     "diff",
@@ -1642,6 +1891,7 @@ async fn worker(
   covctx : CovCtx,
   prog : Progress,
   q : TraceQueue,
+  pb : PersistBudget,
 ) -> Stats {
   let s = stats_new()
   let tag = @corpus.short_hash(cfg.run_id)
@@ -1717,7 +1967,7 @@ async fn worker(
       prog.crashes += 1
       s.finding_candidates += 1
       prog.finding_candidates += 1
-      if save_crash(cfg, "t1", r1, src, id) {
+      if save_crash(cfg, pb, "t1", r1, src, id) {
         s.witnesses += 1
         prog.witnesses += 1
       } else {
@@ -1732,6 +1982,7 @@ async fn worker(
       let fr = @exec.run(moonfmt, [fname, "-o", fout], wd, cfg.t1_timeout)
       if fr.timed_out {
         let sig = @corpus.short_hash("fmt-hang|" + @corpus.short_hash(src))
+        force_persist_source(cfg, pb, src)
         ignore(
           @corpus.save_finding(
             cfg.out,
@@ -1752,6 +2003,7 @@ async fn worker(
           let sig = @corpus.short_hash(
             "fmt2-err|" + d2 + "|" + @corpus.short_hash(src),
           )
+          force_persist_source(cfg, pb, src)
           ignore(
             @corpus.save_finding(
               cfg.out,
@@ -1775,6 +2027,7 @@ async fn worker(
             let sig = @corpus.short_hash(
               "fmt-idem|" + @corpus.short_hash(a) + "|" + @corpus.short_hash(b),
             )
+            force_persist_source(cfg, pb, src)
             ignore(
               @corpus.save_finding(
                 cfg.out,
@@ -1810,6 +2063,7 @@ async fn worker(
             ",\"detail\":\"" +
             @corpus.json_escape(detail) +
             "\"}"
+          force_persist_source(cfg, pb, src)
           ignore(
             @corpus.save_finding(
               cfg.out,
@@ -1845,6 +2099,7 @@ async fn worker(
           "|" +
           @corpus.short_hash(src),
         )
+        force_persist_source(cfg, pb, src)
         ignore(
           @corpus.save_finding(
             cfg.out,
@@ -1892,7 +2147,7 @@ async fn worker(
         prog.crashes += 1
         s.finding_candidates += 1
         prog.finding_candidates += 1
-        if save_crash(cfg, "t2", r2, src, id) {
+        if save_crash(cfg, pb, "t2", r2, src, id) {
           s.witnesses += 1
           prog.witnesses += 1
         } else {
@@ -1908,7 +2163,7 @@ async fn worker(
       if novel2 {
         local_t2_sigs.set(sig2, ())
         ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
-        persist_behavior(cfg, src, "behavior_t2")
+        persist_behavior(cfg, pb, src, "behavior_t2")
       }
       if covctx.enabled && (novel2 || rng.chance(cfg.trace_t2)) {
         ignore(
@@ -1936,19 +2191,24 @@ async fn worker(
             @fs.write_bytes_to_file(core_path, bytes) catch {
               _ => ()
             }
-            ignore(
-              trace_submit(
-                cfg,
-                q,
-                @trace.T3,
-                src,
-                "",
-                "",
-                core_path,
-                false,
-                covctx.config_hash,
-              ),
+            // The snapshot is ephemeral: if the task is refused (duplicate or
+            // full queue) nothing will consume it, so remove it immediately.
+            let queued = trace_submit(
+              cfg,
+              q,
+              @trace.T3,
+              src,
+              "",
+              "",
+              core_path,
+              false,
+              covctx.config_hash,
             )
+            if !queued {
+              @fs.remove_file(core_path) catch {
+                _ => ()
+              }
+            }
           }
         }
       }
@@ -2013,7 +2273,7 @@ async fn worker(
           }
           s.finding_candidates += 1
           prog.finding_candidates += 1
-          if save_diff(cfg, d, src, id) {
+          if save_diff(cfg, pb, d, src, id) {
             s.witnesses += 1
             prog.witnesses += 1
           } else {
@@ -2029,7 +2289,7 @@ async fn worker(
       // Only inputs that produced a new compiler behaviour enter the dynamic
       // corpus.  Coverage samples can also admit an input with a higher energy.
       ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
-      persist_behavior(cfg, src, "behavior")
+      persist_behavior(cfg, pb, src, "behavior")
       // Keep the splice pool fresh even after it reaches its cap.
       if local_pool.length() < 400 {
         local_pool.push(src)
@@ -2128,7 +2388,7 @@ fn parse_int(s : String, dflt : Int32) -> Int32 {
 fn main_usage() -> Unit {
   println("usage: fuzz [--root DIR] [--out DIR] [--workers N] [--duration S]")
   println(
-    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--qemu PATH] [--trace-t1 P] [--trace-t2 P] [--trace-t3 P] [--trace-workers N] [--trace-queue N] [--trace-max-mb M] [--trace-cpu P] [--baseline-seeds N] [--edge-cap N]",
+    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--qemu PATH] [--trace-t1 P] [--trace-t2 P] [--trace-t3 P] [--trace-workers N] [--trace-queue N] [--trace-max-mb M] [--trace-cpu P] [--baseline-seeds N] [--edge-cap N] [--parent-cap N] [--persist-cap N]",
   )
 }
 
@@ -2164,6 +2424,8 @@ async fn main {
     trace_cpu_pct: 25,
     baseline_seeds: 8,
     edge_cap: EDGE_CAP_DEFAULT,
+    parent_cap: PARENT_CAP_DEFAULT,
+    persist_cap: PERSIST_CAP_DEFAULT,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2242,6 +2504,12 @@ async fn main {
     } else if a == "--edge-cap" && i + 1 < args.length() {
       cfg.edge_cap = parse_int(args[i + 1], cfg.edge_cap)
       i += 2
+    } else if a == "--parent-cap" && i + 1 < args.length() {
+      cfg.parent_cap = parse_int(args[i + 1], cfg.parent_cap)
+      i += 2
+    } else if a == "--persist-cap" && i + 1 < args.length() {
+      cfg.persist_cap = parse_int(args[i + 1], cfg.persist_cap)
+      i += 2
     } else {
       main_usage()
       return
@@ -2255,6 +2523,12 @@ async fn main {
   cfg.run_id = run_id
   if cfg.edge_cap < 0 {
     cfg.edge_cap = 0
+  }
+  if cfg.parent_cap < 0 {
+    cfg.parent_cap = 0
+  }
+  if cfg.persist_cap < 0 {
+    cfg.persist_cap = 0
   }
   let out = join(cfg.out, run_id)
   cfg.out = out
@@ -2321,12 +2595,16 @@ async fn main {
     pkg_config,
   }
   let feed = feedback_new()
+  feed.cap = cfg.parent_cap
   for src in seeds {
     ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
   }
   let q = trace_queue_new()
   let cov = trace_universe_new()
   cov.edge_cap = cfg.edge_cap
+  // One campaign-wide evidence budget shared by workers and trace paths.
+  cov.persist.cap = cfg.persist_cap
+  let pb = cov.persist
   if cov_on && cfg.baseline_seeds > 0 {
     let n = if cfg.baseline_seeds < seeds.length() {
       cfg.baseline_seeds
@@ -2403,6 +2681,10 @@ async fn main {
     cfg.baseline_seeds.to_string() +
     ",\"edge_cap\":" +
     cfg.edge_cap.to_string() +
+    ",\"parent_cap\":" +
+    cfg.parent_cap.to_string() +
+    ",\"persist_cap\":" +
+    cfg.persist_cap.to_string() +
     ",\"config_hash\":\"" +
     @corpus.json_escape(config_hash) +
     "\",\"coverage\":" +
@@ -2423,7 +2705,7 @@ async fn main {
   for id in 0..<cfg.workers {
     let w = id
     tasks.push(() => {
-      worker(cfg, w, seeds, seeds, dict, moonc, home, feed, covctx, prog, q)
+      worker(cfg, w, seeds, seeds, dict, moonc, home, feed, covctx, prog, q, pb)
     })
   }
   for id in 0..<cfg.trace_workers {
@@ -2589,6 +2871,28 @@ async fn main {
     feed.entries.length().to_string() +
     ",\"persisted\":" +
     count_corpus_files(out).to_string() +
+    ",\"parent_cap\":" +
+    feed.cap.to_string() +
+    ",\"parents_seen\":" +
+    feed.seen.to_string() +
+    ",\"parents_retained\":" +
+    feed.entries.length().to_string() +
+    ",\"parents_evicted\":" +
+    feed.evicted.to_string() +
+    ",\"persist_cap\":" +
+    pb.cap.to_string() +
+    ",\"persist_written\":" +
+    pb.written.to_string() +
+    ",\"persist_skipped\":" +
+    pb.skipped.to_string() +
+    ",\"persist_candidates\":" +
+    pb.forced.to_string() +
+    ",\"persist_saturated\":" +
+    (if pb.saturated { "true" } else { "false" }) +
+    ",\"trace_failures_logged\":" +
+    q.failure_logged.to_string() +
+    ",\"trace_failures_skipped\":" +
+    q.failure_skipped.to_string() +
     "}"
   ignore(write(join(out, "summary.json"), summary))
   println("[mb-fuzz done] \{summary}")

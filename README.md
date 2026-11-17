@@ -302,8 +302,13 @@ moon test --target native
   已在飞的 T3 trace 仍可能超出。
 - 覆盖仍是函数级；同一函数内的新分支不会增加集合。T3 第一版没有种子基线。
 - 60 秒 16-worker 校准写出 88,775 个文件（437 MB），feedback 父本增至
-  45,546；多小时的 campaign 必须先限制/采样行为证据和父本池，否则文件数
-  和选择开销会线性膨胀。
+  45,546。现在父本池默认上限 20,000（`--parent-cap`，按 energy 淘汰、
+  同 energy 先淘汰最旧），持久证据默认上限 2,000 个输入
+  （`--persist-cap`，crash/ICE/diff candidate 不受限），
+  `trace_failures.jsonl` 上限 2,048 行，T3 core 快照用后即删。文件数和
+  父本选择开销因此不再随 campaign 时长线性增长，代价是保留的父本和证据
+  变成有界样本；被淘汰的输入仍会被执行和计数，只是不再保留。细节、
+  counter 和逐项文件审计见 `findings/campaign_caps.md`。
 - 采集器返回非零时，只有带编译器诊断的退出才算正常拒绝。wrapper 保留的
   124–127 优先判为 `collector_failed`，即使命令已写出 OOM 文本；moonc 的
   199 ICE 仍保留为 `compiler_abort`。无诊断退出和信号也单独分类，失败记录
@@ -338,6 +343,7 @@ moon test --target native
 | `findings/verify_tool.md` | 新鲜副本候选验证器与 F9 烟测 |
 | `findings/exact_coverage_wiring.md` | 精确块/边覆盖接入 fuzz 证据 |
 | `findings/edge_feedback.md` | 边新颖度进入调度：权重、上限、口径与限制 |
+| `findings/campaign_caps.md` | 父本池/持久证据上限、counter、文件审计与 before/after |
 | `findings/xdiff_mvp.md` | 跨后端执行差分：布局矩阵、判定优先级 |
 | `findings/xdiff_async.md` | async 逐测试状态差分与 160 case 全矩阵结果 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
