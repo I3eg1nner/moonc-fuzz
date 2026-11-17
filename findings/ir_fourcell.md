@@ -123,3 +123,21 @@ Injection control on wasm:
 
 This is target-wiring and detection-chain evidence, not a new optimizer
 correctness result.
+
+## Second mechanism control (json)
+
+To avoid relying on one argparse snapshot path, the link-default control was
+repeated on `moonbitlang/core/json`:
+
+```
+--four-cell-control json/json.mbt 'buf <+ "true"' 'buf <+ "TRUE"'
+1 artifact
+changed=12
+link_changed=6
+build_changed=0
+both_changed=6
+candidates=1, errors=0, exit=1
+```
+
+This is still a harness injection, but it exercises a different package and a
+JSON serialization path rather than the argparse help renderer.
