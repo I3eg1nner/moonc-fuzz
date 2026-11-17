@@ -60,5 +60,33 @@ pub fn sample_programs() -> Array[Program] {
         sample_main([Let("dead", I32, ConstI32(7), false), Emit(1, ConstI32(3))]),
       ],
     },
+    {
+      funcs: [
+        {
+          name: "choose",
+          params: [("c", Bool), ("a", I32), ("b", I32)],
+          ret: I32,
+          body: [Return(If(Var("c"), Var("a"), Var("b")))],
+        },
+        sample_main([
+          Let("a", I32Array, ArrayLit([ConstI32(1), ConstI32(2)]), true),
+          Let("b", I32Array, Var("a"), true),
+          ArraySet("b", ConstI32(0), ConstI32(9)),
+          Let("i", I32, ConstI32(0), true),
+          While(
+            Lt(Var("i"), ConstI32(2)),
+            [
+              If(Eq(Var("i"), ConstI32(0)), [Emit(1, ConstI32(10))], [
+                Emit(1, ConstI32(20)),
+              ]),
+              Assign("i", Add(Var("i"), ConstI32(1))),
+            ],
+            3,
+          ),
+          Emit(2, Index(Var("a"), ConstI32(0))),
+          Emit(3, Call("choose", [ConstBool(true), ConstI32(7), ConstI32(8)])),
+        ]),
+      ],
+    },
   ]
 }

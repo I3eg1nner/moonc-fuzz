@@ -245,3 +245,10 @@ test "reducer rejects a mismatched target" {
   }
   assert_true(failed)
 }
+
+///|
+test "targeted shapes: alias write, while-if and choose" {
+  let p = sample_programs()[4]
+  let events = run(p, 1000) catch { _ => ["<error>"] }
+  assert_eq(events, ["Emit(1, 10)", "Emit(1, 20)", "Emit(2, 9)", "Emit(3, 7)"])
+}
