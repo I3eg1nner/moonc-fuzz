@@ -178,40 +178,180 @@ pub fn parse_trace_pc(line : StringView) -> UInt64? {
 }
 
 ///|
-pub struct TraceSummary {
-  funcs : Array[String]
-  total_tb : Int32
-  mapped_tb : Int32
+/// Exact per-function depth derived from the parsed TB sequence.
+///
+/// `blocks` is the number of distinct raw PCs attributed to this function.
+/// `edges` is the number of distinct consecutive TB pairs whose two endpoints
+/// both fall in this function.  Both are QEMU translation-block measures, not
+/// source-level basic blocks or source CFG branches.
+pub struct FuncDepth {
+  name : String
+  blocks : Int32
+  edges : Int32
 }
 
 ///|
-/// Parse a full QEMU exec log and return the sorted unique function set.
-/// The ordering and dedup semantics match the Python reference.
+pub struct TraceSummary {
+  /// Sorted unique function names; unchanged from the function-only summary.
+  funcs : Array[String]
+  /// Every parsed TB entry, including entries whose PC does not map.
+  total_tb : Int32
+  /// Parsed TB entries whose PC maps to a symbol.
+  mapped_tb : Int32
+  /// Number of distinct raw PCs seen.
+  unique_pc : Int32
+  /// Number of distinct PCs that map to a symbol.
+  mapped_unique_pc : Int32
+  /// Number of distinct consecutive pairs `(pc_i, pc_{i+1})` over parsed TB
+  /// entries.  The first parsed entry contributes no edge.  This is
+  /// TB-transition coverage, not a source CFG edge count.
+  edges : Int32
+  /// Number of distinct consecutive pairs where BOTH endpoints map.
+  mapped_edges : Int32
+  /// Per-function exact depth, sorted by function name.
+  func_depth : Array[FuncDepth]
+}
+
+///|
+/// Injective string key for one TB transition.  Decimal PC representations
+/// contain no comma, so splitting on the comma recovers both endpoints exactly.
+fn tb_edge_key(a : UInt64, b : UInt64) -> String {
+  a.to_string() + "," + b.to_string()
+}
+
+///|
+fn count_or_zero(counts : Map[String, Int32], key : String) -> Int32 {
+  match counts.get(key) {
+    Some(n) => n
+    None => 0
+  }
+}
+
+///|
+fn bump_count(counts : Map[String, Int32], key : String) -> Unit {
+  counts.set(key, count_or_zero(counts, key) + 1)
+}
+
+///|
+/// Parse a full QEMU exec log and return the sorted unique function set plus
+/// exact TB block/edge depth.
+///
+/// All sets are keyed by the exact raw PC (or exact decimal PC pair), never by
+/// a lossy bitmap hash.  Normalization is only the final sort of function
+/// names, so repeated invocations over the same input are deterministic.
 pub fn summarize_trace(trace : String, sym : SymTab) -> TraceSummary {
-  let seen : Map[String, Unit] = Map([])
+  let seen_funcs : Map[String, Unit] = Map([])
   let funcs : Array[String] = []
+  let seen_pc : Map[UInt64, Unit] = Map([])
+  let seen_mapped_pc : Map[UInt64, Unit] = Map([])
+  let seen_edge : Map[String, Unit] = Map([])
+  let seen_mapped_edge : Map[String, Unit] = Map([])
+  let func_blocks : Map[String, Int32] = Map([])
+  let func_edges : Map[String, Int32] = Map([])
   let mut total_tb = 0
   let mut mapped_tb = 0
+  let mut unique_pc = 0
+  let mut mapped_unique_pc = 0
+  let mut edges = 0
+  let mut mapped_edges = 0
+  let mut prev_pc : UInt64? = None
+  let mut prev_func : String? = None
   for line in trace.split("\n") {
     match parse_trace_pc(line) {
       Some(pc) => {
         total_tb += 1
-        match sym.func_of(pc) {
-          Some(f) => {
+        if !seen_pc.contains(pc) {
+          seen_pc.set(pc, ())
+          unique_pc += 1
+        }
+        let func = sym.func_of(pc)
+        match func {
+          Some(name) => {
             mapped_tb += 1
-            if !seen.contains(f) {
-              seen.set(f, ())
-              funcs.push(f)
+            if !seen_mapped_pc.contains(pc) {
+              seen_mapped_pc.set(pc, ())
+              mapped_unique_pc += 1
+              bump_count(func_blocks, name)
+            }
+            if !seen_funcs.contains(name) {
+              seen_funcs.set(name, ())
+              funcs.push(name)
             }
           }
           None => ()
         }
+        // Only parsed entries advance the sequence: malformed lines neither
+        // create an edge nor break the adjacency of the surrounding entries.
+        match prev_pc {
+          Some(prior_pc) => {
+            let edge = tb_edge_key(prior_pc, pc)
+            if !seen_edge.contains(edge) {
+              seen_edge.set(edge, ())
+              edges += 1
+            }
+            match (prev_func, func) {
+              (Some(prior_func), Some(current_func)) =>
+                if !seen_mapped_edge.contains(edge) {
+                  seen_mapped_edge.set(edge, ())
+                  mapped_edges += 1
+                  // A pair's endpoint functions are fixed by the symbol table,
+                  // so a new mapped pair is also a new intra-function edge
+                  // exactly when both endpoints share a name.
+                  if prior_func == current_func {
+                    bump_count(func_edges, current_func)
+                  }
+                }
+              _ => ()
+            }
+          }
+          None => ()
+        }
+        prev_pc = Some(pc)
+        prev_func = func
       }
       None => ()
     }
   }
   funcs.sort()
-  { funcs, total_tb, mapped_tb, }
+  let func_depth : Array[FuncDepth] = []
+  for name in funcs {
+    func_depth.push({
+      name,
+      blocks: count_or_zero(func_blocks, name),
+      edges: count_or_zero(func_edges, name),
+    })
+  }
+  {
+    funcs,
+    total_tb,
+    mapped_tb,
+    unique_pc,
+    mapped_unique_pc,
+    edges,
+    mapped_edges,
+    func_depth,
+  }
+}
+
+///|
+fn write_json_string(b : StringBuilder, s : String) -> Unit {
+  b.write_string("\"")
+  for c in s {
+    if c == '"' {
+      b.write_string("\\\"")
+    } else if c == '\\' {
+      b.write_string("\\\\")
+    } else if c == '\n' {
+      b.write_string("\\n")
+    } else if c == '\r' {
+      b.write_string("\\r")
+    } else if c == '\t' {
+      b.write_string("\\t")
+    } else {
+      b.write_char(c)
+    }
+  }
+  b.write_string("\"")
 }
 
 ///|
@@ -223,23 +363,28 @@ pub fn json_string_array(items : Array[String]) -> String {
     if i > 0 {
       b.write_string(",")
     }
-    b.write_string("\"")
-    for c in s {
-      if c == '"' {
-        b.write_string("\\\"")
-      } else if c == '\\' {
-        b.write_string("\\\\")
-      } else if c == '\n' {
-        b.write_string("\\n")
-      } else if c == '\r' {
-        b.write_string("\\r")
-      } else if c == '\t' {
-        b.write_string("\\t")
-      } else {
-        b.write_char(c)
-      }
+    write_json_string(b, s)
+  }
+  b.write_string("]")
+  b.to_string()
+}
+
+///|
+/// Convenience for CLI output: deterministic per-function depth objects.
+pub fn json_func_depth_array(items : Array[FuncDepth]) -> String {
+  let b = StringBuilder()
+  b.write_string("[")
+  for i, d in items {
+    if i > 0 {
+      b.write_string(",")
     }
-    b.write_string("\"")
+    b.write_string("{\"func\":")
+    write_json_string(b, d.name)
+    b.write_string(",\"blocks\":")
+    b.write_string(d.blocks.to_string())
+    b.write_string(",\"edges\":")
+    b.write_string(d.edges.to_string())
+    b.write_string("}")
   }
   b.write_string("]")
   b.to_string()

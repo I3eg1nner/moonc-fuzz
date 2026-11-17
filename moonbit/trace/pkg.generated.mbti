@@ -4,6 +4,8 @@ package "I3eg1nner/mbtfuzz/trace"
 // Values
 pub async fn collect(String, String, Array[String], String, String, SymTab, String, String, TraceStage, Int32, Int64) -> TraceResult
 
+pub fn json_func_depth_array(Array[FuncDepth]) -> String
+
 pub fn json_string_array(Array[String]) -> String
 
 pub fn parse_hex_u64(StringView) -> UInt64?
@@ -21,6 +23,12 @@ pub fn trace_stage_name(TraceStage) -> String
 // Errors
 
 // Types and methods
+pub struct FuncDepth {
+  name : String
+  blocks : Int32
+  edges : Int32
+}
+
 pub struct Sym {
   addr : UInt64
   name : String
@@ -74,6 +82,11 @@ pub struct TraceSummary {
   funcs : Array[String]
   total_tb : Int32
   mapped_tb : Int32
+  unique_pc : Int32
+  mapped_unique_pc : Int32
+  edges : Int32
+  mapped_edges : Int32
+  func_depth : Array[FuncDepth]
 }
 
 // Type aliases

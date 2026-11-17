@@ -1,1 +1,1 @@
-{"tool":"qemu-exec-trace+nm-moonbit","text_lo":16,"text_hi":48,"symbols":3,"total_tb":5,"mapped_tb":4,"func_count":2,"funcs":["a","b"]}
+{"tool":"qemu-exec-trace+nm-moonbit","text_lo":16,"text_hi":48,"symbols":3,"total_tb":5,"mapped_tb":4,"func_count":2,"funcs":["a","b"],"unique_pc":4,"mapped_unique_pc":3,"edges":4,"mapped_edges":3,"func_depth":[{"func":"a","blocks":2,"edges":1},{"func":"b","blocks":1,"edges":1}]}

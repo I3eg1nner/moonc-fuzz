@@ -21,6 +21,18 @@ fn render(nm_text : String, trace : String) -> String {
   out.write_string(summary.funcs.length().to_string())
   out.write_string(",\"funcs\":")
   out.write_string(@trace.json_string_array(summary.funcs))
+  // Append-only extension: old fields keep their order and meaning, so existing
+  // consumers that ignore unknown fields continue to work.
+  out.write_string(",\"unique_pc\":")
+  out.write_string(summary.unique_pc.to_string())
+  out.write_string(",\"mapped_unique_pc\":")
+  out.write_string(summary.mapped_unique_pc.to_string())
+  out.write_string(",\"edges\":")
+  out.write_string(summary.edges.to_string())
+  out.write_string(",\"mapped_edges\":")
+  out.write_string(summary.mapped_edges.to_string())
+  out.write_string(",\"func_depth\":")
+  out.write_string(@trace.json_func_depth_array(summary.func_depth))
   out.write_string("}")
   out.to_string()
 }
