@@ -70,3 +70,17 @@ an error. The six-package batch then produced one artifact per package:
 ```
 6 packages, 6 artifacts, 0 candidates, 0 errors, exit 0
 ```
+
+## Third real-package batch
+
+```
+queue,list,char,hashset,set,priority_queue,bool,tuple
+--four-cell --repeats 1
+8 packages, 16 artifacts, 0 candidates, 0 errors, exit 0
+```
+
+The argparse link-injection control was rerun on the same HEAD:
+
+```
+1 artifact, changed=156, candidates=1, errors=0, exit 1
+```
