@@ -10,15 +10,19 @@ fn t_obs(
   klass : String,
 ) -> TargetObs {
   {
-    target: target,
-    stage: if executed { "run" } else { "build" },
-    rc: rc,
-    executed: executed,
+    target,
+    stage: if executed {
+      "run"
+    } else {
+      "build"
+    },
+    rc,
+    executed,
     stdout: out,
     stderr_short: "",
     digest: output_digest(out),
     ms: 0L,
-    klass: klass,
+    klass,
     signature: "",
     artifact: "",
   }
@@ -29,8 +33,8 @@ fn t_cfg(targets : Array[String], limit : Int32) -> Config {
   {
     out: "/tmp/xdiff-unit",
     family: "layout",
-    targets: targets,
-    limit: limit,
+    targets,
+    limit,
     timeout_ms: 1000,
     jobs: 1,
     keep: false,

@@ -214,8 +214,7 @@ fn known_ice_label(blob : String) -> String {
     "known_f7:lower_array_make"
   } else if blob.contains("finish_stub_wrapper_shell") {
     "known_f9:finish_stub_wrapper_shell"
-  } else if blob.contains("moonc.ml:125623") ||
-    blob.contains("line 125623") {
+  } else if blob.contains("moonc.ml:125623") || blob.contains("line 125623") {
     "known_f8:moonc.ml:125623"
   } else {
     ""
@@ -259,11 +258,10 @@ fn collapse_ws(s : String) -> String {
 ///|
 fn infra_marker(t : String) -> String {
   let markers : Array[String] = [
-    "module was not found in the registry", "failed to download",
-    "download failed", "network error", "Network error", "Connection refused",
-    "Could not resolve host", "registry index", "failed to fetch", "TLS error",
-    "HTTP error", "No such file or directory", "package not found",
-    "Cannot find package", "cannot find package",
+    "module was not found in the registry", "failed to download", "download failed",
+    "network error", "Network error", "Connection refused", "Could not resolve host",
+    "registry index", "failed to fetch", "TLS error", "HTTP error", "No such file or directory",
+    "package not found", "Cannot find package", "cannot find package",
   ]
   for m in markers {
     if t.contains(m) {

@@ -90,8 +90,8 @@ fn count_class(records : Array[CaseRec], klass : String) -> Int32 {
 ///|
 fn class_counts_json(records : Array[CaseRec]) -> String {
   let classes : Array[String] = [
-    "ALL_EQUAL", "OUTPUT_MISMATCH", "KNOWN_LINK_ICE", "ICE", "BUILD_FAIL",
-    "TIMEOUT", "INFRA", "SINGLE_TARGET", "NO_RUN",
+    "ALL_EQUAL", "OUTPUT_MISMATCH", "KNOWN_LINK_ICE", "ICE", "BUILD_FAIL", "TIMEOUT",
+    "INFRA", "SINGLE_TARGET", "NO_RUN",
   ]
   let mut out = ""
   for i, k in classes {

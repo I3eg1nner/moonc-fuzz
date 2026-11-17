@@ -92,28 +92,24 @@ fn mk_obs(
   artifact : String,
 ) -> TargetObs {
   {
-    target: target,
-    stage: stage,
-    rc: rc,
-    executed: executed,
-    stdout: stdout,
+    target,
+    stage,
+    rc,
+    executed,
+    stdout,
     stderr_short: short(stderr, 700),
     digest: output_digest(stdout),
-    ms: ms,
-    klass: klass,
-    signature: signature,
-    artifact: artifact,
+    ms,
+    klass,
+    signature,
+    artifact,
   }
 }
 
 ///|
 /// Build one target, then execute the artifact.  A failed build is terminal:
 /// no output is compared for that target.
-async fn run_target(
-  cfg : Config,
-  dir : String,
-  target : String,
-) -> TargetObs {
+async fn run_target(cfg : Config, dir : String, target : String) -> TargetObs {
   let build = @exec.run_isolated(
     moon_path(),
     ["build", "--target", target],
@@ -124,10 +120,22 @@ async fn run_target(
   let bstderr = build.stderr
   if build.rc != 0 || build.timed_out {
     let (klass, sig) = classify_build_failure(
-      "build", build.rc, build.timed_out, bstderr,
+      "build",
+      build.rc,
+      build.timed_out,
+      bstderr,
     )
     return mk_obs(
-      target, "build", build.rc, false, "", bstderr, build.ms, klass, sig, "",
+      target,
+      "build",
+      build.rc,
+      false,
+      "",
+      bstderr,
+      build.ms,
+      klass,
+      sig,
+      "",
     )
   }
   let art = find_artifact(dir, target)
@@ -192,13 +200,13 @@ async fn run_layout_case(cfg : Config, c : @featuregen.LayoutCase) -> CaseRec {
   @corpus.ensure_dir(dir)
   let pkg = @featuregen.render_package(c)
   if !write_layout_case(dir, pkg) {
-      let obs : Array[TargetObs] = []
+    let obs : Array[TargetObs] = []
     return {
       index: c.index,
       id: c.id,
       verdict: "INFRA",
-      obs: obs,
-      dir: dir,
+      obs,
+      dir,
       note: "write-failed",
     }
   }
@@ -208,20 +216,13 @@ async fn run_layout_case(cfg : Config, c : @featuregen.LayoutCase) -> CaseRec {
   }
   let verdict = verdict_of(obs)
   let keep = cfg.keep ||
-    (verdict == "OUTPUT_MISMATCH" ||
-      verdict == "ICE" ||
-      verdict == "KNOWN_LINK_ICE")
+    verdict == "OUTPUT_MISMATCH" ||
+    verdict == "ICE" ||
+    verdict == "KNOWN_LINK_ICE"
   if !keep {
     rm_rf(dir)
   }
-  {
-    index: c.index,
-    id: c.id,
-    verdict: verdict,
-    obs: obs,
-    dir: dir,
-    note: "",
-  }
+  { index: c.index, id: c.id, verdict, obs, dir, note: "", }
 }
 
 ///|
@@ -235,8 +236,8 @@ async fn run_async_case(cfg : Config, c : @asyncgen.Case) -> CaseRec {
       index: 0,
       id: c.id,
       verdict: "INFRA",
-      obs: obs,
-      dir: dir,
+      obs,
+      dir,
       note: "write-failed",
     }
   }
@@ -252,12 +253,5 @@ async fn run_async_case(cfg : Config, c : @asyncgen.Case) -> CaseRec {
   if !keep {
     rm_rf(dir)
   }
-  {
-    index: 0,
-    id: c.id,
-    verdict: verdict,
-    obs: obs,
-    dir: dir,
-    note: "async:no-main-generated",
-  }
+  { index: 0, id: c.id, verdict, obs, dir, note: "async:no-main-generated", }
 }
