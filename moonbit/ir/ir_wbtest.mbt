@@ -292,3 +292,17 @@ test "early-return function sample" {
   let events = run(p, 1000) catch { _ => ["<error>"] }
   assert_eq(events, ["Emit(1, 3)"])
 }
+
+///|
+test "generator covers len-bound dynamic index and write" {
+  let mut found = false
+  for s in 0..<100 {
+    let p = generate(s.to_int64().reinterpret_as_uint64(), 8)
+    let src = emit_program(p)
+    if src.contains("(a)[i]") {
+      found = true
+      break
+    }
+  }
+  assert_true(found)
+}

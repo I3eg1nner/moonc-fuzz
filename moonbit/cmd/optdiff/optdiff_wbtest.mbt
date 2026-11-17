@@ -293,3 +293,10 @@ test "artifact stem removes native and wasm suffixes" {
   assert_eq(artifact_stem("/x/foo.wasm"), "foo")
   assert_eq(artifact_stem("/x/foo"), "foo")
 }
+
+///|
+test "native llvm opt appends exactly one value" {
+  let a = add_llvm_opt(["moonc", "link-core", "-O0"], "3")
+  assert_eq(a[a.length() - 2], "-llvm-opt")
+  assert_eq(a[a.length() - 1], "3")
+}

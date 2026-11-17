@@ -304,4 +304,6 @@ native 四格已经接入 `cmd/optdiff`，并对 142 个包目录完成扫描：
 
 `async/http` 的差异是 DNS/外网错误（`Name or service not known`、`Temporary failure in name resolution`、`ProxyError`），不是编译器缺陷。随后对 111 个有 artifact 的包做 `--repeats 2 --aa`：184 个 evidence row、9,249 个 test ID、0 candidate、0 changed；110/111 包 clean，`diff` 的 blackbox baseline 仍不绿。详细证据和失败分类见 `findings/native_fourcell.md`。
 
-这条结果不改变第 4 节的结论：native 全量仍然没有真实缺陷，但把“native 不可测”的边界推进成了“已覆盖 111 包、9,249 test ID 的负证据”。下一步应优先补全 `repeats>=2` 的全量稳定性，再决定是否投入 IR 模板扩展。
+这条结果不改变第 4 节的结论：native 全量仍然没有真实缺陷，但把“native 不可测”的边界推进成了“已覆盖 111 包、9,249 test ID 的负证据”。111 包 `repeats=2 --aa` 为 0 candidate/0 changed（`diff` blackbox baseline 不绿）；显式 `--llvm-opt 3` 也是 184 artifact、9,249 test ID、0 candidate。
+
+IR 侧把动态 `a[i]` 写入加入 len-bound loop 后再跑 12,096 例：0 错误，动态索引出现在 2,076/12,000 个随机样本中。IR 仍没有发现编译器差异。

@@ -170,6 +170,12 @@ pub fn generate(seed : UInt64, size : Int32) -> Program {
   }
   loop_body.push(Emit(site, gen_i32(rng, vars, 1)))
   site += 1
+  // A len-bound loop is the only place where i is guaranteed in bounds.
+  if use_len && rng.chance(0.5) {
+    loop_body.push(ArraySet(array_name, Var("i"), gen_i32(rng, vars, 1)))
+    loop_body.push(Emit(site, Index(Var(array_name), Var("i"))))
+    site += 1
+  }
   loop_body.push(Assign("i", Add(Var("i"), ConstI32(1))))
   let loop_cond = if use_len {
     Lt(Var("i"), Len(Var(array_name)))

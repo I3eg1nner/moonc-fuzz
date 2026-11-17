@@ -119,6 +119,14 @@ moon run cmd/optdiff -- \
   --packages moonbitlang/core/argparse \
   --target native --four-cell
 
+# Optional native-only LLVM optimization arm: default-link arms get
+# `-llvm-opt N` (0..3) instead of the implicit default.
+moon run cmd/optdiff -- \
+  --module /data/audit/mbtfuzz/seeds \
+  --out /tmp/optdiff-four-native-llvm3 \
+  --packages moonbitlang/core/argparse \
+  --target native --four-cell --llvm-opt 3
+
 # Four-cell link-injection control. The mutant package core is substituted only
 # in the link-default arms; expected link_changed>0, build_changed=0,
 # both_changed>0, candidate=true, exit 1.
@@ -192,7 +200,7 @@ guarantee metadata consistency if a test structure is mutated.
 `-O0`), and `BdLd` (both default). The default build arm is produced by
 removing `-O0` from the replayed `build-package` argv; it does not use
 `moon test --release` and therefore does not switch `assert.mbt` to
-`assert_release.mbt`. `--target native` additionally pairs `link-core` `.o` outputs with `cc` `.exe` outputs and expands `$MOON_HOME`; its build dimension is not skipped. The four-cell mode accepts a comma-separated package
+`assert_release.mbt`. `--target native` additionally pairs `link-core` `.o` outputs with `cc` `.exe` outputs and expands `$MOON_HOME`; its build dimension is not skipped. `--llvm-opt N` is native-only: it appends `-llvm-opt N` only to the link-default arms, not to `B0L0`/`BdL0`, and is still a debug-assert comparison. The four-cell mode accepts a comma-separated package
 list; each package gets its own source copy, build tree, evidence and summary,
 keyed by the sanitized package name plus a short hash (so `a/b__c` and
 `a__b/c` cannot collide). Artifact basenames must be unique within a package;
@@ -234,7 +242,7 @@ budget: exhaustion is a failed/invalid sample, not a program result. Locals and
 parameters may not shadow functions, `println`, or generated `__` names.
 Restricted random generation, trace-preserving reduction and a four-cell IR
 probe are connected to `irprobe`. The generator uses a main function plus `add`/`choose`/`abs` helpers,
-`size=8` in the probe, and covers `Index`/`Len`, array aliasing, while-if,
+`size=8` in the probe, and covers `Index`/`Len`, dynamic len-bound `a[i]` read/write, array aliasing, while-if,
 branch-state merges and early returns. It does not generate nested functions. `--reduce` is a statement-level, trace-preserving reducer: it
 requires type validity, successful interpretation and an identical event
 sequence, and removes dead lets/no-op assignments. It is not yet a
@@ -268,7 +276,7 @@ samples does not establish general compiler correctness or a complete IR.
 
 ## Measured results
 
-- Tests: 155 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 157 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the

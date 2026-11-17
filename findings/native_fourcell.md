@@ -139,3 +139,21 @@ proxy_test.mbt|2       pass -> "ProxyError"
 - 没有任何 artifact 在重复 B0L0 之间出现不稳定状态。
 
 这是当前最强的一组 native 负证据：不仅零候选，而且 A/A 没有暴露重复性错误。仍不能证明优化器正确；`diff` 的 blackbox 没有进入有效比较。
+
+## 7. 显式 `-llvm-opt 3`
+
+`--llvm-opt 3` 把 default-link 两臂从“省略 `-O0`”改成显式 `-llvm-opt 3`；
+`B0L0`/`BdL0` 仍是 `-O0`。对 111 个有 artifact 的包重跑：
+
+```
+111 packages
+184 evidence rows
+9,249 test IDs
+0 candidates
+0 changed
+110 clean; `diff` blackbox baseline not green
+```
+
+`argparse` 的单包检查为 3 artifacts、0 candidates、0 errors。这个档位仍使用
+debug 断言，不是 release 比较；零候选是“该显式 LLVM 档位下没有观察到状态差异”，
+不是 LLVM 优化器正确性证明。

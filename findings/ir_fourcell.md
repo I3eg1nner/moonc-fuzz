@@ -161,3 +161,21 @@ have the same fixed `main` template and only 9 coarse structural combinations.
 The result strengthens the negative evidence for this template; it does not
 establish general IR or compiler correctness, and it is not 12,096 independent
 program shapes.
+
+## Dynamic-index template (v2)
+
+The generator now adds a len-bound dynamic index and element write in the
+loop body (`a[i]` after `i < Len(a)`). 12 shards, seeds 30000..41000:
+
+```
+12,096 cases
+all four arms reason=ok: 12,096/12,096
+errors=0
+per-shard wall time: 338-345 s
+dynamic `a[i]` present: 2,076 / 12,000 random cases (17.3%)
+arrays: 8,429 / 12,000; Len: 8,324 / 12,000; alias: 4,230 / 12,000
+```
+
+Still no compiler difference. This adds one genuinely new array path, but the
+overall template remains fixed; the result is negative evidence for this shape,
+not general IR correctness.

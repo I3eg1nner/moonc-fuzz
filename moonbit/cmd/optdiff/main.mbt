@@ -18,6 +18,7 @@ struct Config {
   mut out : String
   mut packages : Array[String]
   mut target : String
+  mut llvm_opt : String
   mut timeout_ms : Int32
   mut repeats : Int32
   mut aa : Bool
@@ -87,7 +88,7 @@ fn artifact_stem(path : String) -> String {
 ///|
 fn usage() -> Unit {
   println(
-    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc|wasm|native] [--timeout MS] [--repeats N] [--aa] [--four-cell] [--four-cell-control FILE FROM TO] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
+    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc|wasm|native] [--llvm-opt N] [--timeout MS] [--repeats N] [--aa] [--four-cell] [--four-cell-control FILE FROM TO] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
   )
 }
 
@@ -1026,6 +1027,17 @@ fn expand_moon_home(argv : Array[String], home : String) -> Array[String] {
 }
 
 ///|
+fn add_llvm_opt(argv : Array[String], level : String) -> Array[String] {
+  let out : Array[String] = []
+  for a in argv {
+    out.push(a)
+  }
+  out.push("-llvm-opt")
+  out.push(level)
+  out
+}
+
+///|
 fn make_native_link_argv(
   argv : Array[String],
   new_path : String,
@@ -1324,6 +1336,11 @@ async fn run_native_test_arm(
       make_native_link_argv(link_argv, object_path, remove_o0) {
       Some(a) => a
       None => return None
+    }
+    let link_cmd = if remove_o0 && cfg.llvm_opt != "" {
+      add_llvm_opt(link_cmd, cfg.llvm_opt)
+    } else {
+      link_cmd
     }
     let lr = run_argv(link_cmd, root, cfg.timeout_ms, home)
     if lr.rc != 0 {
@@ -3138,6 +3155,7 @@ async fn main {
     out: "",
     packages: ["moonbitlang/core/argparse"],
     target: "wasm-gc",
+    llvm_opt: "",
     timeout_ms: 300000,
     repeats: 1,
     aa: false,
@@ -3163,6 +3181,9 @@ async fn main {
       i += 2
     } else if a == "--target" && i + 1 < args.length() {
       cfg.target = args[i + 1]
+      i += 2
+    } else if a == "--llvm-opt" && i + 1 < args.length() {
+      cfg.llvm_opt = args[i + 1]
       i += 2
     } else if a == "--timeout" && i + 1 < args.length() {
       cfg.timeout_ms = parse_int(args[i + 1], cfg.timeout_ms)
@@ -3234,6 +3255,17 @@ async fn main {
   if cfg.repeats < 1 {
     println("[optdiff] --repeats must be >= 1")
     @env.exit(2)
+  }
+  if cfg.llvm_opt != "" {
+    if cfg.target != "native" {
+      println("[optdiff] --llvm-opt requires --target native")
+      @env.exit(2)
+    }
+    let n = parse_int(cfg.llvm_opt, -1)
+    if n < 0 || n > 3 {
+      println("[optdiff] --llvm-opt must be 0..3")
+      @env.exit(2)
+    }
   }
   let home = match @env.get_env_var("HOME") {
     Some(h) => h
