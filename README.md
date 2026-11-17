@@ -150,6 +150,10 @@ F1b/F2b/F4b 是额外 witness，暂按栈或异常签名归入 F1/F2/F4，不声
 | 跨后端模板 | 25/25 在 wasm/js 都到 `run` 且输出一致 |
 | 第三方测试 | 12 包 × 5 target；3,503/3,503 pass（wasm/wasm-gc/js） |
 
+改进成本与样本量评估见 `findings/improvement_evaluation.md`：有效真实包
+162 个 artifact、8,849 个测试、0 candidate；IR 1,008 例、0 错误；
+native link-only 原型 13 个 artifact、0 差异；native 四格原型 37/45 core 变化、164 个测试 0 差异。
+
 trace 转换器的 native release 实现在 101 MB check trace 上约 0.48 s，
 Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 
