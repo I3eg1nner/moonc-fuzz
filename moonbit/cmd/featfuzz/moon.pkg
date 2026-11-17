@@ -1,0 +1,14 @@
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/featuregen",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/corpus",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

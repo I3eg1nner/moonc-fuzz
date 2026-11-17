@@ -1,0 +1,74 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/featuregen"
+
+// Values
+pub fn expected_checksum(LayoutCase) -> Int64
+
+pub fn f7_control() -> LayoutCase
+
+pub fn f7_seed() -> LayoutCase
+
+pub fn features_json(LayoutCase) -> String
+
+pub fn field_suites() -> Array[Array[FieldType]]
+
+pub fn field_tag(FieldType) -> String
+
+pub fn field_type_src(FieldType) -> String
+
+pub fn layout_cases() -> Array[LayoutCase]
+
+pub fn matrix_size() -> Int32
+
+pub fn op_tag(LayoutOp) -> String
+
+pub fn ops() -> Array[LayoutOp]
+
+pub fn render_package(LayoutCase) -> RenderedPackage
+
+// Errors
+
+// Types and methods
+pub(all) struct FieldSpec {
+  name : String
+  ty : FieldType
+}
+
+pub(all) enum FieldType {
+  IntT
+  Int64T
+  BoolT
+  StringT
+  ArrayIntT
+  EnumStringT
+  EnumArrayIntT
+}
+
+pub(all) struct LayoutCase {
+  id : String
+  index : Int32
+  valtype : Bool
+  fields : Array[FieldSpec]
+  op : LayoutOp
+  suite : Int32
+}
+
+pub(all) enum LayoutOp {
+  Push
+  Makei
+  Map
+  Filter
+  Slice
+}
+
+pub(all) struct RenderedPackage {
+  moon_mod : String
+  moon_pkg : String
+  lib_mbt : String
+  main_mbt : String
+  main_test_mbt : String
+}
+
+// Type aliases
+
+// Traits

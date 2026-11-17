@@ -1,0 +1,2 @@
+// Feature-directed layout case generator.  No runtime dependencies: the
+// package only builds source text and computes the expected checksum.
