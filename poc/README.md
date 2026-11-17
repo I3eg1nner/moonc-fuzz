@@ -50,6 +50,10 @@ upstream reports on the pinned toolchain and are kept as regression evidence:
 - F9 matches [#1344](https://github.com/moonbitlang/moonbit-docs/issues/1344)
   (`finish_stub_wrapper_shell` for an `extern "C"` taking `V128`).
 
-All three are compiler/link-time crashes, not claims of miscompilation.  They are
-excluded from `scripts/reproduce_all.sh` because that script asserts the
+All three are compiler/link-time crashes, not claims of miscompilation.  An
+independent Codex run (three repeats each, with negative controls) is archived
+in `findings/codex_open_ice_review.md`; it also corrected the F9 README claim
+about `moon test --build-only`.
+
+They are excluded from `scripts/reproduce_all.sh` because that script asserts the
 F1–F6 fixed behavior; run the commands in each PoC README directly.

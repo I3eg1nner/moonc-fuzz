@@ -10,8 +10,8 @@ cd poc/f9_native_v128_stub_ice
 moon test --target native
 ```
 
-Expected (and observed): `moon check` and `moon test --build-only` are fine, but
-the native **debug** link fails with:
+Expected (and observed): `moon check --target native` and `moon build --target native`
+succeed, but the native **debug** test link fails with:
 
 ```
 Error: Machine_error(kind=unsupported;
@@ -19,6 +19,8 @@ Error: Machine_error(kind=unsupported;
   message="aggregate stub wrapper arguments are not lowered in this batch")
 ```
 
+`moon test --target native --build-only` still hits the same ICE, so this is a
+test-mode link failure, not just an execution failure.
 `moon test --target native --release` succeeds. The package has a native stub
 (`stub.c`) and calls it with a `V128` argument produced by
 `@v128.f32x4_const`.

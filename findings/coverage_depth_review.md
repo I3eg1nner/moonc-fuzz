@@ -339,8 +339,9 @@ wasm/js 在部分大参数上差 1 ULP；core 的 `math/quickcheck_test.mbt` 明
 
 ## 6. 证据边界
 
-- F7/F8/F9 是 **link-time ICE**：源程序通过 `moon check`/typecheck，失败发生在
-  `moonc link-core`；没有执行到测试体。
+- F7/F8/F9 是 **link-time ICE**：F7/F8 的源程序通过 `moon check`，F9 通过
+  `moon check --target native`（该包只声明 native）；失败发生在
+  `moonc link-core`，没有执行到测试体。
 - F7 只在 native **debug** 复现；release 和其他后端通过。不能据此声称
   native release 也有误编译。
 - F8 在 js/wasm/native 的链接阶段复现；wasm-gc 不在该 PoC 的
@@ -348,7 +349,9 @@ wasm/js 在部分大参数上差 1 ULP；core 的 `math/quickcheck_test.mbt` 明
 - F9 只在 native **debug** 复现；`--release` 通过。它是 stub wrapper
   lowering 的 ICE，不是 V128 语义错误。
 - 三者都对应上游仍开放的 issue；本仓库不声称新的上游根因，只声称在固定
-  版本上复现并最小化。
+  版本上复现并最小化。独立 codex 复验（每个 3 次 + 控制）见
+  `findings/codex_open_ice_review.md`；它确认 F9 的 `moon test --build-only`
+  也会命中同一 ICE。
 - 本文的 23,920 个 const/runtime 对、300 个数学值、字符串/异常/泛型用例
   都是**负证据**：在这些输入和配置下没有观察到差异；它们不构成编译器
   正确性证明。

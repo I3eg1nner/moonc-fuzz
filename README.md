@@ -129,7 +129,8 @@ native debug 下 `#valtype` 记录（标量 + 含 GC 引用的 enum）经 `Array
 `link-core` 断言；F9 是 native debug 下 `extern "C"` stub 接收 `V128` 触发
 `finish_stub_wrapper_shell` ICE。最小复现见 `poc/f7_valtype_array_ice/`、
 `poc/f8_async_raise_ice/`、`poc/f9_native_v128_stub_ice/`；覆盖缺口分析见
-`findings/coverage_depth_review.md`。
+`findings/coverage_depth_review.md`，独立 codex 复验见
+`findings/codex_open_ice_review.md`。
 
 对外口径按证据强度分三档：
 
