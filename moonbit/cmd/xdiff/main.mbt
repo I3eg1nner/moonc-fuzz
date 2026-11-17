@@ -31,6 +31,12 @@ struct Config {
 /// One target's complete observation.  `executed` is false for build/link
 /// failures and for a run that timed out; such records never take part in the
 /// cross-target stdout comparison.
+///
+/// In test-driver mode (`stage == "test"`) `executed` means "the driver
+/// produced a parseable test summary with at least one test", and the
+/// `test_*` fields carry the per-test outcome table, its canonical form, and
+/// the printed `Total tests:/passed:/failed:` counts.  Those fields are all
+/// zero/empty in exec mode, where stdout+rc is the compared surface.
 struct TargetObs {
   target : String
   stage : String
@@ -43,6 +49,11 @@ struct TargetObs {
   klass : String
   signature : String
   artifact : String
+  test_statuses : String
+  tests_total : Int32
+  tests_passed : Int32
+  tests_failed : Int32
+  tests_unparsed : Int32
 }
 
 ///|

@@ -2,12 +2,28 @@
 /// Case selection, rendering and per-target stage execution.
 
 ///|
+/// `--only` accepts one case id or a comma-separated list, so a bounded sample
+/// that is not a prefix (e.g. a few loop cases plus the F8 control) can be run
+/// in one invocation and land in one `results.jsonl`.
+fn only_matches(only : String, id : String) -> Bool {
+  if only == "" {
+    return true
+  }
+  for part in parse_targets(only) {
+    if part == id {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn select_layout(cfg : Config) -> Array[@featuregen.LayoutCase] {
   let all = @featuregen.layout_cases()
   let out : Array[@featuregen.LayoutCase] = []
   if cfg.only != "" {
     for c in all {
-      if c.id == cfg.only {
+      if only_matches(cfg.only, c.id) {
         out.push(c)
       }
     }
@@ -46,7 +62,7 @@ fn select_async(cfg : Config) -> Array[@asyncgen.Case] {
   if cfg.only != "" {
     let out : Array[@asyncgen.Case] = []
     for c in all {
-      if c.id == cfg.only {
+      if only_matches(cfg.only, c.id) {
         out.push(c)
       }
     }
@@ -90,6 +106,11 @@ fn mk_obs(
   klass : String,
   signature : String,
   artifact : String,
+  test_statuses~ : String = "",
+  tests_total~ : Int32 = 0,
+  tests_passed~ : Int32 = 0,
+  tests_failed~ : Int32 = 0,
+  tests_unparsed~ : Int32 = 0,
 ) -> TargetObs {
   {
     target,
@@ -103,6 +124,11 @@ fn mk_obs(
     klass,
     signature,
     artifact,
+    test_statuses,
+    tests_total,
+    tests_passed,
+    tests_failed,
+    tests_unparsed,
   }
 }
 
@@ -194,6 +220,108 @@ async fn run_target(cfg : Config, dir : String, target : String) -> TargetObs {
 }
 
 ///|
+/// Run one target through `moon test` and record the per-test outcome table.
+/// This is the async comparison path: those packages have no `main`, so there
+/// is no artifact and no program stdout to compare; the driver's own report is
+/// the surface.
+///
+/// A target counts as `executed` only when the driver printed a summary with at
+/// least one test.  `Total tests: 0` (a backend that silently has no async test
+/// entry, e.g. wasm-gc) becomes `NO_TESTS` and is excluded from the comparison
+/// rather than compared as "zero outcomes" against a target that ran one test.
+async fn run_test_target(
+  cfg : Config,
+  dir : String,
+  target : String,
+) -> TargetObs {
+  let r = @exec.run_isolated(
+    moon_path(),
+    ["test", "--target", target, "-v", "--no-parallelize"],
+    dir,
+    cfg.timeout_ms,
+    max_output_bytes=262144,
+  )
+  let sum = parse_test_output(r.stdout)
+  if r.timed_out {
+    return mk_obs(
+      target,
+      "test",
+      r.rc,
+      false,
+      "",
+      r.stderr,
+      r.ms,
+      "TIMEOUT",
+      "timeout:test",
+      "",
+    )
+  }
+  if sum.has_counts && sum.total > 0 {
+    let klass = if r.rc == 0 { "OK" } else { "RUN_RC" }
+    return mk_obs(
+      target,
+      "test",
+      r.rc,
+      true,
+      r.stdout,
+      r.stderr,
+      r.ms,
+      klass,
+      test_signature(sum.total, sum.passed, sum.failed),
+      "",
+      test_statuses=canonical_statuses(sum),
+      tests_total=sum.total,
+      tests_passed=sum.passed,
+      tests_failed=sum.failed,
+      tests_unparsed=sum.unparsed,
+    )
+  }
+  // A clean "no test on this backend" report (`Total tests: 0`, rc=0) is not a
+  // failure.  A non-zero rc with zero tests is *not* trusted as `NO_TESTS`: it
+  // goes through the failure classifier so a broken driver cannot look benign.
+  if sum.has_counts && r.rc == 0 {
+    return mk_obs(
+      target,
+      "test",
+      r.rc,
+      false,
+      r.stdout,
+      r.stderr,
+      r.ms,
+      "NO_TESTS",
+      "no-tests",
+      "",
+      tests_unparsed=sum.unparsed,
+    )
+  }
+  // No summary at all: the driver never started.  An F8 link ICE lands here.
+  let (klass, sig) = classify_build_failure("test", r.rc, false, r.stderr)
+  mk_obs(
+    target,
+    "test",
+    r.rc,
+    false,
+    r.stdout,
+    r.stderr,
+    r.ms,
+    klass,
+    sig,
+    "",
+    tests_unparsed=sum.unparsed,
+  )
+}
+
+///|
+/// Verdicts that keep the case directory for inspection.
+fn verdict_keeps(verdict : String) -> Bool {
+  verdict == "OUTPUT_MISMATCH" ||
+  verdict == "TEST_STATUS_MISMATCH" ||
+  verdict == "TEST_RC_MISMATCH" ||
+  verdict == "ICE" ||
+  verdict == "KNOWN_LINK_ICE"
+}
+
+///|
 async fn run_layout_case(cfg : Config, c : @featuregen.LayoutCase) -> CaseRec {
   let dir = join(join(cfg.out, "cases"), c.id)
   rm_rf(dir)
@@ -215,10 +343,7 @@ async fn run_layout_case(cfg : Config, c : @featuregen.LayoutCase) -> CaseRec {
     obs.push(run_target(cfg, dir, t))
   }
   let verdict = verdict_of(obs)
-  let keep = cfg.keep ||
-    verdict == "OUTPUT_MISMATCH" ||
-    verdict == "ICE" ||
-    verdict == "KNOWN_LINK_ICE"
+  let keep = cfg.keep || verdict_keeps(verdict)
   if !keep {
     rm_rf(dir)
   }
@@ -243,15 +368,20 @@ async fn run_async_case(cfg : Config, c : @asyncgen.Case) -> CaseRec {
   }
   let obs : Array[TargetObs] = []
   for t in cfg.targets {
-    obs.push(run_target(cfg, dir, t))
+    obs.push(run_test_target(cfg, dir, t))
   }
-  // Async cases render only a library plus tests and have no `main`, so a
-  // successful build yields no executable artifact; the driver records
-  // NO_ARTIFACT rather than inventing an entry point.
-  let verdict = verdict_of(obs)
-  let keep = cfg.keep || verdict == "INFRA"
+  // Async cases render only a library plus tests and have no `main`, so the
+  // comparison goes through the test driver instead of a built artifact.
+  let verdict = async_verdict_of(obs)
+  let keep = cfg.keep || verdict_keeps(verdict) || verdict == "INFRA"
   if !keep {
     rm_rf(dir)
   }
-  { index: 0, id: c.id, verdict, obs, dir, note: "async:no-main-generated", }
+  let note = match async_divergence(obs) {
+    "status" => "test-driver:per-test-status"
+    "counts" => "test-driver:printed-counts"
+    "rc" => "test-driver:rc-only"
+    _ => "test-driver"
+  }
+  { index: 0, id: c.id, verdict, obs, dir, note, }
 }

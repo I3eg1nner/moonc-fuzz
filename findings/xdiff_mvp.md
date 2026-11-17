@@ -1,6 +1,8 @@
 # xdiff MVP: cross-backend execution differential
 
-Status: MVP, bounded sample, no new defect claimed.
+Status: layout family swept over the whole curated matrix (160/160 cases),
+async family moved to a test-driver comparison in `findings/xdiff_async.md`,
+no new defect claimed.
 
 The staged oracles (`cmd/featfuzz`, `cmd/asyncfuzz`) prove that generated
 feature cases *build* (and that native test linking fails for F7/F9). They never
@@ -17,15 +19,22 @@ Package: `moonbit/cmd/xdiff/` (executable), imports `featuregen`, `asyncgen`,
 ```
 xdiff --out ABS_DIR [--family layout|async]
       [--targets wasm-gc,wasm,js,native] [--limit N] [--timeout-ms N]
-      [--jobs N] [--only ID] [--keep]
+      [--jobs N] [--only ID[,ID...]] [--keep]
 ```
+
+`--family layout` is the exec-mode differential described below.
+`--family async` has no `main` to execute, so it compares the generated test
+driver's per-test outcomes instead; that mode is documented separately in
+`findings/xdiff_async.md`. `--only` accepts a comma-separated id list so a
+non-prefix sample (or a single calibration case) can be selected in one run.
 
 For each selected case:
 
 1. Render a fresh package directory under `<out>/cases/<case-id>` (layout:
    `moon.mod`/`moon.pkg`/`lib.mbt`/`main.mbt`/`main_test.mbt` from
    `featuregen.render_package`; async: `asyncgen.render_package`).
-2. For each target in the requested order, serially:
+2. For each target in the requested order, serially (layout family; the async
+   family runs `moon test` instead, see below):
    * `moon build --target T` in that directory (this is what produces `main`);
    * locate the artifact under `_build/<T>/debug/build/` (`.wasm` for wasm and
      wasm-gc, `.js` for js, `.exe` for native; `.wasm.map` is skipped);
@@ -138,42 +147,77 @@ moon run cmd/xdiff -- --out /tmp/xd_f7c --only L0085-plain-push-int_enum_string 
 Native-inclusive smaller run (prefix 8 + controls) reproduced the same result:
 9 `ALL_EQUAL`, 1 `KNOWN_LINK_ICE`, 8.6 s wall.
 
-Async probe:
+Async probe (historical): the build-based async path was `NO_RUN` because
+async packages have `supported_targets = "wasm+js+native"` and contain only a
+library plus tests — no `main`, so `moon build` emits no artifact. That path is
+no longer used: the async family now runs `moon test --target T` and compares
+the test driver's report. See `findings/xdiff_async.md` for the rule, the
+6-case run (18 target runs, 5 `ALL_EQUAL`, 1 F8 `KNOWN_LINK_ICE`, 0 status
+mismatches) and its limitations.
+
+### Full layout matrix sweep (this revision)
+
+The bounded 26-case pilots above were extended to the **whole curated matrix**,
+four targets, one serial invocation:
 
 ```
-moon run cmd/xdiff -- --out /tmp/xd_async --family async --limit 2 \
-  --targets wasm-gc --keep
+xdiff.exe --out /tmp/xd2_layout_final --family layout \
+  --targets wasm-gc,wasm,js,native --timeout-ms 180000
 ```
 
-2 cases, both `NO_RUN`: `moon build --target wasm-gc` succeeds but emits no
-artifact because async packages have `supported_targets = "wasm+js+native"`
-and, more importantly, contain only a library plus tests — no `main`. A
-manual `moon test --target wasm --build-only` (and `js`) in the rendered
-directory compiled successfully against the offline
-`moonbitlang/async@0.22.9`, so dependency resolution works; executing async
-test drivers on multiple backends was not implemented in this MVP.
+* selected 160 cases, 640 target builds attempted, 620 executed
+  (wasm-gc 160, wasm 160, js 160, native 140)
+* counts: `ALL_EQUAL` **140**, `KNOWN_LINK_ICE` **20**, `OUTPUT_MISMATCH` 0,
+  `ICE` 0, `BUILD_FAIL` 0, `TIMEOUT` 0, `INFRA` 0, `SINGLE_TARGET` 0,
+  `NO_RUN` 0
+* distinct signatures: 1 — `known_f7:lower_array_make`, 20 occurrences, all
+  `target=native`, all `rc=255`, all at build/link
+* wall clock 2 m 18.0 s (user 5 m 03.9 s, sys 2 m 54.6 s); the sweep was run
+  twice (once before the async changes, once with the committed binary) with
+  identical counts
+
+The 20 known-ICE cases are **four** field-shape families × 5 operations
+(`push`, `makei`, `map`, `filter`, `slice`), not two:
+
+| family | frozen cases | ops |
+|---|---|---|
+| `int_enum_string` | L0080–L0084 | 5 |
+| `int_enum_array_int` | L0090–L0094 | 5 |
+| `int64_enum_string_array_int` | L0140–L0144 | 5 |
+| `int_bool_enum_array_int_string` | L0150–L0154 | 5 |
+
+Their `plain-*` controls (L0085–L0089, L0095–L0099, L0145–L0149,
+L0155–L0159) are `ALL_EQUAL` on all four targets, so the failure tracks
+`#valtype`, not the field shape or the driver. Every other case (140) is
+`ALL_EQUAL` on all four targets, including the 20 cases where native alone
+fails to link the `vt-*` shape.
 
 ## Mismatches
 
-None. `summary.json` for Pilot B has `"mismatches": []`. Because no output
-divergence appeared, the required "re-run 3× in fresh directories plus a
-control" procedure was not triggered. The F7 plain-struct control above is the
-control for the known-ICE classifier, not for a mismatch.
+None. `summary.json` for Pilot B and for the full 160-case sweep both have
+`"mismatches": []` and `"OUTPUT_MISMATCH": 0`. Because no output divergence
+appeared in 620 executed target-runs, the required "re-run 3× in fresh
+directories plus a control" procedure was not triggered. The F7 plain-struct
+control above is the control for the known-ICE classifier, not for a mismatch.
 
 ## Known-ICE labels
 
-* `known_f7:lower_array_make` — native build/link of the F7 seed, upstream
-  #1322. Not a new finding.
-* `known_f9:finish_stub_wrapper_shell` and `known_f8:moonc.ml:125623` are
-  recognized by the classifier but were not exercised by this sample: F9
-  requires an `extern "C"`/`V128` case and F8 is an async case, and neither is
-  in the 24-case layout prefix. Their labels are unit-tested only.
+* `known_f7:lower_array_make` — native build/link of the 20 `vt-*` cases above
+  (4 field-shape families × 5 ops), upstream #1322. Not a new finding.
+* `known_f8:moonc.ml:125623` — now exercised for real by the async test-driver
+  mode: the matrix's flagged `f8_control` async case fails `link-core` on js,
+  wasm **and** native under `moon test`, and is labelled `KNOWN_LINK_ICE`
+  without being compared (`findings/xdiff_async.md`). Upstream #1340.
+* `known_f9:finish_stub_wrapper_shell` is still recognized by the classifier but
+  not exercised: it needs an `extern "C"`/`V128` layout case, which is not in
+  the curated matrix. Its label is unit-tested only.
 
 ## Limitations / what remains unproven
 
-* **Bounded sample**: 26 of 160 layout cases, chosen as a prefix plus the two
-  F7 calibration cases. This is not a correctness claim about the other 134
-  cases or about the compiler as a whole.
+* **Sample**: the full 160-case curated layout matrix was run on four targets,
+  so the layout counts above cover every curated case, not a prefix. This is
+  still a claim about *those* 160 rendered cases only, not about the compiler as
+  a whole; the generator itself is not fuzzed here.
 * **Debug only**: `moon build` defaults to debug. Native release/LLVM
   optimization paths (`moonc` `-O2`, `link-core` with different flags) are not
   exercised, and the F7 failure is known to be debug-specific.
@@ -188,9 +232,9 @@ control for the known-ICE classifier, not for a mismatch.
 * **Timeouts**: build and run each get `--timeout-ms` (180 s in the pilots). A
   timeout is excluded from comparison, so a backend that hangs could hide an
   output divergence rather than report one.
-* **Async**: no execution differential; only rendering/build resolution was
-  probed. The async matrix's `EntryFn` cases need a synthesized `main` (generic
-  type parameters, `raise`/`raise?` effects) before they can be run as programs.
+* **Async**: the test-driver differential in `findings/xdiff_async.md` covers 6
+  of 82 async cases and compares only the driver's per-test report; no `main` is
+  synthesized, so async cases are still not compared on program stdout.
 * **Host safety**: `--jobs` never runs more than one `moon` process in this
   implementation despite accepting the flag; the serial behavior is the only
   one tested.

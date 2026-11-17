@@ -39,6 +39,16 @@ fn obs_json(o : TargetObs, out_cap : Int32) -> String {
   jstr(o.artifact) +
   "\",\"ms\":" +
   o.ms.to_string() +
+  ",\"test_statuses\":\"" +
+  jstr(o.test_statuses) +
+  "\",\"tests_total\":" +
+  o.tests_total.to_string() +
+  ",\"tests_passed\":" +
+  o.tests_passed.to_string() +
+  ",\"tests_failed\":" +
+  o.tests_failed.to_string() +
+  ",\"tests_unparsed\":" +
+  o.tests_unparsed.to_string() +
   "}"
 }
 
@@ -90,8 +100,8 @@ fn count_class(records : Array[CaseRec], klass : String) -> Int32 {
 ///|
 fn class_counts_json(records : Array[CaseRec]) -> String {
   let classes : Array[String] = [
-    "ALL_EQUAL", "OUTPUT_MISMATCH", "KNOWN_LINK_ICE", "ICE", "BUILD_FAIL", "TIMEOUT",
-    "INFRA", "SINGLE_TARGET", "NO_RUN",
+    "ALL_EQUAL", "OUTPUT_MISMATCH", "TEST_STATUS_MISMATCH", "TEST_RC_MISMATCH", "KNOWN_LINK_ICE",
+    "ICE", "BUILD_FAIL", "TIMEOUT", "INFRA", "SINGLE_TARGET", "NO_TESTS", "NO_RUN",
   ]
   let mut out = ""
   for i, k in classes {
@@ -182,7 +192,9 @@ fn summary_json(cfg : Config, records : Array[CaseRec]) -> String {
         known_n += 1
       }
     }
-    if r.verdict == "OUTPUT_MISMATCH" {
+    if r.verdict == "OUTPUT_MISMATCH" ||
+      r.verdict == "TEST_STATUS_MISMATCH" ||
+      r.verdict == "TEST_RC_MISMATCH" {
       if mismatch_n > 0 {
         mismatches = mismatches + ","
       }
@@ -238,7 +250,14 @@ fn summary_json(cfg : Config, records : Array[CaseRec]) -> String {
   bool_json(cfg.keep) +
   ",\"selected\":" +
   records.length().to_string() +
-  ",\"comparison\":{\"rc_compared\":true,\"trailing_whitespace\":\"trimmed\",\"only_built_targets_compared\":true}" +
+  ",\"mode\":\"" +
+  jstr(if cfg.family == "async" { "test-driver" } else { "exec" }) +
+  "\",\"comparison\":" +
+  (if cfg.family == "async" {
+    "{\"test_status_compared\":true,\"printed_counts_compared\":true,\"rc_compared\":true,\"only_executed_targets_compared\":true}"
+  } else {
+    "{\"rc_compared\":true,\"trailing_whitespace\":\"trimmed\",\"only_built_targets_compared\":true}"
+  }) +
   ",\"counts\":{" +
   class_counts_json(records) +
   "},\"executed_by_target\":{" +
@@ -295,13 +314,24 @@ fn parse_targets(s : String) -> Array[String] {
 ///|
 fn usage() -> Unit {
   println(
-    "usage: xdiff --out ABS_DIR [--family layout|async] [--targets wasm-gc,wasm,js,native] [--limit N] [--timeout-ms N] [--jobs N] [--only ID] [--keep]",
+    "usage: xdiff --out ABS_DIR [--family layout|async] [--targets wasm-gc,wasm,js,native] [--limit N] [--timeout-ms N] [--jobs N] [--only ID[,ID...]] [--keep]\n  layout: build+execute a generated main, compare stdout+rc\n  async:  run the generated test driver (moon test), compare per-test status+counts+rc",
   )
 }
 
 ///|
 fn obs_line(o : TargetObs) -> String {
-  o.target + ":" + o.klass + ":rc=" + o.rc.to_string()
+  if o.stage == "test" {
+    o.target +
+    ":" +
+    o.klass +
+    ":rc=" +
+    o.rc.to_string() +
+    ":" +
+    test_signature(o.tests_total, o.tests_passed, o.tests_failed) +
+    (if o.test_statuses == "" { "" } else { "[" + o.test_statuses + "]" })
+  } else {
+    o.target + ":" + o.klass + ":rc=" + o.rc.to_string()
+  }
 }
 
 ///|
@@ -435,6 +465,9 @@ async fn main {
   ignore(write_one(summary_path, summary_json(cfg, records)))
   let mut all_equal = 0
   let mut mismatch = 0
+  let mut test_mismatch = 0
+  let mut test_rc_mismatch = 0
+  let mut no_tests = 0
   let mut known = 0
   let mut ice = 0
   let mut build_fail = 0
@@ -447,6 +480,12 @@ async fn main {
       all_equal += 1
     } else if r.verdict == "OUTPUT_MISMATCH" {
       mismatch += 1
+    } else if r.verdict == "TEST_STATUS_MISMATCH" {
+      test_mismatch += 1
+    } else if r.verdict == "TEST_RC_MISMATCH" {
+      test_rc_mismatch += 1
+    } else if r.verdict == "NO_TESTS" {
+      no_tests += 1
     } else if r.verdict == "KNOWN_LINK_ICE" {
       known += 1
     } else if r.verdict == "ICE" {
@@ -464,7 +503,7 @@ async fn main {
     }
   }
   println(
-    "[xdiff done] selected=\{records.length()} ALL_EQUAL=\{all_equal} OUTPUT_MISMATCH=\{mismatch} KNOWN_LINK_ICE=\{known} ICE=\{ice} BUILD_FAIL=\{build_fail} TIMEOUT=\{timeout} INFRA=\{infra} SINGLE_TARGET=\{single} NO_RUN=\{no_run}",
+    "[xdiff done] selected=\{records.length()} ALL_EQUAL=\{all_equal} OUTPUT_MISMATCH=\{mismatch} TEST_STATUS_MISMATCH=\{test_mismatch} TEST_RC_MISMATCH=\{test_rc_mismatch} KNOWN_LINK_ICE=\{known} ICE=\{ice} BUILD_FAIL=\{build_fail} TIMEOUT=\{timeout} INFRA=\{infra} SINGLE_TARGET=\{single} NO_TESTS=\{no_tests} NO_RUN=\{no_run}",
   )
   println("[xdiff] results=\{results_path}")
   println("[xdiff] summary=\{summary_path}")

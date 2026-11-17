@@ -12,6 +12,8 @@ type Config
 
 type TargetObs
 
+type TestSummary
+
 // Type aliases
 
 // Traits
