@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cmd/asyncfuzz"
+
+// Values
+
+// Errors
+
+// Types and methods
+type CaseOutcome
+
+type Config
+
+type StageResult
+
+// Type aliases
+
+// Traits

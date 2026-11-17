@@ -1,0 +1,109 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/asyncgen"
+
+// Values
+pub fn case_id(Int32, CallbackShape, Suspension, Control, TypeMode, Entry) -> String
+
+pub fn control_slug(Control) -> String
+
+pub fn entry_slug(Entry) -> String
+
+pub fn is_crash_signature(String) -> Bool
+
+pub fn is_infra(String) -> Bool
+
+pub fn is_known_f8(String) -> Bool
+
+pub fn is_option_shape(CallbackShape) -> Bool
+
+pub fn known_f8_signature() -> String
+
+pub fn matrix() -> Array[Case]
+
+pub fn normalize_signature(String, Int32) -> String
+
+pub fn param_type(Case) -> String
+
+pub fn raise_suffix(Case) -> String
+
+pub fn render_body(Case) -> String
+
+pub fn render_lib(Case) -> String
+
+pub fn render_mod(Case) -> String
+
+pub fn render_package(Case) -> Array[(String, String)]
+
+pub fn render_pkg() -> String
+
+pub fn render_test(Case) -> String
+
+pub fn return_type(Case) -> String
+
+pub fn select_cases(Int32) -> Array[Case]
+
+pub fn shape_slug(CallbackShape) -> String
+
+pub fn suspension_slug(Suspension) -> String
+
+pub fn t_text(Case) -> String
+
+pub fn ty_slug(TypeMode) -> String
+
+// Errors
+
+// Types and methods
+#derive(Eq)
+pub(all) enum CallbackShape {
+  Opt
+  OptRaise
+  OptRaiseOpt
+  Plain
+  Unit
+}
+
+pub(all) struct Case {
+  id : String
+  shape : CallbackShape
+  suspension : Suspension
+  control : Control
+  ty : TypeMode
+  entry : Entry
+  f8_control : Bool
+}
+
+#derive(Eq)
+pub(all) enum Control {
+  CtrlStraight
+  CtrlFor
+  CtrlWhile
+  CtrlBreak
+  CtrlContinue
+  CtrlEarlyReturn
+  CtrlTryCatch
+  CtrlNested
+}
+
+#derive(Eq)
+pub(all) enum Entry {
+  EntryFn
+  EntryTest
+}
+
+#derive(Eq)
+pub(all) enum Suspension {
+  SuspNone
+  SuspBefore
+  SuspInside
+  SuspAfter
+}
+
+#derive(Eq)
+pub(all) enum TypeMode {
+  TyGeneric
+  TyConcrete
+}
+
+// Type aliases
+
+// Traits
