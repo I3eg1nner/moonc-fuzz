@@ -61,6 +61,8 @@ pub(all) enum CallbackShape {
   Plain
   Unit
 }
+pub fn CallbackShape::equal(Self, Self) -> Bool
+pub fn CallbackShape::not_equal(Self, Self) -> Bool
 
 pub(all) struct Case {
   id : String
@@ -83,12 +85,16 @@ pub(all) enum Control {
   CtrlTryCatch
   CtrlNested
 }
+pub fn Control::equal(Self, Self) -> Bool
+pub fn Control::not_equal(Self, Self) -> Bool
 
 #derive(Eq)
 pub(all) enum Entry {
   EntryFn
   EntryTest
 }
+pub fn Entry::equal(Self, Self) -> Bool
+pub fn Entry::not_equal(Self, Self) -> Bool
 
 #derive(Eq)
 pub(all) enum Suspension {
@@ -97,12 +103,16 @@ pub(all) enum Suspension {
   SuspInside
   SuspAfter
 }
+pub fn Suspension::equal(Self, Self) -> Bool
+pub fn Suspension::not_equal(Self, Self) -> Bool
 
 #derive(Eq)
 pub(all) enum TypeMode {
   TyGeneric
   TyConcrete
 }
+pub fn TypeMode::equal(Self, Self) -> Bool
+pub fn TypeMode::not_equal(Self, Self) -> Bool
 
 // Type aliases
 

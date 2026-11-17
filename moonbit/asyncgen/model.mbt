@@ -11,6 +11,9 @@ pub(all) enum CallbackShape {
 }
 
 ///|
+pub extend CallbackShape with Eq::{not_equal, equal}
+
+///|
 /// Where a suspension point is placed relative to the loop / callback.
 #derive(Eq)
 pub(all) enum Suspension {
@@ -19,6 +22,9 @@ pub(all) enum Suspension {
   SuspInside
   SuspAfter
 }
+
+///|
+pub extend Suspension with Eq::{not_equal, equal}
 
 ///|
 /// Control-flow skeleton between the suspension and the callback call.
@@ -35,12 +41,18 @@ pub(all) enum Control {
 }
 
 ///|
+pub extend Control with Eq::{not_equal, equal}
+
+///|
 /// Whether `T` is a type parameter or the concrete `Int`.
 #derive(Eq)
 pub(all) enum TypeMode {
   TyGeneric
   TyConcrete
 }
+
+///|
+pub extend TypeMode with Eq::{not_equal, equal}
 
 ///|
 /// Whether the case is emitted as an exported async function exercised by an
@@ -50,6 +62,9 @@ pub(all) enum Entry {
   EntryFn
   EntryTest
 }
+
+///|
+pub extend Entry with Eq::{not_equal, equal}
 
 ///|
 /// A fully materialised matrix row.  `id` is derived only from the ordinal and

@@ -1,0 +1,111 @@
+{
+ "toolchain": {
+  "moon": "0.1.20261104",
+  "moonc": "v0.10.20+65efd5b93"
+ },
+ "cases_total": 269,
+ "duplicate_rows_removed": 33,
+ "families": {
+  "A1_struct": {
+   "cases": 60,
+   "crash_cases": 6
+  },
+  "A2_enum": {
+   "cases": 36,
+   "crash_cases": 1
+  },
+  "A3_ops": {
+   "cases": 18,
+   "crash_cases": 0
+  },
+  "A4_arity": {
+   "cases": 28,
+   "crash_cases": 0
+  },
+  "A5_nested": {
+   "cases": 10,
+   "crash_cases": 1
+  },
+  "A6_crosspkg": {
+   "cases": 16,
+   "crash_cases": 0
+  },
+  "A7_layout2": {
+   "cases": 24,
+   "crash_cases": 0
+  },
+  "B2_ffi2": {
+   "cases": 18,
+   "crash_cases": 6
+  },
+  "B_ffi": {
+   "cases": 18,
+   "crash_cases": 9
+  },
+  "C_async": {
+   "cases": 41,
+   "crash_cases": 12
+  }
+ },
+ "crash_signatures": {
+  "assert:moonc.ml:125623": {
+   "cases": 12,
+   "ids": [
+    "c_async_f8_pause_then_raiseq",
+    "c_async_loop_continue_raiseq",
+    "c_async_loop_pause_raiseq",
+    "c_async_nested_async_raiseq",
+    "c_async_pause_pos1",
+    "c_async_pause_pos2",
+    "c_async_raise_control",
+    "c_async_raiseq_inside_loop_try",
+    "c_async_struct_ret_raiseq",
+    "c_async_try_catch_raiseq",
+    "c_async_two_pause_raiseq",
+    "c_async_with_timeout_raiseq"
+   ]
+  },
+  "machine:unsupported:Machine_of_clam_lower.finish_stub_wrapper_shell:aggregate stub wrapper arguments are not lowered in this batch": {
+   "cases": 15,
+   "ids": [
+    "b_ffi2_plain_struct_v128_field",
+    "b_ffi2_plain_v128_and_struct",
+    "b_ffi2_valtype_mixed_s_e",
+    "b_ffi2_valtype_struct_v128_field",
+    "b_ffi2_valtype_three_structs",
+    "b_ffi2_valtype_v128_and_struct",
+    "b_ffi_plain_v128_arg",
+    "b_ffi_plain_v128_mixed",
+    "b_ffi_plain_v128_two",
+    "b_ffi_valtype_big_struct",
+    "b_ffi_valtype_struct_arg",
+    "b_ffi_valtype_struct_pair",
+    "b_ffi_valtype_v128_arg",
+    "b_ffi_valtype_v128_mixed",
+    "b_ffi_valtype_v128_two"
+   ]
+  },
+  "machine:unsupported:Machine_of_clam_lower.lower_array_make:uninitialized non-null GC ref arrays are not lowered": {
+   "cases": 8,
+   "ids": [
+    "a_enum_valtype_both_pay_ins",
+    "a_nest_valtype_res_s",
+    "a_struct_valtype_k2_c2",
+    "a_struct_valtype_k3_c2",
+    "a_struct_valtype_k4_c2",
+    "a_struct_valtype_k5_c0",
+    "a_struct_valtype_k5_c2",
+    "a_struct_valtype_k5_c3"
+   ]
+  }
+ },
+ "diagnostic_only_stage_hits": {
+  "diag:Error: [4021]": 48,
+  "diag:Error: [4024]": 24,
+  "diag:Error: [4122]": 48
+ },
+ "excluded": {
+  "reason": "parallel moon contention; serial re-run of each family sample returns rc=0",
+  "stage_hits": 120
+ }
+}
