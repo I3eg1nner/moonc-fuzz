@@ -166,7 +166,9 @@ The default link-only mode does not isolate `build-package` optimization;
 candidate control remain separate from the four-cell A/A. Do not describe link-only output as a full optimization
 differential. A missing requested test ID, a
 duplicate result, a missing `-O0`, a missing runtime command, a timeout, or a
-link failure is an error, not a `SAME` result. Exit codes are `0` for a clean
+link failure is an error, not a `SAME` result. A link artifact with valid
+metadata but zero tests (for example an empty internal-test driver) is skipped
+rather than treated as a missing runtime. Exit codes are `0` for a clean
 comparison, `1` for a candidate status difference, and `2` for an invalid,
 incomplete, or no-change candidate experiment. In link-only mode, `--aa` runs
 both link arms with `-O0` as a negative control; in four-cell mode it uses the

@@ -58,3 +58,15 @@ substituted only by the harness.
 - The reducer only deletes top-level `main` statements; `ok` does not imply a
   smaller program.
 - No new `moonc` defect was found in these runs.
+
+## Empty test artifacts
+
+Some packages (`moonbitlang/core/int`, `double`, `bytes`, `array`, `option`,
+`result`) emit an internal/white-box link artifact with valid metadata but zero
+tests. `optdiff` now skips such an artifact only when metadata explicitly
+contains zero known test IDs; an unknown or non-empty metadata mismatch remains
+an error. The six-package batch then produced one artifact per package:
+
+```
+6 packages, 6 artifacts, 0 candidates, 0 errors, exit 0
+```

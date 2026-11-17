@@ -612,6 +612,41 @@ fn parse_runs(runs : Array[String]) -> Array[RunTask]? {
 }
 
 ///|
+fn filter_empty_link_lines(
+  links : Array[LinkLine],
+  runs : Array[RunTask],
+  build_root : String,
+  target : String,
+  pkg : String,
+) -> Array[LinkLine]? {
+  let run_bases : Map[String, Unit] = Map([])
+  for r in runs {
+    run_bases.set(@corpus.basename(r.wasm_path), ())
+  }
+  let out : Array[LinkLine] = []
+  for line in links {
+    if run_bases.contains(line.base) {
+      out.push(line)
+    } else {
+      let meta = match metadata_path_at(build_root, target, pkg, line.base) {
+        Some(path) => load_test_meta(path)
+        None => None
+      }
+      match meta {
+        Some(m) =>
+          if m.known.length() == 0 {
+            // Valid zero-test artifact: link exists, runtime does not.
+          } else {
+            return None
+          }
+        None => return None
+      }
+    }
+  }
+  Some(out)
+}
+
+///|
 fn parse_links(
   links : Array[String],
   runs : Array[RunTask],
@@ -1029,6 +1064,24 @@ async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
     Some(r) => r
     None => {
       println("[optdiff] cannot parse four-cell runtime commands")
+      @env.exit(2)
+    }
+  }
+  let parsed_o0_links = match
+    filter_empty_link_lines(parsed_o0_links, run_tasks, b0, cfg.target, pkg) {
+    Some(l) => l
+    None => {
+      println("[optdiff] cannot classify O0 empty/non-empty link artifacts")
+      @env.exit(2)
+    }
+  }
+  let parsed_d_links = match
+    filter_empty_link_lines(parsed_d_links, run_tasks, bd, cfg.target, pkg) {
+    Some(l) => l
+    None => {
+      println(
+        "[optdiff] cannot classify default empty/non-empty link artifacts",
+      )
       @env.exit(2)
     }
   }
