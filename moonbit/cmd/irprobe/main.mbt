@@ -101,13 +101,20 @@ async fn main {
       None => ""
     }
     let before_stmts = @ir.statement_count(program)
+    let mut reduce_ok = true
     let used_program = if do_reduce {
       match interpreter_events {
         Some(events) =>
           @ir.reduce(program, events, 10000) catch {
-            _ => program
+            _ => {
+              reduce_ok = false
+              program
+            }
           }
-        None => program
+        None => {
+          reduce_ok = false
+          program
+        }
       }
     } else {
       program
@@ -138,6 +145,7 @@ async fn main {
       d.js_rc == 0 &&
       !d.wasm_truncated &&
       !d.js_truncated &&
+      (!do_reduce || reduce_ok) &&
       wasm_ok &&
       js_ok
     if !ok {
@@ -152,6 +160,8 @@ async fn main {
       after_stmts.to_string() +
       ",\"reduced\":" +
       (if do_reduce { "true" } else { "false" }) +
+      ",\"reduce_ok\":" +
+      (if reduce_ok { "true" } else { "false" }) +
       ",\"ok\":" +
       (if ok { "true" } else { "false" }) +
       ",\"verdict\":\"" +
