@@ -196,6 +196,14 @@ plain-struct 控制在四个后端都 ALL_EQUAL。async 侧改为比较测试驱
 6 case × 3 target，15 次执行，**5 ALL_EQUAL / 1 KNOWN_LINK_ICE（F8）**，
 无状态分歧。详见 `findings/xdiff_mvp.md`、`findings/xdiff_async.md`。
 
+边覆盖已经进入调度：`feedback_upsert` 增加一个**严格小于**函数新颖度的加法奖励
+（函数 32、边 8，能量上限 64 不变），边 key 宇宙有 200,000 的硬上限，达到上限
+后置 `edge_saturated` 并停止计入，`new_edges` 来自真实集合差。6 秒冒烟 campaign
+（1 worker、1 trace worker）得到 `edge_keys=41485`、`new_edges=3652`；把
+`--edge-cap` 降到 64 时得到 `edge_saturated=true`、`new_edges=0`。这是调度信号，
+**不是**缺陷发现效果的证明；`29.75%` 的函数口径没有改动。
+详见 `findings/edge_feedback.md`。
+
 独立探针（`scripts/probe/native_feature_probe.py`）跑了 269 个 native
 布局/ABI/async case，**只**命中 F7/F8/F9 三个已知签名，没有第四个：
 `findings/feature_probe_negative.md`。同一份记录还说明：并行跑大量 `moon`
@@ -328,7 +336,8 @@ moon test --target native
 | `findings/feature_probe_negative.md` | 269 case 特性探针的负结果与并发伪诊断 |
 | `findings/feature_probe_summary.json` | 该探针的逐族计数与签名集合 |
 | `findings/verify_tool.md` | 新鲜副本候选验证器与 F9 烟测 |
-| `findings/exact_coverage_wiring.md` | 精确块/边覆盖接入 fuzz 证据，调度仍用函数集 |
+| `findings/exact_coverage_wiring.md` | 精确块/边覆盖接入 fuzz 证据 |
+| `findings/edge_feedback.md` | 边新颖度进入调度：权重、上限、口径与限制 |
 | `findings/xdiff_mvp.md` | 跨后端执行差分：布局矩阵、判定优先级 |
 | `findings/xdiff_async.md` | async 逐测试状态差分与 160 case 全矩阵结果 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
