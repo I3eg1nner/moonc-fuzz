@@ -177,6 +177,21 @@ pub fn generate(seed : UInt64, size : Int32) -> Program {
   let loop_bound = if use_len { 8 } else { bound + 1 }
   body.push(While(loop_cond, loop_body, loop_bound))
   site += 1
+  let muts : Array[String] = []
+  for v in vars {
+    let (name, ty) = v
+    if ty == I32 && name != "i" {
+      muts.push(name)
+    }
+  }
+  if muts.length() > 0 && rng.chance(0.5) {
+    let name = muts[rng.int(muts.length())]
+    body.push(
+      If(gen_bool(rng, vars, 2), [Assign(name, gen_i32(rng, vars, 2))], [
+        Assign(name, gen_i32(rng, vars, 2)),
+      ]),
+    )
+  }
   body.push(Emit(site, gen_i32(rng, vars, 2)))
   let add : Func = {
     name: "add",
