@@ -108,6 +108,7 @@ async fn four_cell_case(
   pkg_config : String,
   all_pkgs : String,
   timeout_ms : Int32,
+  inject_arm : String,
 ) -> String {
   let events = Some(@ir.run(program, 10000)) catch { _ => None }
   let expected = match events {
@@ -171,12 +172,17 @@ async fn four_cell_case(
         stdout_truncated: false,
       }
     }
+    let actual = if inject_arm == arm || inject_arm == "all" {
+      rr.stdout + "Emit(999, -1)\n"
+    } else {
+      rr.stdout
+    }
     let arm_ok = build_ok &&
       lr.rc == 0 &&
       rr.rc == 0 &&
       !rr.timed_out &&
       !rr.stdout_truncated &&
-      rr.stdout == target_text
+      actual == target_text
     if !arm_ok {
       ok = false
     }
@@ -193,6 +199,9 @@ async fn four_cell_case(
   b0.rc.to_string() +
   ",\"build_default_rc\":" +
   bd.rc.to_string() +
+  ",\"inject_arm\":\"" +
+  @corpus.json_escape(inject_arm) +
+  "\"" +
   arm_text.to_string() +
   "}"
 }
@@ -210,6 +219,7 @@ async fn main {
   let mut seed = 1
   let mut do_reduce = false
   let mut four_cell = false
+  let mut inject_arm = ""
   let mut ai = 3
   while ai < args.length() {
     if args[ai] == "--random" && ai + 1 < args.length() {
@@ -224,12 +234,28 @@ async fn main {
     } else if args[ai] == "--four-cell" {
       four_cell = true
       ai += 1
+    } else if args[ai] == "--inject-arm" && ai + 1 < args.length() {
+      inject_arm = args[ai + 1]
+      ai += 2
     } else {
       println(
         "usage: irprobe ROOT OUT [--random N] [--seed S] [--reduce] [--four-cell]",
       )
       @env.exit(2)
     }
+  }
+  if inject_arm != "" &&
+    inject_arm != "all" &&
+    inject_arm != "B0L0" &&
+    inject_arm != "B0Ld" &&
+    inject_arm != "BdL0" &&
+    inject_arm != "BdLd" {
+    println("[irprobe] unknown injection arm")
+    @env.exit(2)
+  }
+  if inject_arm != "" && !four_cell {
+    println("[irprobe] --inject-arm requires --four-cell")
+    @env.exit(2)
   }
   @corpus.ensure_dir(out)
   let moonc = @corpus.join(@corpus.join(home, ".moon/bin"), "moonc")
@@ -259,7 +285,7 @@ async fn main {
     if four_cell {
       let row = four_cell_case(
         program, tag, wd, moonc, moonrun, "wasm-gc", wasm_bundle, core, pkg, pkg_config,
-        all_pkgs, 30000,
+        all_pkgs, 30000, inject_arm,
       )
       if !row.contains("\"ok\":true") {
         errors += 1

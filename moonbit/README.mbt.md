@@ -229,10 +229,12 @@ failure class, not merely “no crash.” `--four-cell` compiles the same emitte
 source into build O0/default and link O0/default arms and checks each arm
 against the interpreter event stream directly. It is wasm-gc only, uses a
 writable per-run directory under OUT, must run serially, and currently skips
-`--reduce`. “Default” means omitting `-O0`, not explicit `-O2`. It currently has
-no injected failure positive control, so all-green samples only calibrate
-connectivity; per-arm booleans require successful builds and interpreter
-success as well as matching output. The interpreter is the semantic oracle;
+`--reduce`. “Default” means omitting `-O0`, not explicit `-O2`. Its harness
+control `--inject-arm B0Ld` appends a wrong event only to that arm: the row must
+show only `B0Ld=false` and exit 1; `--inject-arm all` must make all four arms
+false and exit 1. These are detection-chain controls, not optimizer defects.
+All-green samples only calibrate connectivity; per-arm booleans require
+successful builds and interpreter success as well as matching output. The interpreter is the semantic oracle;
 `cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output
 and byte-equal event text (including the final newline). It runs three hand
 calibration programs plus optional deterministic generated programs
