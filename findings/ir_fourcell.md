@@ -84,3 +84,23 @@ The argparse link-injection control was rerun on the same HEAD:
 ```
 1 artifact, changed=156, candidates=1, errors=0, exit 1
 ```
+
+## wasm target four-cell
+
+The same three-package batch was repeated with `--target wasm` (not only
+wasm-gc), using the same build/link O0-default cross:
+
+```
+argparse,json,bigint --target wasm --four-cell --repeats 2 --aa
+9 artifacts, 0 candidates, 0 errors, exit 0
+```
+
+Control on the same target:
+
+```
+argparse --target wasm --four-cell-control ...
+1 artifact, changed=156, candidates=1, errors=0, exit 1
+```
+
+Scope: this shows the target path is wired and the injected link-default
+change is still detected. It is not a separate optimizer-correctness result.
