@@ -16,9 +16,10 @@ excluded.
 Observed:
 
 ```
-7 hand samples + 50 random, seed 1: 57/57 ok
-7 hand samples + 50 random, seed 2: 57/57 ok
-7 hand samples + 50 random, seed 3: 57/57 ok
+8 hand samples + 50 random, seed 1: 58/58 ok
+8 hand samples + 50 random, seed 2: 58/58 ok
+8 hand samples + 50 random, seed 3: 58/58 ok
+(historical before adding the eighth sample: 7 hand + 50 random = 57/57)
 errors=0, exit=0
 ```
 
@@ -52,7 +53,7 @@ substituted only by the harness.
 
 ## Boundaries
 
-- Four-cell is wasm-gc only.
+- Four-cell supports wasm-gc and wasm; native/LLVM is not covered.
 - `default` means omitting `-O0`, not explicit `-O2`.
 - The IR generator uses one main shape plus `add`/`choose`; no nested functions.
 - The reducer only deletes top-level `main` statements; `ok` does not imply a
@@ -110,7 +111,7 @@ change is still detected. It is not a separate optimizer-correctness result.
 The IR four-cell was also run with `--target wasm`:
 
 ```
-7 hand + 50 random, seed 1: 57/57 ok
+8 hand + 50 random, seed 1: 58/58 ok
 errors=0, exit=0
 ```
 

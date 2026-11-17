@@ -168,7 +168,7 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
   `regress`、`f6matrix`、`accept`。
 
-当前 92 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 149 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于

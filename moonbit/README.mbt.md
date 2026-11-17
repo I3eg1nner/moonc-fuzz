@@ -146,7 +146,7 @@ moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irreduce \
   --four-cell --reduce-failure --inject-arm B0Ld
 ```
 
-`cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
+`cmd/optdiff` has a default link-only mode that isolates **link-core** `-O0` only; `--four-cell` also isolates `build-package`. It copies the source
 module, reuses the official test build artifacts, relinks each test wasm with
 and without `-O0`, runs the captured `moonrun --test-args` argv, and compares
 the complete per-test ID set. It compares semantic test states (`pass` /
@@ -226,9 +226,9 @@ traits and trap semantics are excluded. The interpreter fuel is a screening
 budget: exhaustion is a failed/invalid sample, not a program result. Locals and
 parameters may not shadow functions, `println`, or generated `__` names.
 Restricted random generation, trace-preserving reduction and a four-cell IR
-probe are connected to `irprobe`. The generator uses one fixed main/helper shape, `size=8` in the probe,
-and generates `Index`/`Len` in expression positions, but not nested functions
-or array aliasing interactions. `--reduce` is a statement-level, trace-preserving reducer: it
+probe are connected to `irprobe`. The generator uses a main function plus `add`/`choose`/`abs` helpers,
+`size=8` in the probe, and covers `Index`/`Len`, array aliasing, while-if,
+branch-state merges and early returns. It does not generate nested functions. `--reduce` is a statement-level, trace-preserving reducer: it
 requires type validity, successful interpretation and an identical event
 sequence, and removes dead lets/no-op assignments. It is not yet a
 compiler-difference reducer; the separate `--reduce-failure` predicate preserves
