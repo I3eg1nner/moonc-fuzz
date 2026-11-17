@@ -36,10 +36,12 @@ fn gen_i32(
     }
     if arrays.length() > 0 && rng.chance(0.2) {
       let name = arrays[rng.int(arrays.length())]
-      if rng.chance(0.5) {
+      if rng.chance(0.3) {
         Len(Var(name))
-      } else {
+      } else if rng.chance(0.5) {
         Index(Var(name), ConstI32(0))
+      } else {
+        Index(Var(name), Sub(Len(Var(name)), ConstI32(1)))
       }
     } else {
       let choice = rng.int(11)
@@ -110,7 +112,12 @@ pub fn generate(seed : UInt64, size : Int32) -> Program {
     }
     body.push(Let("a", I32Array, ArrayLit(items), true))
     vars.push(("a", I32Array))
-    body.push(ArraySet("a", ConstI32(0), gen_i32(rng, vars, 1)))
+    let set_index = if rng.chance(0.5) {
+      ConstI32(0)
+    } else {
+      Sub(Len(Var("a")), ConstI32(1))
+    }
+    body.push(ArraySet("a", set_index, gen_i32(rng, vars, 1)))
     body.push(Emit(site, Index(Var("a"), ConstI32(0))))
     site += 1
     if rng.chance(0.5) {
@@ -142,6 +149,14 @@ pub fn generate(seed : UInt64, size : Int32) -> Program {
   body.push(Let("i", I32, ConstI32(0), true))
   vars.push(("i", I32))
   let bound = 2 + rng.int(2)
+  let mut array_name = ""
+  for v in vars {
+    let (name, ty) = v
+    if ty == I32Array && array_name == "" {
+      array_name = name
+    }
+  }
+  let use_len = array_name != "" && rng.chance(0.5)
   let loop_body : Array[Stmt] = []
   if rng.chance(0.5) {
     loop_body.push(
@@ -154,7 +169,13 @@ pub fn generate(seed : UInt64, size : Int32) -> Program {
   loop_body.push(Emit(site, gen_i32(rng, vars, 1)))
   site += 1
   loop_body.push(Assign("i", Add(Var("i"), ConstI32(1))))
-  body.push(While(Lt(Var("i"), ConstI32(bound)), loop_body, bound + 1))
+  let loop_cond = if use_len {
+    Lt(Var("i"), Len(Var(array_name)))
+  } else {
+    Lt(Var("i"), ConstI32(bound))
+  }
+  let loop_bound = if use_len { 8 } else { bound + 1 }
+  body.push(While(loop_cond, loop_body, loop_bound))
   site += 1
   body.push(Emit(site, gen_i32(rng, vars, 2)))
   let add : Func = {
