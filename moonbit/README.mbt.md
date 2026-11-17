@@ -50,6 +50,11 @@ moon check && moon test
 | `cmd/optdiff` | controlled real-package test differential (link-only / four-cell) |
 | `ir/` | small typed IR, interpreter and MoonBit emitter |
 | `cmd/irprobe` | IR interpreter vs compiled wasm/js sample oracle |
+| `featuregen/` | curated native layout matrix (16 suites × `#valtype` × 5 ops = 160 cases) |
+| `cmd/featfuzz` | staged oracle for generated layouts: check → build → test --build-only → test |
+| `asyncgen/` | async state-machine matrix (callback shape × suspension × control × type × entry) |
+| `cmd/asyncfuzz` | staged async oracle with the known F8 case as a labelled control |
+| `cmd/verify` | fresh-copy candidate verifier: repeats, stability, control, JSON |
 
 ## Commands
 

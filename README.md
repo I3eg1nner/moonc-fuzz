@@ -88,11 +88,12 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ```
 harness/        运行时资产：all_pkgs.json、moonbit.dict、tpl/
 moonbit/        MoonBit 主实现：trace/cov/mutate/exec/corpus/oracle + cmd/*
+                + featuregen/（native 布局矩阵）、asyncgen/（async 状态机矩阵）
 poc/            每个缺陷的最小复现和版本说明
 templates/      25 个可运行程序，用于跨后端差分
-findings/       技术报告、验证记录、外部 review
+findings/       技术报告、验证记录、外部 review、负证据
 issues/         对外 issue 草稿
-scripts/        资产下载、一键复现
+scripts/        资产下载、一键复现、特性探针
 run.sh          MoonBit fuzz 入口
 ```
 
@@ -168,6 +169,31 @@ native 四格：111 个有效包、184 个 artifact、9,249 个 test ID、0 个�
 trace 转换器的 native release 实现在 101 MB check trace 上约 0.48 s，
 Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 
+### 5.1 精确 TB 块/边覆盖
+
+`trace/summarize_trace` 现在同时输出 QEMU TB 级精确计数：`unique_pc`、
+`mapped_unique_pc`、`edges`、`mapped_edges`，以及按函数排序的
+`func_depth[{func, blocks, edges}]`。去重使用精确 PC 和精确 `(pc_i, pc_i+1)`
+对，不是有损 bitmap。这是 **TB 转移覆盖**，不是源码行/基本块/分支覆盖：
+QEMU TB 边界不等于源码分支，因此不报“分支覆盖率”百分比。定义、示例与不做
+的声明见 `findings/exact_block_coverage.md`。
+
+### 5.2 特性定向搜索与负证据
+
+下一阶段的三个工具及其边界：
+
+| 工具 | 作用 | 已验证结果 |
+|---|---|---|
+| `cmd/featfuzz` + `featuregen/` | 160 个 curated native 布局 case，分阶段 check→build→test --build-only→test | 100 case：90 OK / 10 ICE，唯一签名是已知 F7 `lower_array_make`，plain struct 控制全过 |
+| `cmd/asyncfuzz` + `asyncgen/` | 82 行 async 状态机矩阵，F8 作为带标签的正控 | 82 case：72 OK / 10 `known_f8`，0 新签名 |
+| `cmd/verify` | 每次重复用全新副本，3/3 稳定性 + 控制组 | F9 debug 3/3 `reproduced`，release 3/3 `ok` |
+
+独立探针（`scripts/probe/native_feature_probe.py`）跑了 269 个 native
+布局/ABI/async case，**只**命中 F7/F8/F9 三个已知签名，没有第四个：
+`findings/feature_probe_negative.md`。同一份记录还说明：并行跑大量 `moon`
+会产出 `[4021]`/`[0055]` 一类**伪诊断**，串行重跑干净副本后均为 rc=0，
+所以这类结果不能计入缺陷。这也是后续所有驱动默认低并发的原因。
+
 第三方 native 结果中的环境/包问题与 F6 分开记录，见
 `findings/thirdparty.md`。
 
@@ -181,9 +207,11 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 - `corpus/`：种子遍历、SHA-1、finding 存储；
 - `oracle/`：wasm/js 与 wasm/native 差分；
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
-  `regress`、`f6matrix`、`accept`。
+  `regress`、`f6matrix`、`accept`、`optdiff`、`irprobe`、`featfuzz`、
+  `asyncfuzz`、`verify`；
+- `featuregen/`、`asyncgen/`：特性定向源生成器（native 布局矩阵、async 状态机矩阵）。
 
-当前 159 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 195 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
@@ -285,6 +313,12 @@ moon test --target native
 | `findings/codex_review_5.md` | 外部 review 及逐条修正 |
 | `findings/codex_defect_review.md` | Codex 对每个缺陷的独立复验与修正 |
 | `findings/upstream_issues.md` | 已提交的 7 个 upstream issue 与 PoC 映射 |
+| `findings/exact_block_coverage.md` | 精确 QEMU-TB 块/边覆盖的定义与边界 |
+| `findings/featfuzz_mvp.md` | native 布局特性生成器与分阶段 oracle |
+| `findings/asyncfuzz_mvp.md` | async 状态机矩阵与 F8 校准 |
+| `findings/feature_probe_negative.md` | 269 case 特性探针的负结果与并发伪诊断 |
+| `findings/feature_probe_summary.json` | 该探针的逐族计数与签名集合 |
+| `findings/verify_tool.md` | 新鲜副本候选验证器与 F9 烟测 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
 | `examples/trace2funcs.sh` | 最小可运行示例 |
 
