@@ -231,8 +231,11 @@ against the interpreter event stream directly. It is wasm-gc only, uses a
 writable per-run directory under OUT, must run serially, and currently skips
 `--reduce`. “Default” means omitting `-O0`, not explicit `-O2`. Its harness
 control `--inject-arm B0Ld` appends a wrong event only to that arm: the row must
-show only `B0Ld=false` and exit 1; `--inject-arm all` must make all four arms
-false and exit 1. These are detection-chain controls, not optimizer defects.
+show only `B0Ld=false` / `B0Ld_reason="mismatch"` and exit 1; `--inject-arm all`
+must make all four arms false and exit 1. Per-arm reasons distinguish
+`interpreter`, `write`, `build_O0`, `build_default`, `link`, `run`, `timeout`,
+`truncated`, `mismatch`, and `ok`. These are detection-chain controls, not
+optimizer defects.
 All-green samples only calibrate connectivity; per-arm booleans require
 successful builds and interpreter success as well as matching output. The interpreter is the semantic oracle;
 `cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output

@@ -132,9 +132,20 @@ async fn four_cell_case(
     timeout_ms,
     max_output_bytes=8 * 1024 * 1024,
   )
-  let build_ok = events is Some(_) && wrote && b0.rc == 0 && bd.rc == 0
-  let mut ok = build_ok
+  let base_reason = if events is None {
+    "interpreter"
+  } else if !wrote {
+    "write"
+  } else if b0.rc != 0 {
+    "build_O0"
+  } else if bd.rc != 0 {
+    "build_default"
+  } else {
+    ""
+  }
+  let mut ok = base_reason == ""
   let arm_text = StringBuilder()
+  let reason_text = StringBuilder()
   for arm in ["B0L0", "B0Ld", "BdL0", "BdLd"] {
     let build_o0 = arm == "B0L0" || arm == "B0Ld"
     let link_o0 = arm == "B0L0" || arm == "BdL0"
@@ -177,12 +188,22 @@ async fn four_cell_case(
     } else {
       rr.stdout
     }
-    let arm_ok = build_ok &&
-      lr.rc == 0 &&
-      rr.rc == 0 &&
-      !rr.timed_out &&
-      !rr.stdout_truncated &&
-      actual == target_text
+    let reason = if base_reason != "" {
+      base_reason
+    } else if lr.rc != 0 {
+      "link"
+    } else if rr.timed_out {
+      "timeout"
+    } else if rr.stdout_truncated {
+      "truncated"
+    } else if rr.rc != 0 {
+      "run"
+    } else if actual != target_text {
+      "mismatch"
+    } else {
+      "ok"
+    }
+    let arm_ok = reason == "ok"
     if !arm_ok {
       ok = false
     }
@@ -190,6 +211,11 @@ async fn four_cell_case(
     arm_text.write_string(arm)
     arm_text.write_string("\":")
     arm_text.write_string(if arm_ok { "true" } else { "false" })
+    reason_text.write_string(",\"")
+    reason_text.write_string(arm)
+    reason_text.write_string("_reason\":\"")
+    reason_text.write_string(@corpus.json_escape(reason))
+    reason_text.write_string("\"")
   }
   "{\"case\":\"" +
   @corpus.json_escape(case_id) +
@@ -203,6 +229,7 @@ async fn four_cell_case(
   @corpus.json_escape(inject_arm) +
   "\"" +
   arm_text.to_string() +
+  reason_text.to_string() +
   "}"
 }
 
