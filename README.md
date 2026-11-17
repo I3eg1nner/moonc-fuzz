@@ -5,7 +5,8 @@
 面向闭源 MoonBit 编译器 `moonc` 的黑盒/灰盒测试工具，主分支实现为
 MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不参与
 主分支构建或验收。目前复现 6 个缺陷（F1–F6）和 1 个 formatter 性能异常
-（P1），7 个 issue 已提交至 `moonbitlang/moonbit-docs`。
+（P1），7 个 issue 已提交至 `moonbitlang/moonbit-docs`；另在固定版本上复现
+3 个上游仍开放的链接期 ICE（F7/F8/F9）。
 
 - 仓库：<https://github.com/I3eg1nner/moonc-fuzz>
 - 包：<https://mooncakes.io/docs/I3eg1nner/mbtfuzz>（`moon add I3eg1nner/mbtfuzz`）
@@ -122,6 +123,14 @@ ICE banner 指定的入口，`moonbitlang/moonbit-compiler` 的 Issues 处于关
 | F6 | 10 行单包 | `moon build --target native` rc 255 | 3/3 | 限定：链接期诊断缺陷 |
 | P1 | 2,048 段插值 | 15.1 s vs 纯串 7 ms | 3+5 | 限定：两点实测，不推阶数 |
 
+F7/F8/F9 是**上游仍开放**的链接期 ICE，不计入 F1–F6 的“已修复”集合：F7 是
+native debug 下 `#valtype` 记录（标量 + 含 GC 引用的 enum）经 `Array::push`
+触发 `lower_array_make` ICE；F8 是 async 挂起后调用 `raise?` 参数触发
+`link-core` 断言；F9 是 native debug 下 `extern "C"` stub 接收 `V128` 触发
+`finish_stub_wrapper_shell` ICE。最小复现见 `poc/f7_valtype_array_ice/`、
+`poc/f8_async_raise_ice/`、`poc/f9_native_v128_stub_ice/`；覆盖缺口分析见
+`findings/coverage_depth_review.md`。
+
 对外口径按证据强度分三档：
 
 - **可直接引用**：F2 的 T1/T2 阶段分裂与 ICE、F3 在固定上限下的内存耗尽、
@@ -150,6 +159,7 @@ F1b/F2b/F4b 是额外 witness，暂按栈或异常签名归入 F1/F2/F4，不声
 | 跨后端模板 | 25/25 在 wasm/js 都到 `run` 且输出一致 |
 | 第三方测试 | 12 包 × 5 target；3,503/3,503 pass（wasm/wasm-gc/js） |
 
+覆盖口径、深度缺口与本轮 F7/F8/F9 的边界见 `findings/coverage_depth_review.md`。
 改进成本与样本量评估见 `findings/improvement_evaluation.md`：有效真实包
 162 个 artifact、8,849 个测试、0 candidate；IR 12,096 例（v1）/ 12,096 例（动态索引 v2）、0 错误；
 native 四格：111 个有效包、184 个 artifact、9,249 个 test ID、0 个确认候选；`async/http` 的网络候选经 `--repeats 3 --aa` 复核后消失；111 包 `repeats=2 --aa` 复核为 0 candidate/0 changed（`diff` blackbox baseline 不绿）。另跑 native `--llvm-opt 3`：184 artifact、9,249 test ID、0 candidate。JS 四格：103 个有 evidence 的包、173 artifact、9,031 test ID、0 candidate；`repeats=2 --aa` 为 0 candidate/0 changed（`diff` blackbox baseline 不绿）。详见 `findings/native_fourcell.md`、`findings/js_fourcell.md`。
