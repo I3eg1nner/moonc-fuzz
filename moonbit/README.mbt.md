@@ -234,7 +234,7 @@ sequence, and removes dead lets/no-op assignments. It is not yet a
 compiler-difference reducer; the separate `--reduce-failure` predicate preserves
 the original failure class, not merely “no crash.” `--four-cell` compiles the same emitted
 source into build O0/default and link O0/default arms and checks each arm
-against the interpreter event stream directly. It is wasm-gc only, uses a
+against the interpreter event stream directly. It supports wasm-gc (default) and wasm, uses a
 writable per-run directory under OUT, must run serially, and currently skips
 `--reduce`. “Default” means omitting `-O0`, not explicit `-O2`. Its harness
 control `--inject-arm B0Ld` appends a wrong event only to that arm: the row must

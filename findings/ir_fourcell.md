@@ -104,3 +104,22 @@ argparse --target wasm --four-cell-control ...
 
 Scope: this shows the target path is wired and the injected link-default
 change is still detected. It is not a separate optimizer-correctness result.
+
+## IR wasm target
+
+The IR four-cell was also run with `--target wasm`:
+
+```
+7 hand + 50 random, seed 1: 57/57 ok
+errors=0, exit=0
+```
+
+Injection control on wasm:
+
+```
+--target wasm --inject-arm B0Ld
+7/7 cases show only B0Ld_reason=mismatch; exit=1
+```
+
+This is target-wiring and detection-chain evidence, not a new optimizer
+correctness result.

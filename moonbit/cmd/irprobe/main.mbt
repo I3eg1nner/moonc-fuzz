@@ -452,6 +452,7 @@ async fn main {
   let mut seed = 1
   let mut do_reduce = false
   let mut four_cell = false
+  let mut target = "wasm-gc"
   let mut reduce_failure = false
   let mut inject_arm = ""
   let mut ai = 3
@@ -468,6 +469,9 @@ async fn main {
     } else if args[ai] == "--four-cell" {
       four_cell = true
       ai += 1
+    } else if args[ai] == "--target" && ai + 1 < args.length() {
+      target = args[ai + 1]
+      ai += 2
     } else if args[ai] == "--inject-arm" && ai + 1 < args.length() {
       inject_arm = args[ai + 1]
       ai += 2
@@ -480,6 +484,14 @@ async fn main {
       )
       @env.exit(2)
     }
+  }
+  if target != "wasm" && target != "wasm-gc" {
+    println("[irprobe] target must be wasm or wasm-gc")
+    @env.exit(2)
+  }
+  if !four_cell && target != "wasm-gc" {
+    println("[irprobe] --target requires --four-cell")
+    @env.exit(2)
   }
   if inject_arm != "" &&
     inject_arm != "all" &&
@@ -526,12 +538,12 @@ async fn main {
     if four_cell {
       let row = if reduce_failure {
         reduce_failure_case(
-          program, tag, wd, moonc, moonrun, "wasm-gc", wasm_bundle, core, pkg, pkg_config,
+          program, tag, wd, moonc, moonrun, target, wasm_bundle, core, pkg, pkg_config,
           all_pkgs, 30000, inject_arm,
         )
       } else {
         four_cell_case(
-          program, tag, wd, moonc, moonrun, "wasm-gc", wasm_bundle, core, pkg, pkg_config,
+          program, tag, wd, moonc, moonrun, target, wasm_bundle, core, pkg, pkg_config,
           all_pkgs, 30000, inject_arm,
         )
       }
