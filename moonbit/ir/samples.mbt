@@ -120,5 +120,23 @@ pub fn sample_programs() -> Array[Program] {
         ]),
       ],
     },
+    {
+      funcs: [
+        {
+          name: "abs",
+          params: [("x", I32)],
+          ret: I32,
+          body: [
+            If(
+              Lt(Var("x"), ConstI32(0)),
+              [Return(Sub(ConstI32(0), Var("x")))],
+              [],
+            ),
+            Return(Var("x")),
+          ],
+        },
+        sample_main([Emit(1, Call("abs", [ConstI32(-3)]))]),
+      ],
+    },
   ]
 }

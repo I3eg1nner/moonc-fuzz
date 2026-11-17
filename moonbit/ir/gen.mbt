@@ -44,7 +44,7 @@ fn gen_i32(
         Index(Var(name), Sub(Len(Var(name)), ConstI32(1)))
       }
     } else {
-      let choice = rng.int(11)
+      let choice = rng.int(12)
       if choice < 3 {
         pick_i32(rng, vars)
       } else if choice < 5 {
@@ -64,12 +64,14 @@ fn gen_i32(
           gen_i32(rng, vars, depth - 1),
           gen_i32(rng, vars, depth - 1),
         ])
-      } else {
+      } else if choice < 11 {
         Call("choose", [
           gen_bool(rng, vars, depth - 1),
           gen_i32(rng, vars, depth - 1),
           gen_i32(rng, vars, depth - 1),
         ])
+      } else {
+        Call("abs", [gen_i32(rng, vars, depth - 1)])
       }
     }
   }
@@ -205,5 +207,14 @@ pub fn generate(seed : UInt64, size : Int32) -> Program {
     ret: I32,
     body: [Return(If(Var("c"), Var("a"), Var("b")))],
   }
-  { funcs: [add, choose, { name: "main", params: [], ret: Unit, body, }], }
+  let abs : Func = {
+    name: "abs",
+    params: [("x", I32)],
+    ret: I32,
+    body: [
+      If(Lt(Var("x"), ConstI32(0)), [Return(Sub(ConstI32(0), Var("x")))], []),
+      Return(Var("x")),
+    ],
+  }
+  { funcs: [add, choose, abs, { name: "main", params: [], ret: Unit, body, }], }
 }
