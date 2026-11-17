@@ -88,5 +88,22 @@ pub fn sample_programs() -> Array[Program] {
         ]),
       ],
     },
+    {
+      funcs: [
+        sample_main([
+          Let("a", I32Array, ArrayLit([ConstI32(5)]), true),
+          Let("i", I32, ConstI32(0), true),
+          While(
+            Lt(Var("i"), Len(Var("a"))),
+            [
+              Emit(1, Index(Var("a"), Var("i"))),
+              Assign("i", Add(Var("i"), ConstI32(1))),
+            ],
+            2,
+          ),
+          Emit(2, Index(Var("a"), Sub(Len(Var("a")), ConstI32(1)))),
+        ]),
+      ],
+    },
   ]
 }

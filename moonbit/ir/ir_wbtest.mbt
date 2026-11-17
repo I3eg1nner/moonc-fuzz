@@ -252,3 +252,29 @@ test "targeted shapes: alias write, while-if and choose" {
   let events = run(p, 1000) catch { _ => ["<error>"] }
   assert_eq(events, ["Emit(1, 10)", "Emit(1, 20)", "Emit(2, 9)", "Emit(3, 7)"])
 }
+
+///|
+test "Len=1 last-index access and len-bound loop" {
+  let p = sample_programs()[5]
+  let events = run(p, 1000) catch { _ => ["<error>"] }
+  assert_eq(events, ["Emit(1, 5)", "Emit(2, 5)"])
+}
+
+///|
+test "Len=0 last-index access fails instead of wrapping" {
+  let p : Program = {
+    funcs: [
+      main_func([
+        Let("a", I32Array, ArrayLit([]), true),
+        Emit(1, Index(Var("a"), Sub(Len(Var("a")), ConstI32(1)))),
+      ]),
+    ],
+  }
+  let failed = try {
+    ignore(run(p, 1000))
+    false
+  } catch {
+    _ => true
+  }
+  assert_true(failed)
+}

@@ -252,14 +252,14 @@ failure.
 All-green samples only calibrate connectivity; per-arm booleans require
 successful builds and interpreter success as well as matching output. The interpreter is the semantic oracle;
 `cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output
-and byte-equal event text (including the final newline). It runs five hand
+and byte-equal event text (including the final newline). It runs six hand
 calibration programs plus optional deterministic generated programs
 (`--random N --seed S`); the generator only emits this supported subset. Passing these
 samples does not establish general compiler correctness or a complete IR.
 
 ## Measured results
 
-- Tests: 145 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 147 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the
