@@ -1,0 +1,1894 @@
+{
+ "schema": 1,
+ "date": "2026-11-17",
+ "toolchain": {
+  "moon": "0.1.20261104",
+  "moonc": "v0.10.20+65efd5b93"
+ },
+ "scan": {
+  "attempted": 142,
+  "process_ok": 109,
+  "candidate_exit": 1,
+  "process_error": 32,
+  "valid_packages": 111,
+  "artifacts": 184,
+  "tests": 9249,
+  "candidates": 1,
+  "baseline_not_green": [
+   "diff",
+   "test",
+   "async/fs",
+   "async/socket"
+  ],
+  "no_runtime": 28
+ },
+ "control": {
+  "package": "moonbitlang/core/argparse",
+  "changed": 156,
+  "link_changed": 78,
+  "build_changed": 0,
+  "both_changed": 78,
+  "exit": 1
+ },
+ "triage": {
+  "async/http": {
+   "first_changed": 3,
+   "recheck_repeats": 3,
+   "recheck_candidates": 0,
+   "cause": "network/DNS"
+  }
+ },
+ "artifacts_detail": [
+  {
+   "package": "moonbitlang/core/archive/zip",
+   "artifact": "zip.blackbox_test",
+   "expected": 46,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/archive/zip",
+   "artifact": "zip.whitebox_test",
+   "expected": 26,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/argparse",
+   "artifact": "argparse.blackbox_test",
+   "expected": 157,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/argparse",
+   "artifact": "argparse.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/argparse",
+   "artifact": "argparse.whitebox_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/array",
+   "artifact": "array.blackbox_test",
+   "expected": 20,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async",
+   "artifact": "async.blackbox_test",
+   "expected": 96,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/aqueue",
+   "artifact": "aqueue.blackbox_test",
+   "expected": 52,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/cond_var",
+   "artifact": "cond_var.blackbox_test",
+   "expected": 8,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/external_loop_integration",
+   "artifact": "external_loop_integration.blackbox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/gzip",
+   "artifact": "gzip.blackbox_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/http",
+   "artifact": "http.blackbox_test",
+   "expected": 23,
+   "changed": 3,
+   "link_changed": 0,
+   "build_changed": 1,
+   "both_changed": 2,
+   "candidate": true
+  },
+  {
+   "package": "moonbitlang/core/async/http",
+   "artifact": "http.whitebox_test",
+   "expected": 52,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/bytes_util",
+   "artifact": "bytes_util.blackbox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/cancellable_queue",
+   "artifact": "cancellable_queue.blackbox_test",
+   "expected": 2,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/cancellable_queue",
+   "artifact": "cancellable_queue.whitebox_test",
+   "expected": 2,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/coroutine",
+   "artifact": "coroutine.blackbox_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/coroutine",
+   "artifact": "coroutine.whitebox_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/event_loop",
+   "artifact": "event_loop.blackbox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/event_loop",
+   "artifact": "event_loop.whitebox_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/gzip_internal",
+   "artifact": "gzip_internal.blackbox_test",
+   "expected": 32,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/internal/pipe",
+   "artifact": "pipe.blackbox_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/io",
+   "artifact": "io.blackbox_test",
+   "expected": 34,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/io",
+   "artifact": "io.whitebox_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/os_error",
+   "artifact": "os_error.blackbox_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/process",
+   "artifact": "process.blackbox_test",
+   "expected": 89,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/raw_fd",
+   "artifact": "raw_fd.blackbox_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/semaphore",
+   "artifact": "semaphore.blackbox_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/shell",
+   "artifact": "shell.blackbox_test",
+   "expected": 67,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/shell",
+   "artifact": "shell.whitebox_test",
+   "expected": 9,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/signal",
+   "artifact": "signal.blackbox_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/stdio",
+   "artifact": "stdio.blackbox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/tls",
+   "artifact": "tls.whitebox_test",
+   "expected": 11,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/websocket",
+   "artifact": "websocket.blackbox_test",
+   "expected": 20,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/async/websocket",
+   "artifact": "websocket.whitebox_test",
+   "expected": 8,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bench",
+   "artifact": "bench.blackbox_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bench",
+   "artifact": "bench.internal_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bigint",
+   "artifact": "bigint.blackbox_test",
+   "expected": 132,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bigint",
+   "artifact": "bigint.internal_test",
+   "expected": 2,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bigint",
+   "artifact": "bigint.whitebox_test",
+   "expected": 30,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bool",
+   "artifact": "bool.blackbox_test",
+   "expected": 8,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/buffer",
+   "artifact": "buffer.blackbox_test",
+   "expected": 102,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/buffer",
+   "artifact": "buffer.whitebox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/builtin",
+   "artifact": "builtin.blackbox_test",
+   "expected": 2883,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/builtin",
+   "artifact": "builtin.internal_test",
+   "expected": 173,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/builtin",
+   "artifact": "builtin.whitebox_test",
+   "expected": 115,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/byte",
+   "artifact": "byte.blackbox_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bytes",
+   "artifact": "bytes.blackbox_test",
+   "expected": 165,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bytes/internal/regex_engine",
+   "artifact": "regex_engine.blackbox_test",
+   "expected": 16,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bytes/internal/regex_engine",
+   "artifact": "regex_engine.whitebox_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bytes/internal/regex_engine/shared_types",
+   "artifact": "shared_types.blackbox_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bytes/internal/regex_engine/shared_types/byte_set",
+   "artifact": "byte_set.blackbox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bytes/internal/regex_engine/symbol_map",
+   "artifact": "symbol_map.blackbox_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/bytes/internal/regex_parser",
+   "artifact": "regex_parser.blackbox_test",
+   "expected": 89,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/char",
+   "artifact": "char.blackbox_test",
+   "expected": 41,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/cmp",
+   "artifact": "cmp.blackbox_test",
+   "expected": 14,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/cmp",
+   "artifact": "cmp.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/compress/flate",
+   "artifact": "flate.blackbox_test",
+   "expected": 18,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/compress/flate",
+   "artifact": "flate.whitebox_test",
+   "expected": 99,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/compress/flate/inspect_test",
+   "artifact": "inspect_test.blackbox_test",
+   "expected": 42,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/compress/gzip",
+   "artifact": "gzip.blackbox_test",
+   "expected": 39,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/compress/gzip",
+   "artifact": "gzip.whitebox_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/compress/zlib",
+   "artifact": "zlib.blackbox_test",
+   "expected": 31,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/compress/zlib",
+   "artifact": "zlib.whitebox_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/coverage",
+   "artifact": "coverage.blackbox_test",
+   "expected": 9,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/coverage",
+   "artifact": "coverage.internal_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/debug",
+   "artifact": "debug.blackbox_test",
+   "expected": 61,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/debug",
+   "artifact": "debug.internal_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/debug",
+   "artifact": "debug.whitebox_test",
+   "expected": 13,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/deque",
+   "artifact": "deque.blackbox_test",
+   "expected": 267,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/deque",
+   "artifact": "deque.internal_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/diff",
+   "artifact": "diff.whitebox_test",
+   "expected": 68,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/double",
+   "artifact": "double.blackbox_test",
+   "expected": 9,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/ascii",
+   "artifact": "ascii.blackbox_test",
+   "expected": 11,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/ascii",
+   "artifact": "ascii.whitebox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/base64",
+   "artifact": "base64.blackbox_test",
+   "expected": 15,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/base64",
+   "artifact": "base64.whitebox_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/hex",
+   "artifact": "hex.blackbox_test",
+   "expected": 14,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/hex",
+   "artifact": "hex.whitebox_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/percent",
+   "artifact": "percent.blackbox_test",
+   "expected": 24,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/utf16",
+   "artifact": "utf16.blackbox_test",
+   "expected": 29,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/encoding/utf8",
+   "artifact": "utf8.blackbox_test",
+   "expected": 34,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/env",
+   "artifact": "env.blackbox_test",
+   "expected": 18,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/error",
+   "artifact": "error.blackbox_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/float",
+   "artifact": "float.blackbox_test",
+   "expected": 95,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/float",
+   "artifact": "float.internal_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/hashmap",
+   "artifact": "hashmap.blackbox_test",
+   "expected": 159,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/hashmap",
+   "artifact": "hashmap.internal_test",
+   "expected": 10,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/hashmap",
+   "artifact": "hashmap.whitebox_test",
+   "expected": 10,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/hashset",
+   "artifact": "hashset.blackbox_test",
+   "expected": 87,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/hashset",
+   "artifact": "hashset.internal_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/hashset",
+   "artifact": "hashset.whitebox_test",
+   "expected": 16,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/hashmap",
+   "artifact": "hashmap.blackbox_test",
+   "expected": 142,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/hashmap",
+   "artifact": "hashmap.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/hashset",
+   "artifact": "hashset.blackbox_test",
+   "expected": 83,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/hashset",
+   "artifact": "hashset.internal_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/internal/path",
+   "artifact": "path.blackbox_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/internal/sparse_array",
+   "artifact": "sparse_array.blackbox_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/internal/sparse_array",
+   "artifact": "sparse_array.internal_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/priority_queue",
+   "artifact": "priority_queue.blackbox_test",
+   "expected": 40,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/priority_queue",
+   "artifact": "priority_queue.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/sorted_map",
+   "artifact": "sorted_map.blackbox_test",
+   "expected": 108,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/sorted_map",
+   "artifact": "sorted_map.internal_test",
+   "expected": 14,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/sorted_map",
+   "artifact": "sorted_map.whitebox_test",
+   "expected": 13,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/sorted_set",
+   "artifact": "sorted_set.blackbox_test",
+   "expected": 131,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/sorted_set",
+   "artifact": "sorted_set.internal_test",
+   "expected": 18,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/sorted_set",
+   "artifact": "sorted_set.whitebox_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/vector",
+   "artifact": "vector.blackbox_test",
+   "expected": 110,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/vector",
+   "artifact": "vector.internal_test",
+   "expected": 10,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/vector",
+   "artifact": "vector.whitebox_test",
+   "expected": 38,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/vector_map",
+   "artifact": "vector_map.blackbox_test",
+   "expected": 41,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/immut/vector_map",
+   "artifact": "vector_map.whitebox_test",
+   "expected": 9,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/int",
+   "artifact": "int.blackbox_test",
+   "expected": 10,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/int16",
+   "artifact": "int16.blackbox_test",
+   "expected": 46,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/int64",
+   "artifact": "int64.blackbox_test",
+   "expected": 16,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/internal/checksum",
+   "artifact": "checksum.blackbox_test",
+   "expected": 9,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/internal/checksum",
+   "artifact": "checksum.whitebox_test",
+   "expected": 2,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/internal/edit_distance",
+   "artifact": "edit_distance.blackbox_test",
+   "expected": 16,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/internal/path_test",
+   "artifact": "path_test.blackbox_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/internal/strconv",
+   "artifact": "strconv.blackbox_test",
+   "expected": 29,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/internal/strconv",
+   "artifact": "strconv.internal_test",
+   "expected": 11,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/internal/strconv",
+   "artifact": "strconv.whitebox_test",
+   "expected": 16,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/json",
+   "artifact": "json.blackbox_test",
+   "expected": 315,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/json",
+   "artifact": "json.internal_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/json",
+   "artifact": "json.whitebox_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/lazy",
+   "artifact": "lazy.blackbox_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/lazy_list",
+   "artifact": "lazy_list.blackbox_test",
+   "expected": 64,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/lexbuf",
+   "artifact": "lexbuf.blackbox_test",
+   "expected": 73,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/lexbuf",
+   "artifact": "lexbuf.whitebox_test",
+   "expected": 22,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/list",
+   "artifact": "list.blackbox_test",
+   "expected": 215,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/list",
+   "artifact": "list.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/math",
+   "artifact": "math.blackbox_test",
+   "expected": 217,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/math",
+   "artifact": "math.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/option",
+   "artifact": "option.blackbox_test",
+   "expected": 32,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/path",
+   "artifact": "path.blackbox_test",
+   "expected": 11,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/path/internal/posix",
+   "artifact": "posix.blackbox_test",
+   "expected": 25,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/path/internal/posix",
+   "artifact": "posix.whitebox_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/path/internal/win32",
+   "artifact": "win32.blackbox_test",
+   "expected": 38,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/path/internal/win32",
+   "artifact": "win32.whitebox_test",
+   "expected": 14,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/prelude",
+   "artifact": "prelude.blackbox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/priority_queue",
+   "artifact": "priority_queue.blackbox_test",
+   "expected": 47,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/priority_queue",
+   "artifact": "priority_queue.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/queue",
+   "artifact": "queue.blackbox_test",
+   "expected": 67,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/queue",
+   "artifact": "queue.internal_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/queue",
+   "artifact": "queue.whitebox_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/quickcheck",
+   "artifact": "quickcheck.blackbox_test",
+   "expected": 81,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/quickcheck",
+   "artifact": "quickcheck.whitebox_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/quickcheck/shrink",
+   "artifact": "shrink.blackbox_test",
+   "expected": 54,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/quickcheck/shrink",
+   "artifact": "shrink.whitebox_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/quickcheck/splitmix",
+   "artifact": "splitmix.blackbox_test",
+   "expected": 19,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/quickcheck/splitmix",
+   "artifact": "splitmix.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/quickcheck/splitmix",
+   "artifact": "splitmix.whitebox_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/random",
+   "artifact": "random.blackbox_test",
+   "expected": 46,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/random",
+   "artifact": "random.internal_test",
+   "expected": 11,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/random/internal/random_source",
+   "artifact": "random_source.blackbox_test",
+   "expected": 2,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/random/internal/random_source",
+   "artifact": "random_source.internal_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/range",
+   "artifact": "range.blackbox_test",
+   "expected": 50,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/ref",
+   "artifact": "ref.blackbox_test",
+   "expected": 20,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/ref",
+   "artifact": "ref.internal_test",
+   "expected": 5,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/result",
+   "artifact": "result.blackbox_test",
+   "expected": 16,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/set",
+   "artifact": "set.blackbox_test",
+   "expected": 80,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/set",
+   "artifact": "set.internal_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/set",
+   "artifact": "set.whitebox_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/sorted_map",
+   "artifact": "sorted_map.blackbox_test",
+   "expected": 112,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/sorted_map",
+   "artifact": "sorted_map.internal_test",
+   "expected": 12,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/sorted_map",
+   "artifact": "sorted_map.whitebox_test",
+   "expected": 25,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/sorted_set",
+   "artifact": "sorted_set.blackbox_test",
+   "expected": 67,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/sorted_set",
+   "artifact": "sorted_set.internal_test",
+   "expected": 10,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/sorted_set",
+   "artifact": "sorted_set.whitebox_test",
+   "expected": 6,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string",
+   "artifact": "string.blackbox_test",
+   "expected": 290,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string",
+   "artifact": "string.internal_test",
+   "expected": 4,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string/internal/regex_engine",
+   "artifact": "regex_engine.blackbox_test",
+   "expected": 16,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string/internal/regex_engine",
+   "artifact": "regex_engine.whitebox_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string/internal/regex_engine/shared_types",
+   "artifact": "shared_types.blackbox_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string/internal/regex_engine/shared_types/rechar_set",
+   "artifact": "rechar_set.blackbox_test",
+   "expected": 1,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string/internal/regex_engine/shared_types/rechar_set",
+   "artifact": "rechar_set.whitebox_test",
+   "expected": 3,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string/internal/regex_engine/symbol_map",
+   "artifact": "symbol_map.blackbox_test",
+   "expected": 9,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/string/internal/regex_parser",
+   "artifact": "regex_parser.blackbox_test",
+   "expected": 100,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/tuple",
+   "artifact": "tuple.blackbox_test",
+   "expected": 24,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/uint",
+   "artifact": "uint.blackbox_test",
+   "expected": 8,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/uint16",
+   "artifact": "uint16.blackbox_test",
+   "expected": 34,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/uint64",
+   "artifact": "uint64.blackbox_test",
+   "expected": 20,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/unit",
+   "artifact": "unit.blackbox_test",
+   "expected": 7,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  },
+  {
+   "package": "moonbitlang/core/v128",
+   "artifact": "v128.blackbox_test",
+   "expected": 53,
+   "changed": 0,
+   "link_changed": 0,
+   "build_changed": 0,
+   "both_changed": 0,
+   "candidate": false
+  }
+ ],
+ "aa": {
+  "packages": 111,
+  "evidence_rows": 184,
+  "tests": 9249,
+  "candidates": 0,
+  "changed": 0,
+  "clean_packages": 110,
+  "baseline_not_green": [
+   "diff"
+  ]
+ }
+}

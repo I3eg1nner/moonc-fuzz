@@ -213,3 +213,83 @@ test "package tags remain distinct when safe_name collides" {
   assert_eq(safe_name("a/b__c"), safe_name("a__b/c"))
   assert_true(package_tag("a/b__c") != package_tag("a__b/c"))
 }
+
+///|
+test "native expected ids accept slash paths and exclusive ranges" {
+  let ids = expected_native_ids("a_test.mbt:0-2/internal/b_test.mbt:1-3")
+  assert_true(ids is Some(_))
+  let ids = ids.unwrap()
+  assert_eq(ids.length(), 4)
+  assert_true(ids.contains("a_test.mbt|0"))
+  assert_true(ids.contains("a_test.mbt|1"))
+  assert_true(ids.contains("internal/b_test.mbt|1"))
+  assert_true(ids.contains("internal/b_test.mbt|2"))
+}
+
+///|
+test "native expected ids reject malformed args" {
+  assert_eq(expected_native_ids(""), None)
+  assert_eq(expected_native_ids("a_test.mbt"), None)
+  assert_eq(expected_native_ids("a_test.mbt:2-1"), None)
+  assert_eq(expected_native_ids("a_test.mbt:0-1/"), None)
+}
+
+///|
+test "native link and cc plans pair by artifact stem" {
+  let links = ["moonc link-core a.core -o ./x/foo.blackbox_test.o -O0"]
+  let parsed_links = parse_native_link_lines(links)
+  assert_true(parsed_links is Some(_))
+  let links = parsed_links.unwrap()
+  assert_eq(links.length(), 1)
+  assert_eq(links[0].base, "foo.blackbox_test")
+  assert_true(find_native_link(links, "foo.blackbox_test") is Some(_))
+  let ccs = [
+    "/usr/bin/cc -o ./x/foo.blackbox_test.exe '$MOON_HOME/lib/libmoonbitrun.o' ./x/foo.blackbox_test.o -lm",
+  ]
+  let parsed_ccs = parse_native_cc_lines(ccs)
+  assert_true(parsed_ccs is Some(_))
+  let ccs = parsed_ccs.unwrap()
+  assert_eq(ccs.length(), 1)
+  assert_eq(ccs[0].base, "foo.blackbox_test")
+  assert_true(find_native_cc(ccs, "foo.blackbox_test") is Some(_))
+}
+
+///|
+test "native cc argv replaces the object and exe" {
+  let ccs = [
+    "/usr/bin/cc -o ./x/foo.exe '$MOON_HOME/lib/libmoonbitrun.o' ./x/foo.o -lm",
+  ]
+  let parsed = parse_native_cc_lines(ccs).unwrap()
+  let got = make_native_cc_argv(
+    parsed[0],
+    "/tmp/arm.o",
+    "/tmp/arm.exe",
+    "/home/u",
+  )
+  assert_true(got is Some(_))
+  let a = got.unwrap()
+  assert_eq(a[a.length() - 3], "/home/u/.moon/lib/libmoonbitrun.o")
+  assert_eq(a[a.length() - 2], "/tmp/arm.o")
+  assert_eq(a[2], "/tmp/arm.exe")
+}
+
+///|
+test "native run plan keeps exe index and expected test ids" {
+  let runs = parse_native_runs(
+    ["/tmp/build/foo.blackbox_test.exe a.mbt:0-2"],
+    "/tmp/build",
+  )
+  assert_true(runs is Some(_))
+  let run = runs.unwrap()[0]
+  assert_eq(run.wasm_path, "/tmp/build/foo.blackbox_test.exe")
+  assert_eq(run.wasm_index, 0)
+  assert_eq(run.expected.length(), 2)
+}
+
+///|
+test "artifact stem removes native and wasm suffixes" {
+  assert_eq(artifact_stem("/x/foo.o"), "foo")
+  assert_eq(artifact_stem("/x/foo.exe"), "foo")
+  assert_eq(artifact_stem("/x/foo.wasm"), "foo")
+  assert_eq(artifact_stem("/x/foo"), "foo")
+}

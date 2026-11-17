@@ -254,7 +254,7 @@ BdLd  9,741,960
 
 ### 4.3 建议的投入顺序
 
-1. **做 native 四格 adapter，而不是 link-only。** 37/45 个 core 在 O0/default 下不同，build 维度真实存在；只做 link-only 会丢掉一半机制覆盖。预计 1–2 天，能覆盖一个与 wasm 不同的后端。
+1. **native 四格已接入，并完成 111 包 `repeats=2 --aa` 复核。** 37/45 个 core 在 O0/default 下不同，build 维度真实存在；下一步补 build 维注入正控，而不是回退到 link-only。
 2. **先改 IR 模板矩阵，再扩类型。** 现在 1,000 例只有 9 种组合；用 100–200 行把控制流/数组/别名/循环条件做成显式模板，比直接加字符串/浮点更便宜，也更能解释 0/1000。
 3. **在做大语料前，先测测试套件的变异杀伤率。** 8,849 个测试是否能发现实现级变化，目前只有 argparse/json 两个注入控制；如果测试对变异不敏感，扩到 3,000 个 artifact 也只是增加零候选。
 4. **最后再考虑字符串/浮点/trap/嵌套函数。** 这些会同时改类型系统、解释器、emitter 和 oracle，成本 2–4 天，且可能先暴露 harness 自洽性问题，而不是编译器问题。
@@ -289,3 +289,19 @@ native link-only 原型是 `/tmp/native_link.py`，native 四格原型是 `/tmp/
 - 162 个 artifact 的 0 candidate 不是“无缺陷”；IR 的 0/1,008 也不是“IR 正确”。
 - native 原型没有正控、没有 timeout/truncation 分类；完整四格只覆盖 1 个包，link-only 覆盖 5 个包。
 - 所有时间数字都绑定本机、当前工具链和当前缓存状态。
+
+## 7. 后续更新：native 全量扫描
+
+native 四格已经接入 `cmd/optdiff`，并对 142 个包目录完成扫描：
+
+```
+111 个有效包
+184 个 artifact
+9,249 个 test ID
+0 个确认 candidate
+1 个首轮候选 async/http，经 --repeats 3 --aa 复核后消失
+```
+
+`async/http` 的差异是 DNS/外网错误（`Name or service not known`、`Temporary failure in name resolution`、`ProxyError`），不是编译器缺陷。随后对 111 个有 artifact 的包做 `--repeats 2 --aa`：184 个 evidence row、9,249 个 test ID、0 candidate、0 changed；110/111 包 clean，`diff` 的 blackbox baseline 仍不绿。详细证据和失败分类见 `findings/native_fourcell.md`。
+
+这条结果不改变第 4 节的结论：native 全量仍然没有真实缺陷，但把“native 不可测”的边界推进成了“已覆盖 111 包、9,249 test ID 的负证据”。下一步应优先补全 `repeats>=2` 的全量稳定性，再决定是否投入 IR 模板扩展。

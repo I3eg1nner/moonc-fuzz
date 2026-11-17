@@ -59,9 +59,35 @@ struct LinkLine {
 }
 
 ///|
+struct NativeLink {
+  argv : Array[String]
+  base : String
+}
+
+///|
+struct CcLine {
+  argv : Array[String]
+  base : String
+}
+
+///|
+fn artifact_stem(path : String) -> String {
+  let b = @corpus.basename(path)
+  if b.has_suffix(".o") {
+    b[0:b.length() - 2].to_owned()
+  } else if b.has_suffix(".exe") {
+    b[0:b.length() - 4].to_owned()
+  } else if b.has_suffix(".wasm") {
+    b[0:b.length() - 5].to_owned()
+  } else {
+    b
+  }
+}
+
+///|
 fn usage() -> Unit {
   println(
-    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc] [--timeout MS] [--repeats N] [--aa] [--four-cell] [--four-cell-control FILE FROM TO] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
+    "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc|wasm|native] [--timeout MS] [--repeats N] [--aa] [--four-cell] [--four-cell-control FILE FROM TO] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
   )
 }
 
@@ -384,6 +410,63 @@ fn expected_ids(args_json : String) -> Map[String, Unit]? {
       }
     }
     _ => None
+  }
+}
+
+///|
+fn expected_native_ids(args : String) -> Map[String, Unit]? {
+  let out : Map[String, Unit] = Map([])
+  let mut prefix = ""
+  let mut malformed = false
+  for raw in args.split("/") {
+    let seg = raw.to_owned()
+    if seg == "" {
+      malformed = true
+    } else if seg.contains(":") {
+      let colon = match seg.find(":") {
+        Some(i) => i
+        None => {
+          malformed = true
+          continue
+        }
+      }
+      let file_part = seg[0:colon].to_owned()
+      let range = seg[colon + 1:].to_owned()
+      let file = if prefix == "" { file_part } else { prefix + "/" + file_part }
+      let mut start = -1
+      let mut end = -1
+      let mut part_i = 0
+      for part in range.split("-") {
+        if part_i == 0 {
+          start = parse_int(part.to_owned(), -1)
+        } else if part_i == 1 {
+          end = parse_int(part.to_owned(), -1)
+        } else {
+          malformed = true
+        }
+        part_i += 1
+      }
+      if start < 0 || end <= start || part_i != 2 {
+        malformed = true
+      } else {
+        for i in start..<end {
+          let key = file + "|" + i.to_string()
+          if out.contains(key) {
+            malformed = true
+          } else {
+            out.set(key, ())
+          }
+        }
+      }
+      prefix = ""
+    } else {
+      prefix = if prefix == "" { seg } else { prefix + "/" + seg }
+    }
+  }
+  if malformed || prefix != "" || out.length() == 0 {
+    None
+  } else {
+    Some(out)
   }
 }
 
@@ -764,6 +847,251 @@ fn find_link_line(lines : Array[LinkLine], base : String) -> LinkLine? {
 }
 
 ///|
+fn parse_native_link_lines(links : Array[String]) -> Array[NativeLink]? {
+  let out : Array[NativeLink] = []
+  let seen : Map[String, Unit] = Map([])
+  for line in links {
+    let argv = match shell_split(line) {
+      Some(a) => a
+      None => return None
+    }
+    let o_i = match find_arg(argv, "-o") {
+      Some(i) => i
+      None => return None
+    }
+    if o_i + 1 >= argv.length() {
+      return None
+    }
+    let base = artifact_stem(argv[o_i + 1])
+    if base == "" || seen.contains(base) {
+      return None
+    }
+    seen.set(base, ())
+    out.push({ argv, base, })
+  }
+  Some(out)
+}
+
+///|
+fn lines_of(text : String) -> Array[String] {
+  let out : Array[String] = []
+  for line in text.split("\n") {
+    out.push(line.to_owned())
+  }
+  out
+}
+
+///|
+fn parse_native_cc_lines(lines : Array[String]) -> Array[CcLine]? {
+  let out : Array[CcLine] = []
+  let seen : Map[String, Unit] = Map([])
+  for line in lines {
+    let t = line.trim()
+    if t == "" || !t.has_prefix("/usr/bin/cc ") {
+      continue
+    }
+    let argv = match shell_split(t.to_owned()) {
+      Some(a) => a
+      None => return None
+    }
+    let o_i = match find_arg(argv, "-o") {
+      Some(i) => i
+      None => return None
+    }
+    if o_i + 1 >= argv.length() || !argv[o_i + 1].has_suffix(".exe") {
+      continue
+    }
+    let base = artifact_stem(argv[o_i + 1])
+    if base == "" || seen.contains(base) {
+      return None
+    }
+    seen.set(base, ())
+    out.push({ argv, base, })
+  }
+  Some(out)
+}
+
+///|
+fn find_native_link(lines : Array[NativeLink], base : String) -> NativeLink? {
+  for line in lines {
+    if line.base == base {
+      return Some(line)
+    }
+  }
+  None
+}
+
+///|
+fn find_native_cc(lines : Array[CcLine], base : String) -> CcLine? {
+  for line in lines {
+    if line.base == base {
+      return Some(line)
+    }
+  }
+  None
+}
+
+///|
+fn parse_native_runs(
+  lines : Array[String],
+  build_root : String,
+) -> Array[RunTask]? {
+  let out : Array[RunTask] = []
+  let seen : Map[String, Unit] = Map([])
+  for line in lines {
+    let argv = match shell_split(line) {
+      Some(a) => a
+      None => return None
+    }
+    if argv.length() == 0 {
+      continue
+    }
+    let exe = argv[0]
+    if !exe.has_suffix(".exe") {
+      continue
+    }
+    if !exe.has_prefix(build_root + "/") {
+      return None
+    }
+    let base = artifact_stem(exe)
+    if base == "" || seen.contains(base) {
+      return None
+    }
+    let expected = if argv.length() > 1 {
+      match expected_native_ids(argv[1]) {
+        Some(e) => e
+        None => return None
+      }
+    } else {
+      Map([])
+    }
+    seen.set(base, ())
+    out.push({ argv, wasm_index: 0, wasm_path: exe, expected, })
+  }
+  if out.length() == 0 {
+    None
+  } else {
+    Some(out)
+  }
+}
+
+///|
+fn filter_native_links(
+  links : Array[NativeLink],
+  runs : Array[RunTask],
+  build_root : String,
+  pkg : String,
+) -> Array[NativeLink]? {
+  let run_bases : Map[String, Unit] = Map([])
+  for r in runs {
+    run_bases.set(artifact_stem(r.wasm_path), ())
+  }
+  let out : Array[NativeLink] = []
+  for line in links {
+    if run_bases.contains(line.base) {
+      out.push(line)
+    } else {
+      let meta = match
+        metadata_path_at(build_root, "native", pkg, line.base + ".exe") {
+        Some(path) => load_test_meta(path)
+        None => None
+      }
+      match meta {
+        Some(m) =>
+          if m.known.length() == 0 {
+            // Valid zero-test artifact: link exists, runtime does not.
+          } else {
+            return None
+          }
+        None => return None
+      }
+    }
+  }
+  Some(out)
+}
+
+///|
+fn expand_moon_home(argv : Array[String], home : String) -> Array[String] {
+  let out : Array[String] = []
+  for a in argv {
+    if a.has_prefix("$MOON_HOME/") {
+      out.push(home + "/.moon/" + a[11:].to_owned())
+    } else if a == "$MOON_HOME" {
+      out.push(home + "/.moon")
+    } else {
+      out.push(a)
+    }
+  }
+  out
+}
+
+///|
+fn make_native_link_argv(
+  argv : Array[String],
+  new_path : String,
+  remove_o0 : Bool,
+) -> Array[String]? {
+  if count_arg(argv, "-o") != 1 || count_arg(argv, "-O0") != 1 {
+    return None
+  }
+  let o_i = match find_arg(argv, "-o") {
+    Some(i) => i
+    None => return None
+  }
+  if o_i + 1 >= argv.length() {
+    return None
+  }
+  let with_out = replace_output(argv, o_i, new_path)
+  if !remove_o0 {
+    return Some(with_out)
+  }
+  let o0_i = match find_arg(with_out, "-O0") {
+    Some(i) => i
+    None => return None
+  }
+  Some(remove_arg(with_out, o0_i))
+}
+
+///|
+fn make_native_cc_argv(
+  cc : CcLine,
+  object_path : String,
+  exe_path : String,
+  home : String,
+) -> Array[String]? {
+  if count_arg(cc.argv, "-o") != 1 {
+    return None
+  }
+  let o_i = match find_arg(cc.argv, "-o") {
+    Some(i) => i
+    None => return None
+  }
+  if o_i + 1 >= cc.argv.length() {
+    return None
+  }
+  let expected_obj = cc.base + ".o"
+  let mut replaced = false
+  let argv : Array[String] = []
+  for i, a in cc.argv {
+    if i == o_i + 1 {
+      argv.push(exe_path)
+    } else if @corpus.basename(a) == expected_obj {
+      if replaced {
+        return None
+      }
+      argv.push(object_path)
+      replaced = true
+    } else {
+      argv.push(a)
+    }
+  }
+  if !replaced {
+    return None
+  }
+  Some(expand_moon_home(argv, home))
+}
+
+///|
 async fn build_arm(
   cfg : Config,
   pkg : String,
@@ -865,6 +1193,16 @@ fn link_has_core(link : LinkLine, core_name : String) -> Bool {
 }
 
 ///|
+fn native_link_has_core(link : NativeLink, core_name : String) -> Bool {
+  for a in link.argv {
+    if a.has_suffix("/" + core_name + ".core") {
+      return true
+    }
+  }
+  false
+}
+
+///|
 async fn run_test_arm(
   cfg : Config,
   root : String,
@@ -946,9 +1284,101 @@ async fn run_test_arm(
 }
 
 ///|
+
+///|
+async fn run_native_test_arm(
+  cfg : Config,
+  root : String,
+  run : RunTask,
+  link : NativeLink,
+  cc : CcLine,
+  arm_base : String,
+  remove_o0 : Bool,
+  home : String,
+  evidence : String,
+  label : String,
+  override_core : String?,
+  core_name : String,
+  repeats : Int32,
+) -> Map[String, String]? {
+  let mut link_argv = link.argv
+  if remove_o0 && override_core is Some(core) {
+    let mut replaced = false
+    for i, a in link.argv {
+      if a.has_suffix("/" + core_name + ".core") {
+        link_argv = replace_arg(link_argv, i, core)
+        replaced = true
+      }
+    }
+    if !replaced {
+      return None
+    }
+  }
+  let mut base_results : Map[String, String] = Map([])
+  let mut r = 0
+  while r < repeats {
+    let suffix = "." + label + ".r" + r.to_string()
+    let object_path = arm_base + suffix + ".o"
+    let exe_path = arm_base + suffix + ".exe"
+    let link_cmd = match
+      make_native_link_argv(link_argv, object_path, remove_o0) {
+      Some(a) => a
+      None => return None
+    }
+    let lr = run_argv(link_cmd, root, cfg.timeout_ms, home)
+    if lr.rc != 0 {
+      println("[optdiff] native link failed for \{object_path}: \{lr.rc}")
+      println("[optdiff] native link stderr: \{lr.stderr}")
+      return None
+    }
+    let cc_cmd = match make_native_cc_argv(cc, object_path, exe_path, home) {
+      Some(a) => a
+      None => return None
+    }
+    let cr = run_argv(cc_cmd, root, cfg.timeout_ms, home)
+    if cr.rc != 0 {
+      println("[optdiff] native cc failed for \{exe_path}: \{cr.rc}")
+      println("[optdiff] native cc stderr: \{cr.stderr}")
+      return None
+    }
+    let rr = run_argv(make_run_argv(run, exe_path), root, cfg.timeout_ms, home)
+    let parsed = collect_results(rr.stdout)
+    let tag = @corpus.basename(run.wasm_path) +
+      "." +
+      label +
+      ".r" +
+      r.to_string()
+    if !write_json(@corpus.join(evidence, tag + ".stdout"), rr.stdout) ||
+      !write_json(@corpus.join(evidence, tag + ".stderr"), rr.stderr) {
+      return None
+    }
+    if rr.rc != 0 ||
+      rr.timed_out ||
+      rr.stdout_truncated ||
+      parsed.bad ||
+      parsed.duplicate ||
+      !exact_coverage(parsed.results, run.expected) {
+      println("[optdiff] native test run invalid for \{exe_path}")
+      return None
+    }
+    if r == 0 {
+      base_results = parsed.results
+    } else {
+      let c = compare_results(base_results, parsed.results, Map([]))
+      if c.changed > 0 || c.missing > 0 || c.extra > 0 {
+        println("[optdiff] unstable native repeat for \{exe_path}")
+        return None
+      }
+    }
+    r += 1
+  }
+  Some(base_results)
+}
+
+///|
 async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
-  if cfg.target != "wasm" && cfg.target != "wasm-gc" {
-    println("[optdiff] four-cell needs wasm/wasm-gc")
+  if cfg.target != "wasm" && cfg.target != "wasm-gc" && cfg.target != "native" {
+    println("[optdiff] four-cell needs wasm/wasm-gc/native")
     @env.exit(2)
   }
   let pkg_tag = package_tag(pkg)
@@ -1052,6 +1482,362 @@ async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
   if actual.rc != 0 || summary_failures(actual.stdout) > 0 {
     println("[optdiff] four-cell O0 baseline is not green")
     @env.exit(2)
+  }
+  if cfg.target == "native" {
+    let parsed_o0_links = match parse_native_link_lines(links_o0) {
+      Some(l) => l
+      None => {
+        println("[optdiff] duplicate/invalid native O0 link plan")
+        @env.exit(2)
+      }
+    }
+    let parsed_d_links = match parse_native_link_lines(links_d) {
+      Some(l) => l
+      None => {
+        println("[optdiff] duplicate/invalid native default link plan")
+        @env.exit(2)
+      }
+    }
+    let o0_cc = match
+      parse_native_cc_lines(
+        lines_of(read_text(@corpus.join(b0, "dryrun.stdout"))),
+      ) {
+      Some(c) => c
+      None => {
+        println("[optdiff] invalid native O0 cc plan")
+        @env.exit(2)
+      }
+    }
+    let d_cc = match
+      parse_native_cc_lines(
+        lines_of(read_text(@corpus.join(bd, "dryrun.stdout"))),
+      ) {
+      Some(c) => c
+      None => {
+        println("[optdiff] invalid native default cc plan")
+        @env.exit(2)
+      }
+    }
+    let run_lines : Array[String] = []
+    for line in actual.stderr.split("\n") {
+      let t = line.trim()
+      if t.contains(".exe") {
+        run_lines.push(t.to_owned())
+      }
+    }
+    let run_tasks = match parse_native_runs(run_lines, b0) {
+      Some(r) => r
+      None => {
+        println("[optdiff] cannot parse native runtime commands")
+        @env.exit(2)
+      }
+    }
+    let parsed_o0_links = match
+      filter_native_links(parsed_o0_links, run_tasks, b0, pkg) {
+      Some(l) => l
+      None => {
+        println("[optdiff] cannot classify native O0 empty artifacts")
+        @env.exit(2)
+      }
+    }
+    let parsed_d_links = match
+      filter_native_links(parsed_d_links, run_tasks, bd, pkg) {
+      Some(l) => l
+      None => {
+        println("[optdiff] cannot classify native default empty artifacts")
+        @env.exit(2)
+      }
+    }
+    if parsed_o0_links.length() != run_tasks.length() ||
+      parsed_d_links.length() != run_tasks.length() {
+      println("[optdiff] native link/runtime plan sizes differ")
+      @env.exit(2)
+    }
+    let mut override_core : String? = None
+    if cfg.four_control {
+      if !fault_file_ok(cfg.fault_file) {
+        println("[optdiff] unsafe four-cell control file")
+        @env.exit(2)
+      }
+      let ctrl = @corpus.join(cfg.out, "four/control_module")
+      let rm = @exec.run("/bin/rm", ["-rf", ctrl], "/tmp", cfg.timeout_ms)
+      let cp = @exec.run(
+        "/bin/cp",
+        ["-a", cfg.source_dir, ctrl],
+        "/tmp",
+        cfg.timeout_ms,
+      )
+      if rm.rc != 0 || cp.rc != 0 {
+        println("[optdiff] cannot prepare native control module")
+        @env.exit(2)
+      }
+      let ctrl_path = @corpus.join(ctrl, cfg.fault_file)
+      let real = @exec.run("/usr/bin/readlink", ["-f", ctrl_path], "/tmp", 5000)
+      if real.rc != 0 || !real.stdout.trim().has_prefix(ctrl + "/") {
+        println("[optdiff] native control file escapes copy")
+        @env.exit(2)
+      }
+      let src = read_text(ctrl_path)
+      let next = match replace_once(src, cfg.fault_from, cfg.fault_to) {
+        Some(v) => v
+        None => {
+          println("[optdiff] native control mutation not found")
+          @env.exit(2)
+        }
+      }
+      if next == src || !write_json(ctrl_path, next) {
+        println("[optdiff] native control mutation failed")
+        @env.exit(2)
+      }
+      let ctrl_build = @corpus.join(cfg.out, "four/control_build")
+      let ctrl_test = @exec.run(
+        moon,
+        [
+          "test",
+          "-p",
+          pkg,
+          "--target",
+          cfg.target,
+          "--debug",
+          "--build-only",
+          "--target-dir",
+          ctrl_build,
+        ],
+        ctrl,
+        cfg.timeout_ms,
+        max_output_bytes=32 * 1024 * 1024,
+      )
+      if ctrl_test.rc != 0 {
+        println("[optdiff] native control build failed")
+        @env.exit(2)
+      }
+      let core = package_core_path(ctrl_build, cfg.target, pkg)
+      if !@fs.path_exists(core) {
+        println("[optdiff] native control core missing")
+        @env.exit(2)
+      }
+      override_core = Some(core)
+    }
+    let arm_root = @corpus.join(base_dir, "arms")
+    let evidence = @corpus.join(base_dir, "evidence")
+    @corpus.ensure_dir(evidence)
+    let mut artifacts = 0
+    let mut errors = 0
+    let mut candidates = 0
+    let mut changed_total = 0
+    for run in run_tasks {
+      let base = artifact_stem(run.wasm_path)
+      let link_o0 = match find_native_link(parsed_o0_links, base) {
+        Some(l) => l
+        None => {
+          errors += 1
+          continue
+        }
+      }
+      let link_d = match find_native_link(parsed_d_links, base) {
+        Some(l) => l
+        None => {
+          errors += 1
+          continue
+        }
+      }
+      let cc_o0 = match find_native_cc(o0_cc, base) {
+        Some(c) => c
+        None => {
+          errors += 1
+          continue
+        }
+      }
+      let cc_d = match find_native_cc(d_cc, base) {
+        Some(c) => c
+        None => {
+          errors += 1
+          continue
+        }
+      }
+      let meta = match metadata_path_at(b0, cfg.target, pkg, base + ".exe") {
+        Some(path) => load_test_meta(path)
+        None => None
+      }
+      let meta = match meta {
+        Some(m) => m
+        None => {
+          println("[optdiff] native metadata missing for \{base}")
+          errors += 1
+          continue
+        }
+      }
+      let run = if run.expected.length() == 0 {
+        { ..run, expected: meta.known, }
+      } else {
+        run
+      }
+      if !subset_ids(run.expected, meta.known) {
+        println("[optdiff] native metadata incomplete for \{base}")
+        errors += 1
+        continue
+      }
+      if cfg.four_control &&
+        !native_link_has_core(link_o0, @corpus.basename(pkg)) {
+        continue
+      }
+      let arm_base = @corpus.join(arm_root, base)
+      @corpus.ensure_dir(arm_base)
+      let core_name = @corpus.basename(pkg)
+      let m00 = run_native_test_arm(
+        cfg,
+        work,
+        run,
+        link_o0,
+        cc_o0,
+        arm_base,
+        false,
+        home,
+        evidence,
+        "B0L0",
+        None,
+        core_name,
+        cfg.repeats,
+      )
+      let m0d = run_native_test_arm(
+        cfg,
+        work,
+        run,
+        link_o0,
+        cc_o0,
+        arm_base,
+        true,
+        home,
+        evidence,
+        "B0Ld",
+        override_core,
+        core_name,
+        cfg.repeats,
+      )
+      let md0 = run_native_test_arm(
+        cfg,
+        work,
+        run,
+        link_d,
+        cc_d,
+        arm_base,
+        false,
+        home,
+        evidence,
+        "BdL0",
+        None,
+        core_name,
+        cfg.repeats,
+      )
+      let mdd = run_native_test_arm(
+        cfg,
+        work,
+        run,
+        link_d,
+        cc_d,
+        arm_base,
+        true,
+        home,
+        evidence,
+        "BdLd",
+        override_core,
+        core_name,
+        cfg.repeats,
+      )
+      let (m00, m0d, md0, mdd) = match (m00, m0d, md0, mdd) {
+        (Some(a), Some(b), Some(c), Some(d)) => (a, b, c, d)
+        _ => {
+          errors += 1
+          continue
+        }
+      }
+      if count_failures(m00, meta.panic_ids) > 0 {
+        println("[optdiff] native B0L0 is not green for \{base}")
+        errors += 1
+        continue
+      }
+      let c_link = compare_results(m00, m0d, meta.panic_ids)
+      let c_build = compare_results(m00, md0, meta.panic_ids)
+      let c_both = compare_results(m00, mdd, meta.panic_ids)
+      if cfg.four_control {
+        let link_n = c_link.changed + c_link.missing + c_link.extra
+        let build_n = c_build.changed + c_build.missing + c_build.extra
+        let both_n = c_both.changed + c_both.missing + c_both.extra
+        if link_n == 0 || build_n != 0 || both_n == 0 {
+          println(
+            "[optdiff] native four-cell control pattern failed for \{base}",
+          )
+          errors += 1
+        }
+      }
+      let changed = c_link.changed +
+        c_link.missing +
+        c_link.extra +
+        c_build.changed +
+        c_build.missing +
+        c_build.extra +
+        c_both.changed +
+        c_both.missing +
+        c_both.extra
+      let candidate = changed > 0
+      if candidate {
+        candidates += 1
+        changed_total += changed
+      }
+      artifacts += 1
+      let row = "{\"package\":\"" +
+        @corpus.json_escape(pkg) +
+        "\",\"artifact\":\"" +
+        @corpus.json_escape(base) +
+        "\",\"expected\":" +
+        run.expected.length().to_string() +
+        ",\"changed\":" +
+        changed.to_string() +
+        ",\"link_changed\":" +
+        (c_link.changed + c_link.missing + c_link.extra).to_string() +
+        ",\"build_changed\":" +
+        (c_build.changed + c_build.missing + c_build.extra).to_string() +
+        ",\"both_changed\":" +
+        (c_both.changed + c_both.missing + c_both.extra).to_string() +
+        ",\"candidate\":" +
+        (if candidate { "true" } else { "false" }) +
+        "}"
+      if !write_json(@corpus.join(evidence, base + ".row.json"), row) {
+        errors += 1
+      }
+    }
+    if cfg.four_control && artifacts == 0 {
+      println(
+        "[optdiff] native four-cell control produced no eligible artifact",
+      )
+      errors += 1
+    }
+    let summary = "{\"source_module\":\"" +
+      @corpus.json_escape(cfg.source_dir) +
+      "\",\"package\":\"" +
+      @corpus.json_escape(pkg) +
+      "\",\"target\":\"" +
+      @corpus.json_escape(cfg.target) +
+      "\",\"mode\":\"" +
+      (if cfg.four_control { "four-cell-control" } else { "four-cell" }) +
+      "\",\"packages\":1,\"artifacts\":" +
+      artifacts.to_string() +
+      ",\"candidates\":" +
+      candidates.to_string() +
+      ",\"changed\":" +
+      changed_total.to_string() +
+      ",\"errors\":" +
+      errors.to_string() +
+      ",\"repeats\":" +
+      cfg.repeats.to_string() +
+      ",\"aa\":" +
+      (if cfg.aa { "true" } else { "false" }) +
+      "}"
+    if !write_json(@corpus.join(base_dir, "summary.json"), summary) {
+      errors += 1
+    }
+    println("[optdiff] \{summary}")
+    return (artifacts, candidates, errors)
   }
   let runs : Array[String] = []
   for line in actual.stderr.split("\n") {
@@ -1859,11 +2645,11 @@ fn metadata_path_at(
   } else {
     pkg
   }
-  let kind = if base.contains(".blackbox_test.wasm") {
+  let kind = if base.contains(".blackbox_test") {
     "blackbox"
-  } else if base.contains(".internal_test.wasm") {
+  } else if base.contains(".internal_test") {
     "internal"
-  } else if base.contains(".whitebox_test.wasm") {
+  } else if base.contains(".whitebox_test") {
     "whitebox"
   } else {
     return None

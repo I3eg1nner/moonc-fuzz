@@ -142,3 +142,22 @@ candidates=1, errors=0, exit=1
 
 This is still a harness injection, but it exercises a different package and a
 JSON serialization path rather than the argparse help renderer.
+
+## 12k random shards
+
+To check whether the first 1k result was seed-specific, 12 independent shards
+were run with seeds 10000, 11000, ..., 21000:
+
+```
+shard s0..s11: 1,008 cases each (8 hand + 1,000 random)
+total: 12,096 cases
+all four arms reason=ok: 12,096/12,096
+errors=0
+per-shard wall time: 330-335 s (serial)
+```
+
+This is still the same generator shape: the 1,000-random-per-shard programs
+have the same fixed `main` template and only 9 coarse structural combinations.
+The result strengthens the negative evidence for this template; it does not
+establish general IR or compiler correctness, and it is not 12,096 independent
+program shapes.

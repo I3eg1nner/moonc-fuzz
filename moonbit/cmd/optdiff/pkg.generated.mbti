@@ -8,6 +8,8 @@ package "I3eg1nner/mbtfuzz/cmd/optdiff"
 // Types and methods
 type CandidateArtifact
 
+type CcLine
+
 type Compare
 
 type Config
@@ -15,6 +17,8 @@ type Config
 type LinkLine
 
 type LinkTask
+
+type NativeLink
 
 type ParsedRun
 
