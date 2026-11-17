@@ -70,7 +70,20 @@ pub(all) struct TraceResult {
   stage : TraceStage
   outcome : TraceOutcome
   complete : Bool
+  /// Sorted `camlMoonc*` function names seen in this trace.  Historic scope:
+  /// the `camlMoonc` prefix filter is unchanged.
   functions : Array[String]
+  /// Distinct raw TB start PCs, mapped or not (`summarize_trace.unique_pc`).
+  unique_pc : Int32
+  /// Distinct TB start PCs that map to any symbol
+  /// (`summarize_trace.mapped_unique_pc`).
+  mapped_unique_pc : Int32
+  /// Distinct consecutive TB pairs, mapped or not (`summarize_trace.edges`).
+  edges : Int32
+  /// Distinct consecutive TB pairs with BOTH endpoints mapped
+  /// (`summarize_trace.mapped_edges`).  Wider scope than `functions`: a pair is
+  /// counted even when its endpoint functions are not `camlMoonc*`.
+  mapped_edges : Int32
   elapsed_ms : Int64
   trace_bytes : Int64
   /// Exit status of the traced command.  Negative values are signals.
@@ -78,6 +91,30 @@ pub(all) struct TraceResult {
   /// Machine-readable failure category; empty for a usable result.
   failure : String
   detail : String
+}
+
+///|
+/// Single-pass bridge from raw trace text to the exact fields carried by
+/// `TraceResult`.
+///
+/// `summarize_trace` runs exactly once per non-empty trace: both the historic
+/// `camlMoonc*` function list and the four TB counters come from that one
+/// summary.  Callers must not call `summarize_trace` again for the same trace.
+fn coverage_fields(
+  trace : String,
+  sym : SymTab,
+) -> (Array[String], Int32, Int32, Int32, Int32) {
+  if trace == "" {
+    return ([], 0, 0, 0, 0)
+  }
+  let s = summarize_trace(trace, sym)
+  let functions : Array[String] = []
+  for f in s.funcs {
+    if f.has_prefix("camlMoonc") {
+      functions.push(f)
+    }
+  }
+  (functions, s.unique_pc, s.mapped_unique_pc, s.edges, s.mapped_edges)
 }
 
 ///|
@@ -222,18 +259,9 @@ pub async fn collect(
   @fs.remove_file(trace_path) catch {
     _ => ()
   }
-  let functions = if trace == "" {
-    []
-  } else {
-    let all = summarize_trace(trace, sym).funcs
-    let out : Array[String] = []
-    for f in all {
-      if f.has_prefix("camlMoonc") {
-        out.push(f)
-      }
-    }
-    out
-  }
+  let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges) = coverage_fields(
+    trace, sym,
+  )
   let (outcome, failure) = classify_collection(r, trace_bytes, max_trace_bytes)
   let complete = outcome != CollectorFailed
   let detail = if complete {
@@ -253,6 +281,10 @@ pub async fn collect(
     outcome,
     complete,
     functions,
+    unique_pc,
+    mapped_unique_pc,
+    edges,
+    mapped_edges,
     elapsed_ms: r.ms,
     trace_bytes,
     rc: r.rc,

@@ -934,6 +934,15 @@ fn persist_behavior(cfg : Config, src : String, reason : String) -> Unit {
 /// One record per `(input_hash, config_hash, stage, outcome)`.  The record
 /// carries the full key, so a run can reconstruct per-config/stage/outcome
 /// coverage subsets without relying on the short sidecar filename.
+///
+/// Two scopes coexist in this JSON and must not be conflated:
+///   - `coverage_funcs` is the accumulated union of `camlMoonc*` function names
+///     for this key across reruns;
+///   - the TB counters (`unique_pc`, `mapped_unique_pc`, `edges`,
+///     `mapped_edges`) and `trace_func_count` describe only the latest trace
+///     that produced this record (`tb_counter_scope`).
+/// Edges are NOT unioned across runs yet, so there is no "new edges" field
+/// here; see findings/exact_coverage_wiring.md for the remaining gap.
 fn persist_coverage(
   cfg : Config,
   task : TraceTask,
@@ -971,7 +980,21 @@ fn persist_coverage(
     tr.trace_bytes.to_string() +
     ",\"coverage_funcs\":" +
     @trace.json_string_array(funcs) +
-    "}"
+    ",\"coverage_funcs_count\":" +
+    funcs.length().to_string() +
+    ",\"trace_func_count\":" +
+    tr.functions.length().to_string() +
+    ",\"unique_pc\":" +
+    tr.unique_pc.to_string() +
+    ",\"mapped_unique_pc\":" +
+    tr.mapped_unique_pc.to_string() +
+    ",\"edges\":" +
+    tr.edges.to_string() +
+    ",\"mapped_edges\":" +
+    tr.mapped_edges.to_string() +
+    ",\"tb_counter_scope\":\"latest_trace\"" +
+    ",\"func_scope\":\"camlMoonc*\"" +
+    ",\"edge_scope\":\"mapped_both_endpoints\"}"
   ignore(write(join(dir, tr.input_hash + "_" + config_name + ".json"), meta))
 }
 

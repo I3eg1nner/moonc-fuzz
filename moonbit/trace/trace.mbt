@@ -233,19 +233,25 @@ fn bump_count(counts : Map[String, Int32], key : String) -> Unit {
 }
 
 ///|
-/// Parse a full QEMU exec log and return the sorted unique function set plus
-/// exact TB block/edge depth.
+/// Shared single scan behind `summarize_trace` and `edge_keys`: the trace text
+/// is parsed exactly once, and both the counters and (optionally) the exact
+/// mapped-edge key set are produced from that one pass.
 ///
-/// All sets are keyed by the exact raw PC (or exact decimal PC pair), never by
-/// a lossy bitmap hash.  Normalization is only the final sort of function
-/// names, so repeated invocations over the same input are deterministic.
-pub fn summarize_trace(trace : String, sym : SymTab) -> TraceSummary {
+/// `with_keys=false` keeps the counter-only path from allocating the much
+/// larger key array.  When keys are requested they are appended to a set-backed
+/// array, deduplicated by the `seen_mapped_edge` map, and sorted before return.
+fn scan_trace(
+  trace : String,
+  sym : SymTab,
+  with_keys : Bool,
+) -> (TraceSummary, Array[String]) {
   let seen_funcs : Map[String, Unit] = Map([])
   let funcs : Array[String] = []
   let seen_pc : Map[UInt64, Unit] = Map([])
   let seen_mapped_pc : Map[UInt64, Unit] = Map([])
   let seen_edge : Map[String, Unit] = Map([])
   let seen_mapped_edge : Map[String, Unit] = Map([])
+  let edge_key_list : Array[String] = []
   let func_blocks : Map[String, Int32] = Map([])
   let func_edges : Map[String, Int32] = Map([])
   let mut total_tb = 0
@@ -294,6 +300,9 @@ pub fn summarize_trace(trace : String, sym : SymTab) -> TraceSummary {
                 if !seen_mapped_edge.contains(edge) {
                   seen_mapped_edge.set(edge, ())
                   mapped_edges += 1
+                  if with_keys {
+                    edge_key_list.push(edge)
+                  }
                   // A pair's endpoint functions are fixed by the symbol table,
                   // so a new mapped pair is also a new intra-function edge
                   // exactly when both endpoints share a name.
@@ -321,7 +330,10 @@ pub fn summarize_trace(trace : String, sym : SymTab) -> TraceSummary {
       edges: count_or_zero(func_edges, name),
     })
   }
-  {
+  if with_keys {
+    edge_key_list.sort()
+  }
+  let summary : TraceSummary = {
     funcs,
     total_tb,
     mapped_tb,
@@ -331,6 +343,51 @@ pub fn summarize_trace(trace : String, sym : SymTab) -> TraceSummary {
     mapped_edges,
     func_depth,
   }
+  (summary, edge_key_list)
+}
+
+///|
+/// Parse a full QEMU exec log and return the sorted unique function set plus
+/// exact TB block/edge depth.
+///
+/// All sets are keyed by the exact raw PC (or exact decimal PC pair), never by
+/// a lossy bitmap hash.  Normalization is only the final sort of function
+/// names, so repeated invocations over the same input are deterministic.
+///
+/// The trace is scanned exactly once per call.  `collect` uses this function
+/// directly and derives its `camlMoonc*` function list from the same summary,
+/// so a campaign does not pay for a second parse.
+pub fn summarize_trace(trace : String, sym : SymTab) -> TraceSummary {
+  let (summary, _) = scan_trace(trace, sym, false)
+  summary
+}
+
+///|
+/// Exact, deduplicated, sorted keys of the mapped TB transitions in `trace`.
+///
+/// Key format is the injective decimal string `"<pc0>,<pc1>"` built by
+/// `tb_edge_key`.  Decimal PC text contains no comma, so the key needs no
+/// escaping and a set of these keys can be unioned across runs without
+/// collisions.  Ordering is the same shortlex `String` sort used for `funcs`,
+/// which makes the array deterministic for a fixed input.
+///
+/// Scope: a key is emitted only when BOTH endpoint PCs map to a symbol, which
+/// matches the `mapped_edges` counter exactly (`edge_keys(t, s).length()` is
+/// always `summarize_trace(t, s).mapped_edges`).  This is deliberately WIDER
+/// than the historical `TraceResult.functions` filter, which keeps only
+/// `camlMoonc*` names: a transition inside `main` or a stdlib helper is
+/// included here even though neither endpoint name appears in `functions`.
+/// The keys are therefore "all-mapped", not "moonc-only".  Do not compare the
+/// key count against `functions.length()`.
+///
+/// Bound and cost: the input is one trace log that the caller has already
+/// limited (see `max_trace_bytes`), so the key set is bounded by that log and
+/// is not campaign-wide.  An edge set is much larger than a function set, so
+/// this array is meant for offline union/persistence, not for per-input
+/// retention in the scheduler.
+pub fn edge_keys(trace : String, sym : SymTab) -> Array[String] {
+  let (_, keys) = scan_trace(trace, sym, true)
+  keys
 }
 
 ///|

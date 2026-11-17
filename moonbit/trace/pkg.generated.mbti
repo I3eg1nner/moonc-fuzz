@@ -4,6 +4,8 @@ package "I3eg1nner/mbtfuzz/trace"
 // Values
 pub async fn collect(String, String, Array[String], String, String, SymTab, String, String, TraceStage, Int32, Int64) -> TraceResult
 
+pub fn edge_keys(String, SymTab) -> Array[String]
+
 pub fn json_func_depth_array(Array[FuncDepth]) -> String
 
 pub fn json_string_array(Array[String]) -> String
@@ -62,6 +64,10 @@ pub(all) struct TraceResult {
   outcome : TraceOutcome
   complete : Bool
   functions : Array[String]
+  unique_pc : Int32
+  mapped_unique_pc : Int32
+  edges : Int32
+  mapped_edges : Int32
   elapsed_ms : Int64
   trace_bytes : Int64
   rc : Int32

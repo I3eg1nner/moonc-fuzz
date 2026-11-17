@@ -231,3 +231,33 @@ test "empty symbol table maps nothing" {
   assert_eq(tab.func_of(0UL), None)
   assert_eq(tab.range_of("a"), None)
 }
+
+///|
+test "edge_keys are exact, deduped, sorted, and mapped-only" {
+  let tab = @trace.SymTab::parse("0000000000000010 T a\n0000000000000020 T b\n")
+  // Parsed pairs: (10,20) (20,10) (10,10) then (10,99) (99,20).
+  // The pair with an unmapped endpoint is excluded; repeated pairs collapse.
+  let trace = "[0/0000000000000010/0]\n[0/0000000000000020/0]\n" +
+    "[0/0000000000000010/0]\n[0/0000000000000010/0]\n" +
+    "[0/0000000000000010/0]\n[0/0000000000000020/0]\n" +
+    "[0/0000000000000010/0]\n[0/0000000000000099/0]\n" +
+    "[0/0000000000000020/0]\n"
+  // Exact keys keep both endpoints in decimal, so the result is injective.
+  assert_eq(@trace.edge_keys(trace, tab), ["16,16", "16,32", "32,16"])
+  let s = @trace.summarize_trace(trace, tab)
+  assert_eq(s.mapped_edges, 3)
+  // The key set and the counter are the same set by construction.
+  assert_eq(@trace.edge_keys(trace, tab).length(), s.mapped_edges)
+}
+
+///|
+test "edge_keys ignores all-unmapped transitions and the empty trace" {
+  let tab = @trace.SymTab::parse("0000000000000010 T a\n")
+  assert_eq(@trace.edge_keys("", tab), [])
+  let trace = "[0/0000000000000010/0]\n[0/0000000000000099/0]\n" +
+    "[0/0000000000000099/0]\n"
+  // (10,99) and (99,99) each have an unmapped endpoint.
+  assert_eq(@trace.edge_keys(trace, tab), [])
+  assert_eq(@trace.summarize_trace(trace, tab).edges, 2)
+  assert_eq(@trace.summarize_trace(trace, tab).mapped_edges, 0)
+}

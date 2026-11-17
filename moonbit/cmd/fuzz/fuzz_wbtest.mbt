@@ -155,6 +155,12 @@ fn trace_test_result_full(
     outcome,
     complete,
     functions,
+    // The scheduling tests do not read TB counters; exact values are covered
+    // by the trace-package tests and the sidecar-shape test below.
+    unique_pc: 0,
+    mapped_unique_pc: 0,
+    edges: 0,
+    mapped_edges: 0,
     elapsed_ms: 1L,
     trace_bytes: 1L,
     rc: if outcome == @trace.Accepted {
@@ -525,4 +531,37 @@ test "diagnostic family ignores location while signature keeps it" {
   let b = mk("2:8")
   assert_true(behavior_sig("t1", a) != behavior_sig("t1", b))
   assert_eq(behavior_family("t1", a), behavior_family("t1", b))
+}
+
+///|
+test "coverage sidecar persists exact TB counters" {
+  let cfg = trace_test_cfg()
+  let task = trace_test_task_stage("src-tb", @trace.T2, false)
+  let tr : @trace.TraceResult = {
+    ..trace_test_result_full(["camlMoonc__A"], @trace.T2, @trace.Accepted, true),
+    unique_pc: 7,
+    mapped_unique_pc: 5,
+    edges: 9,
+    mapped_edges: 3,
+  }
+  // 7 > 5 and 9 > 3 on purpose: the sidecar must keep both the mapped and the
+  // total numbers instead of collapsing them into one.
+  persist_coverage(cfg, task, tr, ["camlMoonc__A", "camlMoonc__B"])
+  let dir = join(
+    join(join(join(cfg.out, "corpus"), "coverage"), "t2"),
+    "accepted",
+  )
+  let path = join(
+    dir,
+    tr.input_hash + "_" + @corpus.sha1_hex(tr.config_hash) + ".json",
+  )
+  let meta = @fs.read_file_to_string(path) catch { _ => "" }
+  assert_true(meta.contains("\"unique_pc\":7"))
+  assert_true(meta.contains("\"mapped_unique_pc\":5"))
+  assert_true(meta.contains("\"edges\":9"))
+  assert_true(meta.contains("\"mapped_edges\":3"))
+  assert_true(meta.contains("\"coverage_funcs_count\":2"))
+  assert_true(meta.contains("\"trace_func_count\":1"))
+  assert_true(meta.contains("\"tb_counter_scope\":\"latest_trace\""))
+  assert_true(meta.contains("\"edge_scope\":\"mapped_both_endpoints\""))
 }

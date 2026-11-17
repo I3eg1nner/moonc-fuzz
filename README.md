@@ -314,6 +314,7 @@ moon test --target native
 | `findings/codex_defect_review.md` | Codex 对每个缺陷的独立复验与修正 |
 | `findings/upstream_issues.md` | 已提交的 7 个 upstream issue 与 PoC 映射 |
 | `findings/exact_block_coverage.md` | 精确 QEMU-TB 块/边覆盖的定义与边界 |
+| `findings/exact_coverage_wiring.md` | 精确 TB 计数接入 collect 与 fuzz 证据；调度仍未使用 |
 | `findings/featfuzz_mvp.md` | native 布局特性生成器与分阶段 oracle |
 | `findings/asyncfuzz_mvp.md` | async 状态机矩阵与 F8 校准 |
 | `findings/feature_probe_negative.md` | 269 case 特性探针的负结果与并发伪诊断 |
