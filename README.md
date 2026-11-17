@@ -346,6 +346,9 @@ moon test --target native
 | `findings/campaign_caps.md` | 父本池/持久证据上限、counter、文件审计与 before/after |
 | `findings/xdiff_mvp.md` | 跨后端执行差分：布局矩阵、判定优先级 |
 | `findings/xdiff_async.md` | async 逐测试状态差分与 160 case 全矩阵结果 |
+| `findings/async_cancel_probe.md` | async 超时/取消/组合子探针的负结果 |
+| `findings/campaign_caps.md` | 父本池与证据落盘上限、淘汰策略、前后对比 |
+| `findings/stage_summary_2026-11-17.md` | 阶段性总结：证据、解释边界、下一步排序 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
 | `examples/trace2funcs.sh` | 最小可运行示例 |
 
