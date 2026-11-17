@@ -229,8 +229,8 @@ and generates `Index`/`Len` in expression positions, but not nested functions
 or array aliasing interactions. `--reduce` is a statement-level, trace-preserving reducer: it
 requires type validity, successful interpretation and an identical event
 sequence, and removes dead lets/no-op assignments. It is not yet a
-compiler-difference reducer; a future predicate must preserve the original
-failure class, not merely “no crash.” `--four-cell` compiles the same emitted
+compiler-difference reducer; the separate `--reduce-failure` predicate preserves
+the original failure class, not merely “no crash.” `--four-cell` compiles the same emitted
 source into build O0/default and link O0/default arms and checks each arm
 against the interpreter event stream directly. It is wasm-gc only, uses a
 writable per-run directory under OUT, must run serially, and currently skips
@@ -241,11 +241,14 @@ must make all four arms false and exit 1. Per-arm reasons distinguish
 `interpreter`, `write`, `build_O0`, `build_default`, `link`, `run`, `timeout`,
 `truncated`, `mismatch`, and `ok`. These are detection-chain controls, not
 optimizer defects. `--reduce-failure` additionally preserves the complete
-interpreter event trace and the four-arm reason vector; the fourth hand sample
+interpreter event trace and the four-arm reason vector, but only deletes
+top-level `main` statements; `ok` does not guarantee the statement count
+decreased; the fourth hand sample
 contains a removable dead `let`, so the control must reduce 2→1 statements and
 keep `[ok,mismatch,ok,ok]`. It is validated with an injected arm, so it is
-still a harness control, not evidence of an optimizer failure. A no-injection
-run is rejected as `no_failure` rather than claiming a reduction.
+still a harness control, not evidence of an optimizer failure. An all-green
+baseline is rejected as `no_failure`; a no-injection run can still find a real
+failure.
 All-green samples only calibrate connectivity; per-arm booleans require
 successful builds and interpreter success as well as matching output. The interpreter is the semantic oracle;
 `cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output
