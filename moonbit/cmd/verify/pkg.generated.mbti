@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cmd/verify"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Config
+
+type ControlReport
+
+type RepeatRun
+
+type StageRun
+
+// Type aliases
+
+// Traits
