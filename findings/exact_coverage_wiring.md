@@ -149,3 +149,12 @@ Serial, on a quiet host:
 - `moon run cmd/accept -- /tmp/mbtfuzz_covwire_agent`: `ok=true`, 9/9 checks,
   including `trace_real_f4` under real QEMU (`qemu_rc=199 expected=599
   actual=599`).
+
+## Follow-up: the scheduling gap is closed
+
+`findings/edge_feedback.md` (2026-11-17) implements the item above: a capped
+campaign edge-key universe, a real `new_edges` set-difference counter, an
+additive edge-novelty bonus (8, below the unchanged function bonus of 32), and
+`edge_keys` / `edge_cap` / `edge_saturated` / `new_edges` in `summary.json`.
+This note remains accurate about the state before that change, including the
+all-mapped vs `camlMoonc*` scope mismatch and the 29.75% headline.

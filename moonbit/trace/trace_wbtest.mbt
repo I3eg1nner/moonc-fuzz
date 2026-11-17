@@ -127,7 +127,7 @@ test "coverage_fields returns exact counters from one trace scan" {
   let trace = "[0/0000000000000010/0]\n[0/0000000000000010/0]\n" +
     "[0/0000000000000020/0]\n[0/0000000000000030/0]\n" +
     "[0/0000000000000030/0]\n[0/0000000000000099/0]\n"
-  let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges) = coverage_fields(
+  let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges, keys) = coverage_fields(
     trace, tab,
   )
   // The historic `camlMoonc*` filter still drops `main`.
@@ -140,14 +140,16 @@ test "coverage_fields returns exact counters from one trace scan" {
   assert_eq(mapped_edges, 4)
   // `main` is mapped, so edge_keys includes transitions it participates in:
   // the edge set is wider than the function set.
-  assert_eq(edge_keys(trace, tab).length(), 4)
-  assert_true(edge_keys(trace, tab).contains("32,48"))
+  assert_eq(keys.length(), 4)
+  assert_eq(keys, edge_keys(trace, tab))
+  assert_eq(keys.length(), mapped_edges)
+  assert_true(keys.contains("32,48"))
 }
 
 ///|
 test "coverage_fields on an empty trace is all zeros" {
   let tab = SymTab::parse("0000000000000010 T camlMoonc__A\n")
-  let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges) = coverage_fields(
+  let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges, keys) = coverage_fields(
     "", tab,
   )
   assert_eq(functions, [])
@@ -155,4 +157,5 @@ test "coverage_fields on an empty trace is all zeros" {
   assert_eq(mapped_unique_pc, 0)
   assert_eq(edges, 0)
   assert_eq(mapped_edges, 0)
+  assert_eq(keys, [])
 }

@@ -1,4 +1,27 @@
 ///|
+/// Reward weights for one feedback update.  Function novelty is the primary
+/// signal and keeps its historical 32; edge novelty is additive and strictly
+/// smaller.  An input that only adds edges therefore earns a modest bonus
+/// (1 + 8 = 9 with no known functions, 6 + 8 = 14 with known functions), never
+/// the top-tier 32/40 reserved for new functions.
+const FUNC_NOVELTY_BONUS : Int32 = 32
+
+///|
+const KNOWN_FUNC_BONUS : Int32 = 6
+
+///|
+const EDGE_NOVELTY_BONUS : Int32 = 8
+
+///|
+/// Default campaign-wide cap on retained exact TB edge keys.  Each key is a
+/// heap `String`, so an uncapped union over a long campaign would grow without
+/// bound.  One real `moonc` T1 trace has ~28k mapped transitions and a T2 trace
+/// ~36k, so a cap below one trace would saturate during the baseline and make
+/// the signal meaningless.  200k keys is roughly 10-20 MB at worst and leaves
+/// room for several traces of genuine novelty while still bounding memory.
+const EDGE_CAP_DEFAULT : Int32 = 200000
+
+///|
 /// MoonBit-native fuzz driver.
 ///
 /// The process model is deliberately the same as the Python driver:
@@ -34,6 +57,7 @@ struct Config {
   mut trace_max_mb : Int32
   mut trace_cpu_pct : Int32
   mut baseline_seeds : Int32
+  mut edge_cap : Int32
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -147,6 +171,7 @@ fn progress_new() -> Progress {
 ///|
 /// One retained input.  `energy` is the mutation budget: inputs that added
 /// compiler functions get selected more often; ordinary seeds stay at 1.
+/// Edge novelty is a strictly smaller additive bonus on top of these weights.
 struct Parent {
   src : String
   mut cov : @cov.FuncSet
@@ -168,14 +193,27 @@ fn feedback_new() -> Feedback {
 }
 
 ///|
+/// `added` is the number of new `camlMoonc*` function names in this trace;
+/// `new_edges` is the number of new exact TB edge keys from the **different,
+/// wider** all-mapped scope.  The function term is unchanged and remains
+/// primary; the edge term is additive and smaller.  Edge-only inputs get a
+/// modest bump rather than the top-tier function bonus.
 fn feedback_upsert(
   f : Feedback,
   src : String,
   cov : @cov.FuncSet,
   added : Int32,
+  new_edges : Int32,
 ) -> Bool {
   let h = @corpus.sha1_hex(src)
-  let bonus = if added > 0 { 32 } else if cov.len() > 0 { 6 } else { 1 }
+  let base = if added > 0 {
+    FUNC_NOVELTY_BONUS
+  } else if cov.len() > 0 {
+    KNOWN_FUNC_BONUS
+  } else {
+    1
+  }
+  let bonus = if new_edges > 0 { base + EDGE_NOVELTY_BONUS } else { base }
   match f.index.get(h) {
     Some(i) => {
       let e = f.entries[i]
@@ -567,9 +605,25 @@ fn trace_submit(
 struct PendingTrace {
   task : TraceTask
   result : @trace.TraceResult
+  /// Edge keys this trace contributed when it completed.  Stored because the
+  /// campaign-wide edge universe is updated immediately, while the reward is
+  /// deferred until the baseline settles.
+  edge_new : Int32
 }
 
 ///|
+/// Campaign coverage universe.
+///
+/// `by_key` / `evidence` / `baseline_total` / `observed_total` remain the
+/// historical `camlMoonc*` **function** scope.  `edge_seen` is a separate,
+/// wider scope: exact `"<pc0>,<pc1>"` keys for TB transitions whose BOTH
+/// endpoints map to any symbol.  The two scopes are deliberately not merged
+/// and their counts are not comparable.
+///
+/// `edge_seen` is capped at `edge_cap` keys for the whole campaign.  Once an
+/// insertion would exceed the cap the universe is marked `edge_saturated`,
+/// stops adding, and reports `new_edges == 0` from then on.  Existing keys are
+/// still recognized during that phase; nothing is silently evicted.
 struct TraceUniverse {
   by_key : Map[String, @cov.FuncSet]
   evidence : Map[String, @cov.FuncSet]
@@ -578,6 +632,10 @@ struct TraceUniverse {
   mut baseline_total : @cov.FuncSet
   mut observed_total : @cov.FuncSet
   mut coverage_adds : Int32
+  edge_seen : Map[String, Unit]
+  mut edge_cap : Int32
+  mut edge_saturated : Bool
+  mut new_edges : Int32
 }
 
 ///|
@@ -590,7 +648,44 @@ fn trace_universe_new() -> TraceUniverse {
     baseline_total: @cov.FuncSet::new([]),
     observed_total: @cov.FuncSet::new([]),
     coverage_adds: 0,
+    edge_seen: Map([]),
+    edge_cap: EDGE_CAP_DEFAULT,
+    edge_saturated: false,
+    new_edges: 0,
   }
+}
+
+///|
+/// Insert one trace's exact mapped-edge keys and return the number of keys
+/// that were genuinely new to the campaign universe.
+///
+/// This is a real set difference (membership test per key), never a constant.
+/// The cap is checked before every insertion.  When the cap is reached the
+/// universe saturates and later calls return 0 without adding anything, so a
+/// saturated run cannot silently drop a subset of keys and still claim exact
+/// novelty.
+///
+/// The return value is the delta for this trace; `TraceUniverse.new_edges`
+/// only accumulates deltas from non-baseline traces (see `trace_apply`), so
+/// baseline keys for U0 seed the universe without inflating the scheduler
+/// novelty counter.
+fn edge_universe_add(cov : TraceUniverse, keys : Array[String]) -> Int32 {
+  if cov.edge_saturated {
+    return 0
+  }
+  let mut added = 0
+  for k in keys {
+    if cov.edge_seen.contains(k) {
+      continue
+    }
+    if cov.edge_seen.length() >= cov.edge_cap {
+      cov.edge_saturated = true
+      break
+    }
+    cov.edge_seen.set(k, ())
+    added += 1
+  }
+  added
 }
 
 ///|
@@ -939,15 +1034,18 @@ fn persist_behavior(cfg : Config, src : String, reason : String) -> Unit {
 ///   - `coverage_funcs` is the accumulated union of `camlMoonc*` function names
 ///     for this key across reruns;
 ///   - the TB counters (`unique_pc`, `mapped_unique_pc`, `edges`,
-///     `mapped_edges`) and `trace_func_count` describe only the latest trace
-///     that produced this record (`tb_counter_scope`).
-/// Edges are NOT unioned across runs yet, so there is no "new edges" field
-/// here; see findings/exact_coverage_wiring.md for the remaining gap.
+///     `mapped_edges`), `trace_edge_keys`, and `edge_novel` describe only the
+///     latest trace that produced this record (`tb_counter_scope`).
+/// `trace_edge_keys` is the per-trace key count (equal to `mapped_edges` by
+/// construction); `edge_novel` says whether that trace added at least one key
+/// to the campaign edge universe at the time it completed.  The key set itself
+/// is not persisted.
 fn persist_coverage(
   cfg : Config,
   task : TraceTask,
   tr : @trace.TraceResult,
   funcs : Array[String],
+  edge_novel : Bool,
 ) -> Unit {
   let source_hash = persist_source(cfg, task.src)
   let stage = @trace.trace_stage_name(tr.stage)
@@ -992,6 +1090,10 @@ fn persist_coverage(
     tr.edges.to_string() +
     ",\"mapped_edges\":" +
     tr.mapped_edges.to_string() +
+    ",\"trace_edge_keys\":" +
+    tr.edge_keys.length().to_string() +
+    ",\"edge_novel\":" +
+    (if edge_novel { "true" } else { "false" }) +
     ",\"tb_counter_scope\":\"latest_trace\"" +
     ",\"func_scope\":\"camlMoonc*\"" +
     ",\"edge_scope\":\"mapped_both_endpoints\"}"
@@ -1151,6 +1253,7 @@ fn trace_record_evidence(
   task : TraceTask,
   tr : @trace.TraceResult,
   covset : @cov.FuncSet,
+  edge_novel : Bool,
   cov : TraceUniverse,
 ) -> Unit {
   let key = tr.input_hash +
@@ -1166,14 +1269,22 @@ fn trace_record_evidence(
   }
   let all = old.union(covset)
   cov.evidence.set(key, all)
-  persist_coverage(cfg, task, tr, all.sorted())
+  persist_coverage(cfg, task, tr, all.sorted(), edge_novel)
 }
 
 ///|
+/// Apply one candidate trace to the function universe and, when it is novel in
+/// either scope, admit/bump the parent.
+///
+/// `edge_new` was computed when the trace completed (the edge universe is
+/// updated for every complete trace, including baseline seeds).  Function
+/// novelty keeps its historical behaviour; edge-only novelty gets the small
+/// additive bonus inside `feedback_upsert` instead of being ignored.
 fn trace_apply_delta(
   task : TraceTask,
   tr : @trace.TraceResult,
   covset : @cov.FuncSet,
+  edge_new : Int32,
   cov : TraceUniverse,
   feed : Feedback,
 ) -> Unit {
@@ -1190,6 +1301,8 @@ fn trace_apply_delta(
   if delta.len() > 0 {
     cov.by_key.set(key, old.union(covset))
     cov.coverage_adds += delta.len()
+  }
+  if delta.len() > 0 || edge_new > 0 {
     let reward_key = task.input_hash +
       "|" +
       task.config_hash +
@@ -1197,7 +1310,7 @@ fn trace_apply_delta(
       @trace.trace_stage_name(task.stage)
     if !cov.rewarded.contains(reward_key) {
       cov.rewarded.set(reward_key, ())
-      ignore(feedback_upsert(feed, task.src, covset, delta.len()))
+      ignore(feedback_upsert(feed, task.src, covset, delta.len(), edge_new))
     }
   }
 }
@@ -1224,6 +1337,7 @@ fn trace_maybe_settle_baseline(
         p.task,
         p.result,
         @cov.FuncSet::new(p.result.functions),
+        p.edge_new,
         cov,
         feed,
       )
@@ -1280,7 +1394,14 @@ fn trace_apply(
   q.completed += 1
   let covset = @cov.FuncSet::new(tr.functions)
   cov.observed_total = cov.observed_total.union(covset)
-  trace_record_evidence(cfg, task, tr, covset, cov)
+  // Edge keys live in the wider all-mapped scope.  Update the campaign
+  // universe for every complete trace (baseline or candidate) exactly once,
+  // and remember the delta so a deferred reward uses the same number.
+  let edge_new = edge_universe_add(cov, tr.edge_keys)
+  if !task.baseline {
+    cov.new_edges += edge_new
+  }
+  trace_record_evidence(cfg, task, tr, covset, edge_new > 0, cov)
   if task.baseline {
     let key = @trace.trace_stage_name(tr.stage) +
       "|" +
@@ -1319,14 +1440,14 @@ fn trace_apply(
     }
   }
   if !q.baseline_settled {
-    cov.pending.push({ task, result: tr, })
+    cov.pending.push({ task, result: tr, edge_new, })
     return
   }
   if !q.baseline_complete {
     q.baseline_unresolved += 1
     return
   }
-  trace_apply_delta(task, tr, covset, cov, feed)
+  trace_apply_delta(task, tr, covset, edge_new, cov, feed)
 }
 
 ///|
@@ -1786,7 +1907,7 @@ async fn worker(
       let novel2 = !local_t2_sigs.contains(sig2)
       if novel2 {
         local_t2_sigs.set(sig2, ())
-        ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
+        ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
         persist_behavior(cfg, src, "behavior_t2")
       }
       if covctx.enabled && (novel2 || rng.chance(cfg.trace_t2)) {
@@ -1907,7 +2028,7 @@ async fn worker(
       local_sigs.set(sig, ())
       // Only inputs that produced a new compiler behaviour enter the dynamic
       // corpus.  Coverage samples can also admit an input with a higher energy.
-      ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
+      ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
       persist_behavior(cfg, src, "behavior")
       // Keep the splice pool fresh even after it reaches its cap.
       if local_pool.length() < 400 {
@@ -2007,7 +2128,7 @@ fn parse_int(s : String, dflt : Int32) -> Int32 {
 fn main_usage() -> Unit {
   println("usage: fuzz [--root DIR] [--out DIR] [--workers N] [--duration S]")
   println(
-    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--qemu PATH] [--trace-t1 P] [--trace-t2 P] [--trace-t3 P] [--trace-workers N] [--trace-queue N] [--trace-max-mb M] [--trace-cpu P] [--baseline-seeds N]",
+    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--qemu PATH] [--trace-t1 P] [--trace-t2 P] [--trace-t3 P] [--trace-workers N] [--trace-queue N] [--trace-max-mb M] [--trace-cpu P] [--baseline-seeds N] [--edge-cap N]",
   )
 }
 
@@ -2042,6 +2163,7 @@ async fn main {
     trace_max_mb: 256,
     trace_cpu_pct: 25,
     baseline_seeds: 8,
+    edge_cap: EDGE_CAP_DEFAULT,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2117,6 +2239,9 @@ async fn main {
     } else if a == "--baseline-seeds" && i + 1 < args.length() {
       cfg.baseline_seeds = parse_int(args[i + 1], cfg.baseline_seeds)
       i += 2
+    } else if a == "--edge-cap" && i + 1 < args.length() {
+      cfg.edge_cap = parse_int(args[i + 1], cfg.edge_cap)
+      i += 2
     } else {
       main_usage()
       return
@@ -2128,6 +2253,9 @@ async fn main {
     cfg.run_id
   }
   cfg.run_id = run_id
+  if cfg.edge_cap < 0 {
+    cfg.edge_cap = 0
+  }
   let out = join(cfg.out, run_id)
   cfg.out = out
   @corpus.ensure_dir(join(out, "findings"))
@@ -2194,10 +2322,11 @@ async fn main {
   }
   let feed = feedback_new()
   for src in seeds {
-    ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0))
+    ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
   }
   let q = trace_queue_new()
   let cov = trace_universe_new()
+  cov.edge_cap = cfg.edge_cap
   if cov_on && cfg.baseline_seeds > 0 {
     let n = if cfg.baseline_seeds < seeds.length() {
       cfg.baseline_seeds
@@ -2272,6 +2401,8 @@ async fn main {
     cfg.trace_cpu_pct.to_string() +
     ",\"baseline_seeds\":" +
     cfg.baseline_seeds.to_string() +
+    ",\"edge_cap\":" +
+    cfg.edge_cap.to_string() +
     ",\"config_hash\":\"" +
     @corpus.json_escape(config_hash) +
     "\",\"coverage\":" +
@@ -2444,6 +2575,14 @@ async fn main {
     cov.coverage_adds.to_string() +
     ",\"coverage_keys\":" +
     cov.by_key.length().to_string() +
+    ",\"edge_keys\":" +
+    cov.edge_seen.length().to_string() +
+    ",\"edge_cap\":" +
+    cov.edge_cap.to_string() +
+    ",\"edge_saturated\":" +
+    (if cov.edge_saturated { "true" } else { "false" }) +
+    ",\"new_edges\":" +
+    cov.new_edges.to_string() +
     ",\"coverage_records\":" +
     cov.evidence.length().to_string() +
     ",\"corpus\":" +

@@ -68,6 +68,7 @@ pub(all) struct TraceResult {
   mapped_unique_pc : Int32
   edges : Int32
   mapped_edges : Int32
+  edge_keys : Array[String]
   elapsed_ms : Int64
   trace_bytes : Int64
   rc : Int32

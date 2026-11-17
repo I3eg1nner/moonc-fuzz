@@ -84,6 +84,11 @@ pub(all) struct TraceResult {
   /// (`summarize_trace.mapped_edges`).  Wider scope than `functions`: a pair is
   /// counted even when its endpoint functions are not `camlMoonc*`.
   mapped_edges : Int32
+  /// Sorted, exactly deduplicated `"<pc0>,<pc1>"` keys for every mapped TB
+  /// transition in this trace (`edge_keys(trace, sym)`).  The array length is
+  /// always `mapped_edges`.  It is carried only long enough for the campaign
+  /// driver to compute edge novelty; it is never persisted wholesale.
+  edge_keys : Array[String]
   elapsed_ms : Int64
   trace_bytes : Int64
   /// Exit status of the traced command.  Negative values are signals.
@@ -97,24 +102,25 @@ pub(all) struct TraceResult {
 /// Single-pass bridge from raw trace text to the exact fields carried by
 /// `TraceResult`.
 ///
-/// `summarize_trace` runs exactly once per non-empty trace: both the historic
-/// `camlMoonc*` function list and the four TB counters come from that one
-/// summary.  Callers must not call `summarize_trace` again for the same trace.
+/// `scan_trace` runs exactly once per non-empty trace: both the historic
+/// `camlMoonc*` function list, the four TB counters, and the exact mapped-edge
+/// key set come from that one pass.  Callers must not scan the same trace
+/// again.
 fn coverage_fields(
   trace : String,
   sym : SymTab,
-) -> (Array[String], Int32, Int32, Int32, Int32) {
+) -> (Array[String], Int32, Int32, Int32, Int32, Array[String]) {
   if trace == "" {
-    return ([], 0, 0, 0, 0)
+    return ([], 0, 0, 0, 0, [])
   }
-  let s = summarize_trace(trace, sym)
+  let (s, keys) = scan_trace(trace, sym, true)
   let functions : Array[String] = []
   for f in s.funcs {
     if f.has_prefix("camlMoonc") {
       functions.push(f)
     }
   }
-  (functions, s.unique_pc, s.mapped_unique_pc, s.edges, s.mapped_edges)
+  (functions, s.unique_pc, s.mapped_unique_pc, s.edges, s.mapped_edges, keys)
 }
 
 ///|
@@ -259,7 +265,7 @@ pub async fn collect(
   @fs.remove_file(trace_path) catch {
     _ => ()
   }
-  let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges) = coverage_fields(
+  let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges, edge_keys) = coverage_fields(
     trace, sym,
   )
   let (outcome, failure) = classify_collection(r, trace_bytes, max_trace_bytes)
@@ -285,6 +291,7 @@ pub async fn collect(
     mapped_unique_pc,
     edges,
     mapped_edges,
+    edge_keys,
     elapsed_ms: r.ms,
     trace_bytes,
     rc: r.rc,

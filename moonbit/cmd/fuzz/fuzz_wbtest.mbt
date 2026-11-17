@@ -112,6 +112,7 @@ fn trace_test_cfg() -> Config {
     trace_max_mb: 1,
     trace_cpu_pct: 25,
     baseline_seeds: 0,
+    edge_cap: 1000,
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
@@ -161,6 +162,7 @@ fn trace_test_result_full(
     mapped_unique_pc: 0,
     edges: 0,
     mapped_edges: 0,
+    edge_keys: [],
     elapsed_ms: 1L,
     trace_bytes: 1L,
     rc: if outcome == @trace.Accepted {
@@ -212,7 +214,7 @@ test "trace coverage admits and rewards only real deltas" {
 ///|
 test "feedback parent selection returns a retained input" {
   let f = feedback_new()
-  ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0))
+  ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0, 0))
   let cfg = trace_test_cfg()
   let cov = trace_universe_new()
   let q = trace_queue_new()
@@ -246,7 +248,7 @@ test "feedback parent selection returns a retained input" {
 test "zero coverage growth does not admit or reward a parent" {
   let cfg = trace_test_cfg()
   let f = feedback_new()
-  ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0))
+  ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0, 0))
   let cov = trace_universe_new()
   let q = trace_queue_new()
   trace_apply(
@@ -543,10 +545,11 @@ test "coverage sidecar persists exact TB counters" {
     mapped_unique_pc: 5,
     edges: 9,
     mapped_edges: 3,
+    edge_keys: ["16,32", "32,48"],
   }
   // 7 > 5 and 9 > 3 on purpose: the sidecar must keep both the mapped and the
   // total numbers instead of collapsing them into one.
-  persist_coverage(cfg, task, tr, ["camlMoonc__A", "camlMoonc__B"])
+  persist_coverage(cfg, task, tr, ["camlMoonc__A", "camlMoonc__B"], true)
   let dir = join(
     join(join(join(cfg.out, "corpus"), "coverage"), "t2"),
     "accepted",
@@ -564,4 +567,143 @@ test "coverage sidecar persists exact TB counters" {
   assert_true(meta.contains("\"trace_func_count\":1"))
   assert_true(meta.contains("\"tb_counter_scope\":\"latest_trace\""))
   assert_true(meta.contains("\"edge_scope\":\"mapped_both_endpoints\""))
+  assert_true(meta.contains("\"trace_edge_keys\":2"))
+  assert_true(meta.contains("\"edge_novel\":true"))
+}
+
+///|
+fn trace_test_result_edges(
+  functions : Array[String],
+  keys : Array[String],
+) -> @trace.TraceResult {
+  {
+    ..trace_test_result(functions),
+    edges: keys.length(),
+    mapped_edges: keys.length(),
+    edge_keys: keys,
+  }
+}
+
+///|
+test "edge universe dedups, caps, and saturates without evicting" {
+  let cov = trace_universe_new()
+  cov.edge_cap = 2
+  let mut added_total = 0
+  added_total += edge_universe_add(cov, ["1,2"])
+  added_total += edge_universe_add(cov, ["1,2"])
+  assert_eq(added_total, 1)
+  added_total += edge_universe_add(cov, ["2,3", "2,3"])
+  assert_eq(added_total, 2)
+  assert_eq(cov.edge_seen.length(), 2)
+  // Exactly at capacity but nothing has been refused yet.
+  assert_false(cov.edge_saturated)
+  // The next genuinely new key would exceed the cap: refuse, record, and stop.
+  added_total += edge_universe_add(cov, ["3,4"])
+  assert_true(cov.edge_saturated)
+  assert_eq(added_total, 2)
+  // Saturation is sticky; later calls cannot add and still report zero.
+  added_total += edge_universe_add(cov, ["5,6"])
+  assert_eq(cov.edge_seen.length(), 2)
+  assert_eq(added_total, 2)
+  // Keys already retained are still recognized after saturation.
+  assert_eq(edge_universe_add(cov, ["1,2"]), 0)
+}
+
+///|
+test "edge-only novelty earns a smaller bonus than function novelty" {
+  let f = feedback_new()
+  ignore(feedback_upsert(f, "edge-only", @cov.FuncSet::new([]), 0, 2))
+  ignore(feedback_upsert(f, "func-only", @cov.FuncSet::new(["f1"]), 1, 0))
+  ignore(feedback_upsert(f, "both", @cov.FuncSet::new(["f2"]), 1, 2))
+  let ei = f.index.get(@corpus.sha1_hex("edge-only")).unwrap()
+  let fi = f.index.get(@corpus.sha1_hex("func-only")).unwrap()
+  let bi = f.index.get(@corpus.sha1_hex("both")).unwrap()
+  assert_eq(f.entries[ei].energy, 1 + EDGE_NOVELTY_BONUS)
+  assert_eq(f.entries[fi].energy, FUNC_NOVELTY_BONUS)
+  assert_eq(f.entries[bi].energy, FUNC_NOVELTY_BONUS + EDGE_NOVELTY_BONUS)
+  assert_true(f.entries[ei].energy < f.entries[fi].energy)
+  assert_true(EDGE_NOVELTY_BONUS < FUNC_NOVELTY_BONUS)
+}
+
+///|
+test "an edge-only trace is admitted and rewarded small, exactly once" {
+  let cfg = trace_test_cfg()
+  let f = feedback_new()
+  ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0, 0))
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  trace_apply(
+    cfg,
+    trace_test_task("edge"),
+    trace_test_result_edges([], ["1,2", "2,3"]),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(cov.new_edges, 2)
+  assert_eq(cov.coverage_adds, 0)
+  assert_eq(f.entries.length(), 2)
+  let ei = f.index.get(@corpus.sha1_hex("edge")).unwrap()
+  let edge_energy = f.entries[ei].energy
+  assert_eq(edge_energy, 1 + EDGE_NOVELTY_BONUS)
+  let sidecar = join(
+    join(join(join(cfg.out, "corpus"), "coverage"), "t2"),
+    "accepted",
+  )
+  let path = join(sidecar, "ih" + "_" + @corpus.sha1_hex("cfg") + ".json")
+  let first = @fs.read_file_to_string(path) catch { _ => "" }
+  assert_true(first.contains("\"trace_edge_keys\":2"))
+  assert_true(first.contains("\"edge_novel\":true"))
+  // Replaying the same trace adds no edges and must not bump energy again.
+  trace_apply(
+    cfg,
+    trace_test_task("edge"),
+    trace_test_result_edges([], ["1,2", "2,3"]),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(cov.new_edges, 2)
+  assert_eq(f.entries[ei].energy, edge_energy)
+  let second = @fs.read_file_to_string(path) catch { _ => "" }
+  assert_true(second.contains("\"edge_novel\":false"))
+}
+
+///|
+test "edgeless traces keep edge counters at zero and do not panic" {
+  let cfg = trace_test_cfg()
+  cfg.out = "/tmp/mbtfuzz_edgeless_wbtest"
+  rm_rf(cfg.out)
+  let f = feedback_new()
+  let cov = trace_universe_new()
+  let q = trace_queue_new()
+  q.baseline_expected = 1
+  q.baseline_settled = false
+  q.baseline_complete = false
+  // Candidate with functions but no mapped transitions: buffered, no reward.
+  trace_apply(
+    cfg,
+    trace_test_task("candidate"),
+    trace_test_result(["f1"]),
+    cov,
+    f,
+    q,
+  )
+  assert_eq(cov.pending.length(), 1)
+  assert_eq(cov.new_edges, 0)
+  // Baseline is edgeless too; settling must not touch edge state.
+  trace_apply(
+    cfg,
+    trace_test_task_stage("seed", @trace.T2, true),
+    trace_test_result(["f1"]),
+    cov,
+    f,
+    q,
+  )
+  assert_true(q.baseline_complete)
+  assert_eq(cov.pending.length(), 0)
+  assert_eq(cov.edge_seen.length(), 0)
+  assert_eq(cov.new_edges, 0)
+  assert_false(cov.edge_saturated)
+  assert_eq(cov.coverage_adds, 0)
 }
