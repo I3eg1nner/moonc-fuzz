@@ -152,7 +152,7 @@ F1b/F2b/F4b 是额外 witness，暂按栈或异常签名归入 F1/F2/F4，不声
 
 改进成本与样本量评估见 `findings/improvement_evaluation.md`：有效真实包
 162 个 artifact、8,849 个测试、0 candidate；IR 12,096 例（v1）/ 12,096 例（动态索引 v2）、0 错误；
-native 四格：111 个有效包、184 个 artifact、9,249 个 test ID、0 个确认候选；`async/http` 的网络候选经 `--repeats 3 --aa` 复核后消失；111 包 `repeats=2 --aa` 复核为 0 candidate/0 changed（`diff` blackbox baseline 不绿）。另跑 native `--llvm-opt 3`：184 artifact、9,249 test ID、0 candidate。详见 `findings/native_fourcell.md`。
+native 四格：111 个有效包、184 个 artifact、9,249 个 test ID、0 个确认候选；`async/http` 的网络候选经 `--repeats 3 --aa` 复核后消失；111 包 `repeats=2 --aa` 复核为 0 candidate/0 changed（`diff` blackbox baseline 不绿）。另跑 native `--llvm-opt 3`：184 artifact、9,249 test ID、0 candidate。JS 四格：103 个有 evidence 的包、173 artifact、9,031 test ID、0 candidate；`repeats=2 --aa` 为 0 candidate/0 changed（`diff` blackbox baseline 不绿）。详见 `findings/native_fourcell.md`、`findings/js_fourcell.md`。
 
 trace 转换器的 native release 实现在 101 MB check trace 上约 0.48 s，
 Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
@@ -172,7 +172,7 @@ Python 参考约 1.80 s。该数字仅指转换器，不代表整体吞吐。
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
   `regress`、`f6matrix`、`accept`。
 
-当前 157 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 159 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于

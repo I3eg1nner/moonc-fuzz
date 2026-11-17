@@ -127,6 +127,13 @@ moon run cmd/optdiff -- \
   --packages moonbitlang/core/argparse \
   --target native --four-cell --llvm-opt 3
 
+# JS four-cell: link-core .js + node --enable-source-maps.
+moon run cmd/optdiff -- \
+  --module /data/audit/mbtfuzz/seeds \
+  --out /tmp/optdiff-four-js \
+  --packages moonbitlang/core/argparse \
+  --target js --four-cell
+
 # Four-cell link-injection control. The mutant package core is substituted only
 # in the link-default arms; expected link_changed>0, build_changed=0,
 # both_changed>0, candidate=true, exit 1.
@@ -200,7 +207,7 @@ guarantee metadata consistency if a test structure is mutated.
 `-O0`), and `BdLd` (both default). The default build arm is produced by
 removing `-O0` from the replayed `build-package` argv; it does not use
 `moon test --release` and therefore does not switch `assert.mbt` to
-`assert_release.mbt`. `--target native` additionally pairs `link-core` `.o` outputs with `cc` `.exe` outputs and expands `$MOON_HOME`; its build dimension is not skipped. `--llvm-opt N` is native-only: it appends `-llvm-opt N` only to the link-default arms, not to `B0L0`/`BdL0`, and is still a debug-assert comparison. The four-cell mode accepts a comma-separated package
+`assert_release.mbt`. `--target native` additionally pairs `link-core` `.o` outputs with `cc` `.exe` outputs and expands `$MOON_HOME`; its build dimension is not skipped. `--target js` pairs `link-core` `.js` outputs with `node --enable-source-maps` and a trailing JSON test-args argument. `--llvm-opt N` is native-only: it appends `-llvm-opt N` only to the link-default arms, not to `B0L0`/`BdL0`, and is still a debug-assert comparison. The four-cell mode accepts a comma-separated package
 list; each package gets its own source copy, build tree, evidence and summary,
 keyed by the sanitized package name plus a short hash (so `a/b__c` and
 `a__b/c` cannot collide). Artifact basenames must be unique within a package;
@@ -249,7 +256,7 @@ sequence, and removes dead lets/no-op assignments. It is not yet a
 compiler-difference reducer; the separate `--reduce-failure` predicate preserves
 the original failure class, not merely “no crash.” `--four-cell` compiles the same emitted
 source into build O0/default and link O0/default arms and checks each arm
-against the interpreter event stream directly. It supports wasm-gc (default), wasm, and native, uses a
+against the interpreter event stream directly. It supports wasm-gc (default), wasm, js, and native, uses a
 writable per-run directory under OUT, must run serially, and currently skips
 `--reduce`. “Default” means omitting `-O0`, not explicit `-O2`. Its harness
 control `--inject-arm B0Ld` appends a wrong event only to that arm: the row must
@@ -276,7 +283,7 @@ samples does not establish general compiler correctness or a complete IR.
 
 ## Measured results
 
-- Tests: 157 unit tests (`moon test`); GitHub Actions runs `moon check`,
+- Tests: 159 unit tests (`moon test`); GitHub Actions runs `moon check`,
   `moon build`, `moon test`, `moon fmt --check` and the example on every push.
 - `trace2funcs`: exact set equality with Python on three real traces
   (1,864 / 1,354 / 599 functions). Release native is about 4× faster on the

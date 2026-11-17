@@ -300,3 +300,25 @@ test "native llvm opt appends exactly one value" {
   assert_eq(a[a.length() - 2], "-llvm-opt")
   assert_eq(a[a.length() - 1], "3")
 }
+
+///|
+test "js target uses js artifact extension" {
+  assert_eq(target_ext("js"), ".js")
+  assert_eq(target_ext("wasm"), ".wasm")
+  assert_eq(target_ext("wasm-gc"), ".wasm")
+  assert_eq(target_ext("native"), ".wasm")
+}
+
+///|
+test "node test runs parse as js artifacts" {
+  let json = "{\"package\":\"p\",\"file_and_index\":[[\"a.mbt\",[{\"start\":0,\"end\":2}]]]}"
+  let line = "/usr/bin/node --enable-source-maps /tmp/build/a.blackbox_test.js '" +
+    json +
+    "'"
+  let runs = parse_runs([line])
+  assert_true(runs is Some(_))
+  let run = runs.unwrap()[0]
+  assert_eq(run.wasm_path, "/tmp/build/a.blackbox_test.js")
+  assert_eq(run.wasm_index, 2)
+  assert_eq(run.expected.length(), 2)
+}

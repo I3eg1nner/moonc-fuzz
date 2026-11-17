@@ -86,6 +86,15 @@ fn artifact_stem(path : String) -> String {
 }
 
 ///|
+fn target_ext(target : String) -> String {
+  if target == "js" {
+    ".js"
+  } else {
+    ".wasm"
+  }
+}
+
+///|
 fn usage() -> Unit {
   println(
     "usage: optdiff --module ABS_DIR --out ABS_DIR [--packages p1,p2] [--target wasm-gc|wasm|native] [--llvm-opt N] [--timeout MS] [--repeats N] [--aa] [--four-cell] [--four-cell-control FILE FROM TO] [--candidate-check FILE FROM TO] [--fault-check FILE FROM TO]",
@@ -663,20 +672,25 @@ fn parse_runs(runs : Array[String]) -> Array[RunTask]? {
       None => return None
     }
     let args_i = match find_arg(argv, "--test-args") {
-      Some(i) => i
-      None => return None
+      Some(i) => i + 1
+      None =>
+        if argv.length() > 0 && argv[argv.length() - 1].has_prefix("{") {
+          argv.length() - 1
+        } else {
+          return None
+        }
     }
-    if args_i + 1 >= argv.length() {
+    if args_i >= argv.length() {
       return None
     }
-    let expected = match expected_ids(argv[args_i + 1]) {
+    let expected = match expected_ids(argv[args_i]) {
       Some(e) => e
       None => return None
     }
     let mut wasm_i = -1
     let mut wasm_path = ""
     for i, a in argv {
-      if a.has_suffix(".wasm") {
+      if a.has_suffix(".wasm") || a.has_suffix(".js") {
         if wasm_i >= 0 {
           return None
         }
@@ -1245,7 +1259,7 @@ async fn run_test_arm(
   let mut base_results : Map[String, String] = Map([])
   let mut r = 0
   while r < repeats {
-    let repeated_path = arm_path + ".r" + r.to_string() + ".wasm"
+    let repeated_path = arm_path + ".r" + r.to_string() + target_ext(cfg.target)
     let link_cmd = match make_link_argv(link_argv, repeated_path, remove_o0) {
       Some(a) => a
       None => return None
@@ -1394,8 +1408,11 @@ async fn run_native_test_arm(
 
 ///|
 async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
-  if cfg.target != "wasm" && cfg.target != "wasm-gc" && cfg.target != "native" {
-    println("[optdiff] four-cell needs wasm/wasm-gc/native")
+  if cfg.target != "wasm" &&
+    cfg.target != "wasm-gc" &&
+    cfg.target != "native" &&
+    cfg.target != "js" {
+    println("[optdiff] four-cell needs wasm/wasm-gc/native/js")
     @env.exit(2)
   }
   let pkg_tag = package_tag(pkg)
@@ -1859,7 +1876,8 @@ async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
   let runs : Array[String] = []
   for line in actual.stderr.split("\n") {
     let t = line.trim()
-    if t.has_prefix("moonrun --test-args ") {
+    if t.has_prefix("moonrun --test-args ") ||
+      (t.contains("--enable-source-maps") && t.contains(".js ")) {
       runs.push(t.to_owned())
     }
   }
@@ -2006,10 +2024,11 @@ async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
     }
     let arm_base = @corpus.join(arm_root, base)
     @corpus.ensure_dir(arm_base)
-    let a0 = @corpus.join(arm_base, "B0L0.wasm")
-    let ald = @corpus.join(arm_base, "B0Ld.wasm")
-    let ad0 = @corpus.join(arm_base, "BdL0.wasm")
-    let add = @corpus.join(arm_base, "BdLd.wasm")
+    let ext = target_ext(cfg.target)
+    let a0 = @corpus.join(arm_base, "B0L0" + ext)
+    let ald = @corpus.join(arm_base, "B0Ld" + ext)
+    let ad0 = @corpus.join(arm_base, "BdL0" + ext)
+    let add = @corpus.join(arm_base, "BdLd" + ext)
     let core_name = @corpus.basename(pkg)
     let m00 = run_test_arm(
       cfg,
@@ -3038,7 +3057,8 @@ async fn process_package(
   let runs : Array[String] = []
   for line in base.stderr.split("\n") {
     let t = line.trim()
-    if t.has_prefix("moonrun --test-args ") {
+    if t.has_prefix("moonrun --test-args ") ||
+      (t.contains("--enable-source-maps") && t.contains(".js ")) {
       runs.push(t.to_owned())
     }
   }

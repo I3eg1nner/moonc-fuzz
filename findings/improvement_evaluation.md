@@ -307,3 +307,18 @@ native 四格已经接入 `cmd/optdiff`，并对 142 个包目录完成扫描：
 这条结果不改变第 4 节的结论：native 全量仍然没有真实缺陷，但把“native 不可测”的边界推进成了“已覆盖 111 包、9,249 test ID 的负证据”。111 包 `repeats=2 --aa` 为 0 candidate/0 changed（`diff` blackbox baseline 不绿）；显式 `--llvm-opt 3` 也是 184 artifact、9,249 test ID、0 candidate。
 
 IR 侧把动态 `a[i]` 写入加入 len-bound loop 后再跑 12,096 例：0 错误，动态索引出现在 2,076/12,000 个随机样本中。IR 仍没有发现编译器差异。
+
+## 8. 后续更新：JS 四格
+
+JS 后端已接入：
+
+```
+103 个有 evidence 的包
+173 artifact
+9,031 test ID
+0 candidate
+173/173 个 artifact 的四臂 JS 输出不同
+```
+
+`repeats=2 --aa` 复核仍为 0 candidate / 0 changed；102/103 包 clean，`diff`
+的 blackbox baseline 不绿。详细证据见 `findings/js_fourcell.md`。
