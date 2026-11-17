@@ -16,11 +16,12 @@ fn join_events(events : Array[String]) -> String {
 }
 
 ///|
-fn write(path : String, text : String) -> Unit {
+fn write(path : String, text : String) -> Bool {
   @corpus.ensure_dir(@corpus.dirname(path))
   @fs.write_string_to_file(path, text) catch {
-    _ => ()
+    _ => return false
   }
+  true
 }
 
 ///|
@@ -43,6 +44,160 @@ fn parse_int(s : String, dflt : Int32) -> Int32 {
 }
 
 ///|
+fn strip_flag(argv : Array[String], flag : String) -> Array[String] {
+  let out : Array[String] = []
+  for a in argv {
+    if a != flag {
+      out.push(a)
+    }
+  }
+  out
+}
+
+///|
+fn build_args(
+  target : String,
+  bundle : String,
+  pkg : String,
+  all_pkgs : String,
+  out : String,
+  with_o0 : Bool,
+) -> Array[String] {
+  let args : Array[String] = [
+    "build-package",
+    "in.mbt",
+    "-o",
+    out,
+    "-pkg",
+    pkg,
+    "-pkg-type",
+    "executable",
+    "-pkg-sources",
+    pkg + ":.",
+    "-target",
+    target,
+    "-g",
+  ]
+  if with_o0 {
+    args.push("-O0")
+  }
+  args.push("-workspace-path")
+  args.push(".")
+  args.push("-all-pkgs")
+  args.push(all_pkgs)
+  args.push("-i")
+  args.push(
+    @corpus.join(bundle, "builtin/builtin.mi") + ":moonbitlang/core/builtin",
+  )
+  args.push("-i")
+  args.push(@corpus.join(bundle, "prelude/prelude.mi") + ":prelude")
+  args
+}
+
+///|
+async fn four_cell_case(
+  program : @ir.Program,
+  case_id : String,
+  wd : String,
+  moonc : String,
+  moonrun : String,
+  target : String,
+  bundle : String,
+  core_dir : String,
+  pkg : String,
+  pkg_config : String,
+  all_pkgs : String,
+  timeout_ms : Int32,
+) -> String {
+  let events = Some(@ir.run(program, 10000)) catch { _ => None }
+  let expected = match events {
+    Some(e) => join_events(e)
+    None => ""
+  }
+  let target_text = if expected == "" { "" } else { expected + "\n" }
+  let src = @ir.emit_program(program)
+  let wrote = write(@corpus.join(wd, "in.mbt"), src)
+  let b0 = @exec.run(
+    moonc,
+    build_args(target, bundle, pkg, all_pkgs, "out_O0.core", true),
+    wd,
+    timeout_ms,
+    max_output_bytes=8 * 1024 * 1024,
+  )
+  let bd = @exec.run(
+    moonc,
+    build_args(target, bundle, pkg, all_pkgs, "out_default.core", false),
+    wd,
+    timeout_ms,
+    max_output_bytes=8 * 1024 * 1024,
+  )
+  let build_ok = events is Some(_) && wrote && b0.rc == 0 && bd.rc == 0
+  let mut ok = build_ok
+  let arm_text = StringBuilder()
+  for arm in ["B0L0", "B0Ld", "BdL0", "BdLd"] {
+    let build_o0 = arm == "B0L0" || arm == "B0Ld"
+    let link_o0 = arm == "B0L0" || arm == "BdL0"
+    let core = if build_o0 { "out_O0.core" } else { "out_default.core" }
+    let wasm = arm + ".wasm"
+    let largs = @oracle.link_args(
+      target, bundle, core_dir, pkg, pkg_config, core, wasm,
+    )
+    let largs = if link_o0 { largs } else { strip_flag(largs, "-O0") }
+    let lr = @exec.run(
+      moonc,
+      largs,
+      wd,
+      timeout_ms,
+      max_output_bytes=8 * 1024 * 1024,
+    )
+    let rr = if lr.rc == 0 {
+      @exec.run(
+        moonrun,
+        [wasm],
+        wd,
+        timeout_ms,
+        max_output_bytes=8 * 1024 * 1024,
+      )
+    } else {
+      @corpus.ensure_dir(wd)
+      {
+        rc: -1,
+        stdout: "",
+        stderr: "link failed",
+        ms: 0L,
+        timed_out: false,
+        stdout_digest: "",
+        stdout_full_len: 0L,
+        stdout_truncated: false,
+      }
+    }
+    let arm_ok = build_ok &&
+      lr.rc == 0 &&
+      rr.rc == 0 &&
+      !rr.timed_out &&
+      !rr.stdout_truncated &&
+      rr.stdout == target_text
+    if !arm_ok {
+      ok = false
+    }
+    arm_text.write_string(",\"")
+    arm_text.write_string(arm)
+    arm_text.write_string("\":")
+    arm_text.write_string(if arm_ok { "true" } else { "false" })
+  }
+  "{\"case\":\"" +
+  @corpus.json_escape(case_id) +
+  "\",\"four_cell\":true,\"ok\":" +
+  (if ok { "true" } else { "false" }) +
+  ",\"build_O0_rc\":" +
+  b0.rc.to_string() +
+  ",\"build_default_rc\":" +
+  bd.rc.to_string() +
+  arm_text.to_string() +
+  "}"
+}
+
+///|
 async fn main {
   let args = @env.args()
   let home = match @env.get_env_var("HOME") {
@@ -54,6 +209,7 @@ async fn main {
   let mut random_n = 0
   let mut seed = 1
   let mut do_reduce = false
+  let mut four_cell = false
   let mut ai = 3
   while ai < args.length() {
     if args[ai] == "--random" && ai + 1 < args.length() {
@@ -65,8 +221,13 @@ async fn main {
     } else if args[ai] == "--reduce" {
       do_reduce = true
       ai += 1
+    } else if args[ai] == "--four-cell" {
+      four_cell = true
+      ai += 1
     } else {
-      println("usage: irprobe ROOT OUT [--random N] [--seed S] [--reduce]")
+      println(
+        "usage: irprobe ROOT OUT [--random N] [--seed S] [--reduce] [--four-cell]",
+      )
       @env.exit(2)
     }
   }
@@ -93,8 +254,19 @@ async fn main {
   let mut errors = 0
   for i, program in programs {
     let tag = i.to_string()
-    let wd = @corpus.join("/tmp/mbtfuzz_irprobe", "p" + tag)
+    let wd = @corpus.join(@corpus.join(out, "work"), "p" + tag)
     @corpus.ensure_dir(wd)
+    if four_cell {
+      let row = four_cell_case(
+        program, tag, wd, moonc, moonrun, "wasm-gc", wasm_bundle, core, pkg, pkg_config,
+        all_pkgs, 30000,
+      )
+      if !row.contains("\"ok\":true") {
+        errors += 1
+      }
+      rows.push(row)
+      continue
+    }
     let interpreter_events = Some(@ir.run(program, 10000)) catch { _ => None }
     let expected = match interpreter_events {
       Some(events) => join_events(events)
@@ -121,7 +293,7 @@ async fn main {
     }
     let after_stmts = @ir.statement_count(used_program)
     let src = @ir.emit_program(used_program)
-    write(@corpus.join(wd, "in.mbt"), src)
+    let wrote = write(@corpus.join(wd, "in.mbt"), src)
     let d = @oracle.diff_program(
       moonc,
       moonrun,
@@ -140,6 +312,7 @@ async fn main {
     let wasm_ok = d.wasm_out == target
     let js_ok = d.js_out == target
     let ok = interpreter_events is Some(_) &&
+      wrote &&
       d.verdict == @oracle.Same &&
       d.wasm_rc == 0 &&
       d.js_rc == 0 &&
@@ -190,7 +363,9 @@ async fn main {
     b.write_string(row)
     b.write_string("\n")
   }
-  write(@corpus.join(out, "rows.jsonl"), b.to_string())
+  if !write(@corpus.join(out, "rows.jsonl"), b.to_string()) {
+    errors += 1
+  }
   println("[irprobe] cases=\{programs.length()} errors=\{errors}")
   if errors > 0 {
     @env.exit(1)

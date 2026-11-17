@@ -4,6 +4,7 @@ import {
   "moonbitlang/x/fs",
   "I3eg1nner/mbtfuzz/ir",
   "I3eg1nner/mbtfuzz/oracle",
+  "I3eg1nner/mbtfuzz/exec",
   "I3eg1nner/mbtfuzz/corpus",
 }
 

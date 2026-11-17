@@ -134,6 +134,11 @@ moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irprobe \
 # program and repeat the wasm/js comparison.
 moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irprobe \
   --random 30 --seed 1 --reduce
+
+# Four-cell IR check: same source, build O0/default × link O0/default; every
+# arm must match the interpreter event stream, not merely the other arms.
+moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irfour \
+  --four-cell --random 20 --seed 1
 ```
 
 `cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
@@ -213,14 +218,21 @@ final extra condition evaluation. Division, floats, strings, closures, generics,
 traits and trap semantics are excluded. The interpreter fuel is a screening
 budget: exhaustion is a failed/invalid sample, not a program result. Locals and
 parameters may not shadow functions, `println`, or generated `__` names.
-Restricted random generation is connected to `irprobe`; four-cell integration
-is not. The generator uses one fixed main/helper shape, `size=8` in the probe,
+Restricted random generation, trace-preserving reduction and a four-cell IR
+probe are connected to `irprobe`. The generator uses one fixed main/helper shape, `size=8` in the probe,
 and generates `Index`/`Len` in expression positions, but not nested functions
 or array aliasing interactions. `--reduce` is a statement-level, trace-preserving reducer: it
 requires type validity, successful interpretation and an identical event
 sequence, and removes dead lets/no-op assignments. It is not yet a
 compiler-difference reducer; a future predicate must preserve the original
-failure class, not merely “no crash.” The interpreter is the semantic oracle;
+failure class, not merely “no crash.” `--four-cell` compiles the same emitted
+source into build O0/default and link O0/default arms and checks each arm
+against the interpreter event stream directly. It is wasm-gc only, uses a
+writable per-run directory under OUT, must run serially, and currently skips
+`--reduce`. “Default” means omitting `-O0`, not explicit `-O2`. It currently has
+no injected failure positive control, so all-green samples only calibrate
+connectivity; per-arm booleans require successful builds and interpreter
+success as well as matching output. The interpreter is the semantic oracle;
 `cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output
 and byte-equal event text (including the final newline). It runs three hand
 calibration programs plus optional deterministic generated programs
