@@ -139,6 +139,11 @@ moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irprobe \
 # arm must match the interpreter event stream, not merely the other arms.
 moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irfour \
   --four-cell --random 20 --seed 1
+
+# Failure-category reduction control: preserve type validity, interpreter
+# success, the complete event trace, and the four-arm reason vector.
+moon run cmd/irprobe -- /data/audit/mbtfuzz /tmp/mbtfuzz_irreduce \
+  --four-cell --reduce-failure --inject-arm B0Ld
 ```
 
 `cmd/optdiff` currently isolates **link-core** `-O0` only. It copies the source
@@ -235,11 +240,16 @@ show only `B0Ld=false` / `B0Ld_reason="mismatch"` and exit 1; `--inject-arm all`
 must make all four arms false and exit 1. Per-arm reasons distinguish
 `interpreter`, `write`, `build_O0`, `build_default`, `link`, `run`, `timeout`,
 `truncated`, `mismatch`, and `ok`. These are detection-chain controls, not
-optimizer defects.
+optimizer defects. `--reduce-failure` additionally preserves the complete
+interpreter event trace and the four-arm reason vector; the fourth hand sample
+contains a removable dead `let`, so the control must reduce 2→1 statements and
+keep `[ok,mismatch,ok,ok]`. It is validated with an injected arm, so it is
+still a harness control, not evidence of an optimizer failure. A no-injection
+run is rejected as `no_failure` rather than claiming a reduction.
 All-green samples only calibrate connectivity; per-arm booleans require
 successful builds and interpreter success as well as matching output. The interpreter is the semantic oracle;
 `cmd/irprobe` requires interpreter success, wasm/js rc=0, non-truncated output
-and byte-equal event text (including the final newline). It runs three hand
+and byte-equal event text (including the final newline). It runs four hand
 calibration programs plus optional deterministic generated programs
 (`--random N --seed S`); the generator only emits this supported subset. Passing these
 samples does not establish general compiler correctness or a complete IR.

@@ -234,6 +234,212 @@ async fn four_cell_case(
 }
 
 ///|
+fn reason_field(row : String, key : String) -> String {
+  let needle = "\"" + key + "\":\""
+  match row.find(needle) {
+    Some(i) => {
+      let rest = row[i + needle.length():].to_owned()
+      match rest.find("\"") {
+        Some(j) => rest[0:j].to_owned()
+        None => ""
+      }
+    }
+    None => ""
+  }
+}
+
+///|
+fn reason_vector(row : String) -> Array[String] {
+  [
+    reason_field(row, "B0L0_reason"),
+    reason_field(row, "B0Ld_reason"),
+    reason_field(row, "BdL0_reason"),
+    reason_field(row, "BdLd_reason"),
+  ]
+}
+
+///|
+fn vectors_equal(a : Array[String], b : Array[String]) -> Bool {
+  if a.length() != b.length() {
+    return false
+  }
+  for i, x in a {
+    if x != b[i] {
+      return false
+    }
+  }
+  true
+}
+
+///|
+fn main_body(program : @ir.Program) -> Array[@ir.Stmt] {
+  for f in program.funcs {
+    if f.name == "main" {
+      return f.body
+    }
+  }
+  []
+}
+
+///|
+fn with_main_body(program : @ir.Program, body : Array[@ir.Stmt]) -> @ir.Program {
+  let funcs : Array[@ir.Func] = []
+  for f in program.funcs {
+    if f.name == "main" {
+      funcs.push({ ..f, body, })
+    } else {
+      funcs.push(f)
+    }
+  }
+  { funcs, }
+}
+
+///|
+fn without_stmt(body : Array[@ir.Stmt], index : Int32) -> Array[@ir.Stmt] {
+  let out : Array[@ir.Stmt] = []
+  for i, s in body {
+    if i != index {
+      out.push(s)
+    }
+  }
+  out
+}
+
+///|
+fn events_equal(a : Array[String], b : Array[String]) -> Bool {
+  if a.length() != b.length() {
+    return false
+  }
+  for i, x in a {
+    if x != b[i] {
+      return false
+    }
+  }
+  true
+}
+
+///|
+async fn reduce_failure_case(
+  program : @ir.Program,
+  case_id : String,
+  wd : String,
+  moonc : String,
+  moonrun : String,
+  target : String,
+  bundle : String,
+  core_dir : String,
+  pkg : String,
+  pkg_config : String,
+  all_pkgs : String,
+  timeout_ms : Int32,
+  inject_arm : String,
+) -> String {
+  let baseline_row = four_cell_case(
+    program, case_id, wd, moonc, moonrun, target, bundle, core_dir, pkg, pkg_config,
+    all_pkgs, timeout_ms, inject_arm,
+  )
+  let baseline = reason_vector(baseline_row)
+  let baseline_events_opt = Some(@ir.run(program, 10000)) catch { _ => None }
+  if baseline_events_opt is None {
+    return "{\"case\":\"" +
+      @corpus.json_escape(case_id) +
+      "\",\"reduce_failure\":true,\"ok\":false,\"error\":\"interpreter\"}"
+  }
+  let baseline_events = baseline_events_opt.unwrap()
+  let has_failure = reason_field(baseline_row, "B0L0_reason") != "ok" ||
+    reason_field(baseline_row, "B0Ld_reason") != "ok" ||
+    reason_field(baseline_row, "BdL0_reason") != "ok" ||
+    reason_field(baseline_row, "BdLd_reason") != "ok"
+  if !has_failure {
+    return "{\"case\":\"" +
+      @corpus.json_escape(case_id) +
+      "\",\"reduce_failure\":true,\"ok\":false,\"error\":\"no_failure\"}"
+  }
+  let before_stmts = @ir.statement_count(program)
+  let mut current = program
+  let mut changed = true
+  while changed {
+    changed = false
+    let body = main_body(current)
+    let mut i = body.length() - 1
+    while i >= 0 {
+      let candidate = with_main_body(current, without_stmt(body, i))
+      let valid = try {
+        @ir.check_program(candidate)
+        events_equal(@ir.run(candidate, 10000), baseline_events)
+      } catch {
+        _ => false
+      }
+      if valid {
+        let row = four_cell_case(
+          candidate,
+          case_id + "_cand",
+          wd,
+          moonc,
+          moonrun,
+          target,
+          bundle,
+          core_dir,
+          pkg,
+          pkg_config,
+          all_pkgs,
+          timeout_ms,
+          inject_arm,
+        )
+        if vectors_equal(reason_vector(row), baseline) {
+          current = candidate
+          changed = true
+        }
+      }
+      i -= 1
+    }
+  }
+  let final_row = four_cell_case(
+    current,
+    case_id + "_final",
+    wd,
+    moonc,
+    moonrun,
+    target,
+    bundle,
+    core_dir,
+    pkg,
+    pkg_config,
+    all_pkgs,
+    timeout_ms,
+    inject_arm,
+  )
+  let after_stmts = @ir.statement_count(current)
+  "{\"case\":\"" +
+  @corpus.json_escape(case_id) +
+  "\",\"four_cell\":true,\"reduce_failure\":true,\"baseline_reasons\":[\"" +
+  @corpus.json_escape(baseline[0]) +
+  "\",\"" +
+  @corpus.json_escape(baseline[1]) +
+  "\",\"" +
+  @corpus.json_escape(baseline[2]) +
+  "\",\"" +
+  @corpus.json_escape(baseline[3]) +
+  "\"],\"before_stmts\":" +
+  before_stmts.to_string() +
+  ",\"after_stmts\":" +
+  after_stmts.to_string() +
+  ",\"preserved\":" +
+  (if vectors_equal(reason_vector(final_row), baseline) {
+    "true"
+  } else {
+    "false"
+  }) +
+  ",\"ok\":" +
+  (if vectors_equal(reason_vector(final_row), baseline) && has_failure {
+    "true"
+  } else {
+    "false"
+  }) +
+  "}"
+}
+
+///|
 async fn main {
   let args = @env.args()
   let home = match @env.get_env_var("HOME") {
@@ -246,6 +452,7 @@ async fn main {
   let mut seed = 1
   let mut do_reduce = false
   let mut four_cell = false
+  let mut reduce_failure = false
   let mut inject_arm = ""
   let mut ai = 3
   while ai < args.length() {
@@ -264,6 +471,9 @@ async fn main {
     } else if args[ai] == "--inject-arm" && ai + 1 < args.length() {
       inject_arm = args[ai + 1]
       ai += 2
+    } else if args[ai] == "--reduce-failure" {
+      reduce_failure = true
+      ai += 1
     } else {
       println(
         "usage: irprobe ROOT OUT [--random N] [--seed S] [--reduce] [--four-cell]",
@@ -282,6 +492,10 @@ async fn main {
   }
   if inject_arm != "" && !four_cell {
     println("[irprobe] --inject-arm requires --four-cell")
+    @env.exit(2)
+  }
+  if reduce_failure && !four_cell {
+    println("[irprobe] --reduce-failure requires --four-cell")
     @env.exit(2)
   }
   @corpus.ensure_dir(out)
@@ -310,10 +524,17 @@ async fn main {
     let wd = @corpus.join(@corpus.join(out, "work"), "p" + tag)
     @corpus.ensure_dir(wd)
     if four_cell {
-      let row = four_cell_case(
-        program, tag, wd, moonc, moonrun, "wasm-gc", wasm_bundle, core, pkg, pkg_config,
-        all_pkgs, 30000, inject_arm,
-      )
+      let row = if reduce_failure {
+        reduce_failure_case(
+          program, tag, wd, moonc, moonrun, "wasm-gc", wasm_bundle, core, pkg, pkg_config,
+          all_pkgs, 30000, inject_arm,
+        )
+      } else {
+        four_cell_case(
+          program, tag, wd, moonc, moonrun, "wasm-gc", wasm_bundle, core, pkg, pkg_config,
+          all_pkgs, 30000, inject_arm,
+        )
+      }
       if !row.contains("\"ok\":true") {
         errors += 1
       }

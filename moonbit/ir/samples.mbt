@@ -55,5 +55,10 @@ pub fn sample_programs() -> Array[Program] {
         ]),
       ],
     },
+    {
+      funcs: [
+        sample_main([Let("dead", I32, ConstI32(7), false), Emit(1, ConstI32(3))]),
+      ],
+    },
   ]
 }
