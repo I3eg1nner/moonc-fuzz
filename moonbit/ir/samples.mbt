@@ -105,5 +105,20 @@ pub fn sample_programs() -> Array[Program] {
         ]),
       ],
     },
+    {
+      funcs: [
+        sample_main([
+          Let("x", I32, ConstI32(1), true),
+          If(Eq(Var("x"), ConstI32(1)), [Assign("x", ConstI32(10))], [
+            Assign("x", ConstI32(20)),
+          ]),
+          Emit(1, Var("x")),
+          If(ConstBool(false), [Assign("x", ConstI32(30))], [
+            Assign("x", ConstI32(40)),
+          ]),
+          Emit(2, Var("x")),
+        ]),
+      ],
+    },
   ]
 }

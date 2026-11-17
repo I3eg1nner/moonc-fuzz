@@ -278,3 +278,10 @@ test "Len=0 last-index access fails instead of wrapping" {
   }
   assert_true(failed)
 }
+
+///|
+test "fixed branch-state merge regression" {
+  let p = sample_programs()[6]
+  let events = run(p, 1000) catch { _ => ["<error>"] }
+  assert_eq(events, ["Emit(1, 10)", "Emit(2, 40)"])
+}
