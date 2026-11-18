@@ -95,5 +95,14 @@ issue 会人为拆开同一个根因。
 - 与 [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372)（F10，
   100% CPU 自旋）明确区分。
 
-**尚未提交。** 提交前需要确认：仓库选择（`moonbit-docs` 是 ICE banner 的入口，
-但这条不是 ICE）、以及是否附上 transcript 文件。
+**已提交**：<https://github.com/moonbitlang/moonbit-docs/issues/1376>（2026-11-18）。
+
+提交形式：`moonbit-docs` 的 **blank issue**（唯一模板是 ICE，本缺陷不是 ICE）。
+标题 65 字符、无前缀、模块名开头。**标签未能加上**：`gh issue create --label`
+没有生效，随后用 API 补加返回
+`403 Must have admin rights to Repository`——该仓库只允许维护者打标签。
+#1372 同样没有标签，所以无标签不是异常。
+
+提交前经过两轮 Codex 审查：第一轮判 No-Go 并指出三处阻塞（BOM 分帧长度写错、
+与 ocaml-lsp#1330 的关系描述失实、`never reads` 等超出证据的措辞），全部修正后
+第二轮判 Go。审稿记录见 `findings/codex_lsp_review.md` 的提交说明段。

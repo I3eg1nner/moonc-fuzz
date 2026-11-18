@@ -1,5 +1,8 @@
 # LSP protocol probe: `moon-lsp` stdio surface (F10 neighbours)
 
+Upstream: filed as [moonbit-docs#1376](https://github.com/moonbitlang/moonbit-docs/issues/1376)
+(F11 and F12 are one report).
+
 Toolchain: `moon 0.1.20261104 (940aa18 2026-11-04)`,
 `moonc v0.10.20+65efd5b93 (2026-11-05)`, `moon-lsp` from the same install.
 Host: single Linux x86_64 machine. Probe: `moonbit/cmd/lspfuzz`, library

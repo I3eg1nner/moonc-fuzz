@@ -214,8 +214,8 @@ plain-struct 控制在四个后端都 ALL_EQUAL。async 侧改为比较测试驱
 | ID | 触发 | 现象 | 上游 |
 |---|---|---|---|
 | F10 | `format-nth` 的最后一个块无结尾换行 | **100% CPU 自旋**，永不返回；加一个 `\n` 即恢复；stderr 无异常 | [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372) |
-| F11 | 请求的 `params` 是 JSON 标量（`null`/数字/字符串/布尔） | 解码异常从 `Lsp__Io.Make.read` 逃逸，**0% CPU**，后续请求不被读取；`{}`/`[]`/省略均正常返回 `-32602`/`-32601`/结果 | 无 |
-| F12 | 一个解码不了的帧（顶层非对象如 `[1,2]`，或头部前 UTF-8 BOM） | 同一逃逸路径的另外两个入口；stdout 开着但不吐字节，后续完整请求不被读取 | 无 |
+| F11 | 请求的 `params` 是 JSON 标量（`null`/数字/字符串/布尔） | 解码异常从 `Lsp__Io.Make.read` 逃逸，**0% CPU**，后续请求不被读取；`{}`/`[]`/省略均正常返回 `-32602`/`-32601`/结果 | [#1376](https://github.com/moonbitlang/moonbit-docs/issues/1376)（与 F12 合并） |
+| F12 | 一个解码不了的帧（顶层非对象如 `[1,2]`、非法 JSON `{,}`，或头部前 UTF-8 BOM） | 同一逃逸路径的另外三个入口；stdout 开着但不吐字节，后续完整请求不被读取 | 同上 |
 
 **F11 与 F12 是同一个缺陷的两个入口**，不是两个独立根因——这是外部 Codex
 复核（`findings/codex_lsp_review.md`）纠正我们的地方。两者都逃出

@@ -1,5 +1,8 @@
 # LSP transport framing and the remaining advertised methods
 
+Upstream: filed as [moonbit-docs#1376](https://github.com/moonbitlang/moonbit-docs/issues/1376)
+(F11 and F12 are one report).
+
 Toolchain: `moon 0.1.20261104 (940aa18 2026-11-04)`,
 `moonc v0.10.20+65efd5b93 (2026-11-05)`, `moon-lsp` from the same install
 (sha256 `5b9f19e9f4874a7ba56624ef3a9bdcd7571702efa01c8a365eede252c2f8801d`).

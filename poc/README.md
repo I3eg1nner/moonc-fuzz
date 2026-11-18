@@ -68,9 +68,10 @@ response, not a crash signature:
   `params` is a JSON scalar; F12 raises `invalid packet` in
   `Jsonrpc.Packet.t_of_yojson` for a non-object body such as `[1,2]`, or
   `content length absent` in `Lsp__Io.Make.read_header` for a UTF-8 BOM.
-  Both are reported as one defect, not two root causes. A dependency-level
-  report exists at [ocaml-lsp#1330](https://github.com/ocaml/ocaml-lsp/issues/1330)
-  and should be linked if these are filed.
+  Both are reported as one defect, not two root causes, upstream as
+  [#1376](https://github.com/moonbitlang/moonbit-docs/issues/1376). A
+  dependency-level report exists at
+  [ocaml-lsp#1330](https://github.com/ocaml/ocaml-lsp/issues/1330).
 - F12 has **no matching upstream report**: a UTF-8 BOM before the first header,
   or a valid non-object JSON body, makes `moon-lsp` log an uncaught exception,
   stay alive at 0% CPU and never process another complete request. The

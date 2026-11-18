@@ -296,3 +296,37 @@ rc=0
 其中 null-id 是必须处理的协议错误响应情形；字符串 id 即使属于错误关联，也足以推翻“未收到任何响应”的断言。
 
 **建议最小加强 oracle：**保留全部原始帧；区分 notification、错误响应和无法关联的响应；任何错误响应都不能算静默；为 F11 增加后续健康请求，并要求所有挂起断言确实等待完整观察窗口。上述风险不影响本次真实 moon-lsp 的结论，因为独立复验确认其 stdout 确实为零字节。
+
+## Second review: the upstream draft (2026-11-18)
+
+The draft for `moonbit-docs` was reviewed twice before filing.
+
+**Round 1 — No-Go**, with three blocking items, all of which we accepted after
+reproducing them:
+
+1. the BOM example declared `Content-Length: 63` for a 56-byte body, and the
+   inline script repeated the mistake, so the sample mixed two errors;
+2. the relation to [ocaml-lsp#1330](https://github.com/ocaml/ocaml-lsp/issues/1330)
+   was wrong: that issue reports a `missing field error` for a **string**
+   `params` on `ocamllsp/switchImplIntf`, the server dies, and its discussion
+   recommends array params — not the same raising site;
+3. several claims outran the evidence (`never reads`, `any malformed JSON`,
+   `the mechanism is the same`, `the read loop is gone`), contradicting the
+   draft's own limitations section.
+
+**Round 2 — Go**, after the fixes: the BOM frame is now built with a computed
+length, `#1330` is restated as a related precedent that does not establish the
+same failure mode, and every open-ended claim is bounded to the 15-second
+observation window.
+
+One number did not survive review: the earlier text said 260 bytes of unread
+follow-up requests. That figure came from the reviewer's own payload pair, not
+ours, so it was replaced by a measurement we could reproduce: `FIONREAD` on the
+pipe reported **254 bytes** after the trigger (an 85-byte `shutdown` plus a
+169-byte `format-nth`), 0 before the trigger, and 0 in the control session that
+answered the same two requests.
+
+**Filed:** <https://github.com/moonbitlang/moonbit-docs/issues/1376>.
+Labels could not be applied — the label API returns
+`403 Must have admin rights to Repository` for outside reporters, and #1372 is
+likewise unlabeled.

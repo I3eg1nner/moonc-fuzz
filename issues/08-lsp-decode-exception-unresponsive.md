@@ -1,5 +1,8 @@
 # `moon-lsp` stops reading requests after an input decoding exception
 
+> **Filed:** <https://github.com/moonbitlang/moonbit-docs/issues/1376> (2026-11-18).
+> Draft kept here for the review trail; the live text is the issue.
+
 `moonbitlang/moonbit-compiler` has issues disabled, and there is no separate
 repository for the language server (`moonbitlang/moonbit-lsp` and the
 `vscode` / `language-server` searches under that org return nothing), so I am

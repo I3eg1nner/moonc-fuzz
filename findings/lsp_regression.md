@@ -1,5 +1,8 @@
 # LSP defect regression gate (`cmd/lspregress`)
 
+Upstream: filed as [moonbit-docs#1376](https://github.com/moonbitlang/moonbit-docs/issues/1376)
+(F11 and F12 are one report).
+
 `moonbit/cmd/lspregress/` is the automated gate for the three documented
 `moon-lsp` stdio defects F10, F11 and F12. It replaces "someone remembers to
 run the PoC" with six black-box cases: one canonical trigger and one control
