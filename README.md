@@ -213,14 +213,20 @@ plain-struct 控制在四个后端都 ALL_EQUAL。async 侧改为比较测试驱
 
 | ID | 触发 | 现象 | 上游 |
 |---|---|---|---|
-| F10 | `format-nth` 的最后一个块无结尾换行 | **100% CPU 自旋**，永不返回；加一个 `\n` 即恢复 | [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372) |
-| F11 | 任意请求，`params` 是 JSON 标量（`null`/数字/字符串/布尔） | **0% CPU 死锁**，方法无关，后续请求全部阻塞；`{}`/`[]`/省略均正常返回 `-32602`/`-32601`/结果 | 无 |
-| F12 | 一个解码不了的帧（头部前 UTF-8 BOM，或顶层非对象如 `[1,2]`） | 未捕获异常从 `Lsp__Io.Make.read` 逃逸，读循环停止；stdout 开着但不吐字节，后续完整请求永不处理 | 无 |
+| F10 | `format-nth` 的最后一个块无结尾换行 | **100% CPU 自旋**，永不返回；加一个 `\n` 即恢复；stderr 无异常 | [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372) |
+| F11 | 请求的 `params` 是 JSON 标量（`null`/数字/字符串/布尔） | 解码异常从 `Lsp__Io.Make.read` 逃逸，**0% CPU**，后续请求不被读取；`{}`/`[]`/省略均正常返回 `-32602`/`-32601`/结果 | 无 |
+| F12 | 一个解码不了的帧（顶层非对象如 `[1,2]`，或头部前 UTF-8 BOM） | 同一逃逸路径的另外两个入口；stdout 开着但不吐字节，后续完整请求不被读取 | 无 |
 
-三者层次不同，不是同一 bug 的变体：F10 在格式化器、F11 在 JSON-RPC 分派、
-F12 在传输解码。F12 的机制有服务端自身栈帧支撑（`Jsonrpc__Import.Json.error`
-→ `Jsonrpc.Packet.t_of_yojson` → `Lsp__Io.Make.read` → `Fiber__Scheduler.exec`），
-但修法未验证。
+**F11 与 F12 是同一个缺陷的两个入口**，不是两个独立根因——这是外部 Codex
+复核（`findings/codex_lsp_review.md`）纠正我们的地方。两者都逃出
+`Lsp__Io.Make.read`，只是抛出点不同：F11 在 `Jsonrpc.Packet.t_of_fields`
+（`invalid structured value`），F12 在 `Jsonrpc.Packet.t_of_yojson`
+（`invalid packet`）或 `Lsp__Io.Make.read_header`（`content length absent`）。
+F10 与它们明确不同：在格式化器内部自旋、100% CPU、无异常。
+
+表述边界：观察到的是**15 秒窗口内无响应、且后续请求字节留在管道里未被读取**，
+不是“永久”的数学证明；机制有服务端自身栈帧支撑，修法未验证。依赖层存在相近
+报告 [ocaml-lsp#1330](https://github.com/ocaml/ocaml-lsp/issues/1330)。
 
 探测与回归：
 

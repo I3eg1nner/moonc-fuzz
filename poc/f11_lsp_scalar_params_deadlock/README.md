@@ -3,12 +3,18 @@
 Pinned: `moon 0.1.20261104`, `moonc v0.10.20+65efd5b93`, `moon-lsp` from the
 same toolchain. Host: Linux x86_64.
 
-This is a language-server deadlock at the JSON-RPC dispatch layer. If a request
+This is a language-server failure at the JSON-RPC decode layer. If a request
 carries `params` as a **JSON scalar** (`null`, a number, a string, or a
-boolean), the server sends no response, stays alive at ~0% CPU, and every later
-request queues behind it forever. Composite params (`{}`, `[]`) and an absent
-`params` member are handled correctly — including a proper `-32602` /
-`-32601` error response.
+boolean), the server raises an uncaught `Jsonrpc` exception out of its stdio
+read loop, sends no response, stays alive at ~0% CPU, and stops reading later
+requests. Composite params (`{}`, `[]`) and an absent `params` member are
+handled correctly — including a proper `-32602` / `-32601` error response.
+
+It is the same escape path as [F12](../f12_lsp_frame_wedge/): an exception
+raised while converting a frame escapes `Lsp__Io.Make.read`. F11 and F12 are
+therefore reported as **one defect with two entry points** (field-level
+conversion here, whole-packet conversion in F12), not as two independent root
+causes. What differs is only where the decoder rejects the input.
 
 It is **not** specific to `shutdown` or to any one method: the same request with
 `"params": {}` answers immediately while `"params": null` hangs.
@@ -66,26 +72,67 @@ loop stops making progress.
 ## Why it is a defect
 
 JSON-RPC 2.0 requires a response to every request: either a result or an error
-object. The server already returns `-32602` for unparseable/absent params and
-`-32601` for an unknown method, so the correct behaviour for a scalar `params`
-is one of those — not silence. LSP clients routinely send `"params": null` for
-zero-argument requests (the LSP specification itself shows that shape for
-`shutdown`), so a conforming client can wedge the server with a single request,
-and every subsequent editor feature stops working.
+object, and it restricts `params` to an object or an array. The server already
+returns `-32602` for unparseable/absent params and `-32601` for an unknown
+method, so the correct behaviour for a scalar `params` is one of those — not
+silence.
+
+The LSP specification defines `shutdown` with **no** params (not
+`"params": null`), so a scalar `params` is a client error rather than something
+the spec blesses. It is nonetheless a realistic one: Emacs 29's built-in Eglot
+calls `jsonrpc-request` with a nil params value, which its JSON-RPC layer
+encodes as JSON `null`. A server that stops serving after one such request is
+therefore unreachable for that client.
+
+## What the server reports
+
+`moon-lsp` prints its own uncaught-exception block for this trigger, capturing
+the escape path:
+
+```
+| Internal error: Uncaught exception.
+| Jsonrpc: json conversion failed: invalid structured value
+| Raised at Jsonrpc__Import.Json.error in file "ocaml-lsp/jsonrpc/src/import.ml", line 22, characters 23-50
+| Called from Jsonrpc__Import.Option.map in file "ocaml-lsp/jsonrpc/src/import.ml", line 7, characters 21-26
+| Called from Jsonrpc.Packet.t_of_fields in file "ocaml-lsp/jsonrpc/src/jsonrpc.ml", line 264, characters 22-78
+| Called from Lsp__Io.Make.read in file "ocaml-lsp/lsp/src/io.ml", line 103, characters 25-58
+| Called from Fiber__Scheduler.exec in file "fiber/src/scheduler.ml", line 73, characters 8-11
+```
+
+An earlier revision of this PoC called F11 a "silent" deadlock and used that to
+distinguish it from F12. That was wrong: the F11 replay script discarded stderr.
+F11 and F12 share the escape path and differ only in which conversion raises.
+
+## Byte-level transcript
+
+`transcript_null.txt` records every byte written and read, with timestamps:
+after `initialize` succeeds (1344 bytes returned), the scalar-`params` request
+and a following complete `shutdown` both elicit **0 bytes** with
+`status=open`, while the process stays alive; stderr carries
+`invalid structured value`.
 
 ## Scope
 
-- Confirmed: request-level deadlock for `params` ∈ {`null`, number, string,
+- Confirmed: request-level failure for `params` ∈ {`null`, number, string,
   boolean}; composite and omitted `params` are fine.
+- Confirmed after a real `didOpen` of a valid file and a successful `hover`:
+  the scalar-`params` request still gets no response.
+- Observation window: responses are absent and later request bytes stay unread
+  for at least 15 s. This is not a proof of permanent failure, only of no
+  recovery within the observed window.
 - Not tested here: notifications with scalar `params` (no response is expected,
   so a hang is not observable the same way), batch requests, and whether the
   same deadlock exists in the Wasm build of the language server.
 - Not claimed: root cause. The reproducible shape and the queue blocking are
   established; the internal reason is not.
 - Distinct from [F10](../f10_lsp_format_nth_hang/): F10 spins at 100% CPU inside
-  the formatter for one malformed-looking-but-valid input and returns as soon
-  as a trailing newline is added. F11 is 0% CPU, method-independent, and
+  the formatter for one valid input and returns as soon as a trailing newline is
+  added, with no exception on stderr. F11 is 0% CPU, method-independent, and
   triggered by the JSON type of `params`.
+- Same layer as [F12](../f12_lsp_frame_wedge/): both raise out of
+  `Lsp__Io.Make.read`. F11 fails in `Jsonrpc.Packet.t_of_fields` while
+  converting `params`; F12 fails in `Jsonrpc.Packet.t_of_yojson` (top-level not
+  an object) or in `Lsp__Io.Make.read_header` (BOM).
 
 ## Upstream
 

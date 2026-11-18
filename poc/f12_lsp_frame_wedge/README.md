@@ -8,7 +8,7 @@
 ## Shape
 
 After a successful `initialize`, a single frame that the server cannot decode
-kills its request processing:
+stops its request processing:
 
 1. the trigger request is never answered (and, for the BOM/array triggers,
    never parsed into a JSON-RPC request at all);
@@ -19,8 +19,8 @@ kills its request processing:
    `Jsonrpc: json conversion failed: invalid packet` for the array.
 
 This is not a temporary stall while waiting for bytes: the declared body was
-fully sent, and the follow-up frame is complete. The connection is unusable
-until the client kills the server, but the server gives no EOF or error.
+fully sent, and the follow-up frame is complete. Within the observed window the connection is unusable until the client
+kills the server, and the server gives no EOF or error.
 
 ## Minimal triggers
 
@@ -82,8 +82,15 @@ as new. It adds:
 - stderr evidence (`Internal error: Uncaught exception.`) distinguishing this
   from F11, which deadlocks silently on scalar `params` at 0% CPU.
 
-F10 (`format-nth` spin at 100% CPU) and F11 (scalar `params` deadlock) are
-unrelated and are excluded from this PoC.
+F10 (`format-nth` spin at 100% CPU, no exception on stderr) is a different
+defect and is excluded from this PoC.
+
+F11 (scalar `params`) is **not** a separate root cause. It escapes through the
+same `Lsp__Io.Make.read` and raises `invalid structured value` in
+`Jsonrpc.Packet.t_of_fields`; F12 raises `invalid packet` in
+`Jsonrpc.Packet.t_of_yojson` (or `content length absent` in `read_header`).
+Both are reported as one defect — an exception escaping the read loop leaves a
+live but unusable session — with different decoder entry points.
 
 ## What the server itself reports
 
@@ -108,8 +115,21 @@ behaviour: stdout stays **open but silent** (a non-blocking read returns no
 bytes rather than EOF, verified separately), the process stays alive at ~0%
 CPU, and later complete requests are never read.
 
-The `bom` trigger raises the same class one layer earlier, in Yojson
-(`Yojson.Json_error(...)`) instead of `Jsonrpc` conversion.
+The `bom` trigger does **not** reach the JSON decoder at all. It raises one
+layer earlier, in header parsing:
+
+```
+| Internal error: Uncaught exception.
+| Error: content length absent
+| Raised at Lsp_fiber__Fiber_io.Io.raise in file "ocaml-lsp/lsp-fiber/src/fiber_io.ml", line 12, characters 22-31
+| Called from Lsp__Io.Make.read_header.(fun) in file "ocaml-lsp/lsp/src/io.ml", line 86, characters 15-55
+| Called from Fiber__Scheduler.exec in file "fiber/src/scheduler.ml", line 73, characters 8-11
+```
+
+So both triggers still escape through `Lsp__Io.Make.read`, but from different
+callees: `read_header` for the BOM, `Jsonrpc.Packet.t_of_yojson` for `[1,2]`.
+An earlier revision of this README said the BOM raised `Yojson.Json_error`;
+that was not reproducible on this pinned binary and has been corrected.
 
 ## Root cause
 
@@ -120,6 +140,15 @@ frame whose top-level JSON value is not an object raises, and nothing between
 `Lsp__Io.Make.read` and the scheduler catches it. A defensive fix would be to
 answer `-32700`/`-32600` and continue reading; the PoC does not verify that such
 a fix exists or works.
+
+## Byte-level transcript
+
+`transcript_array.txt` and `transcript_control.txt` record every byte written
+and read, with timestamps, for the `[1,2]` trigger and the control. In the
+trigger run, 26 bytes (`Content-Length: 5\r\n\r\n[1,2]`) are followed by a
+complete 85-byte `shutdown` frame, and the reader observes **0 bytes for 2 s**
+with `status=open` — not EOF — while `alive_before_kill=True`, then the stderr
+block appears with `invalid packet`. The control run answers both frames.
 
 ## Limitations
 

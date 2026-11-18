@@ -1,0 +1,10 @@
+# F11 scalar null
+t=0.000 TX initialize id=1 142 bytes: b'Content-Length: 119\r\n\r\n{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": null, "capabilities": {}}}'
+t=3.012 RX response id=1 1344 bytes status=open: b'Content-Length: 1263\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n{"id":1,"jsonrpc":"2.0","result":{"capabilities":{"callHierarchyProvider":true,"codeActionProvider":true,"codeLensProvider":{"resolveProvider":false},"completionProvider":{"triggerCharacters":[".","@",":",">","#"]},"definitionProvider":true,"documentFormattingProvider":true,"documentSymbolProvider":true,"foldingRangeP'
+t=3.012 TX initialized 79 bytes: b'Content-Length: 57\r\n\r\n{"jsonrpc": "2.0", "method": "initialized", "params": {}}'
+t=3.012 TX TRIGGER 97 bytes: b'Content-Length: 75\r\n\r\n{"jsonrpc": "2.0", "id": 2, "method": "textDocument/hover", "params": null}'
+t=3.062 TX health shutdown id=3 85 bytes: b'Content-Length: 63\r\n\r\n{"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}}'
+t=5.066 RX responses after trigger 0 bytes status=open: b''
+t=5.868 RX stderr 1110 bytes status=open: b'/-----------------------------------------------------------------------\n| Internal error: Uncaught exception.\n| Jsonrpc: json conversion failed: invalid structured value\n| Raised at Jsonrpc__Import.Json.error in file "ocaml-lsp/jsonrpc/src/import.ml", line 22, characters 23-50\n| Called from Jsonrpc__Import.Option.map in file "ocaml-lsp/jsonrpc/src/import.ml", line 7, characters 21-26\n| Called fro'
+alive_before_kill=True
+killed rc=-9

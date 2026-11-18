@@ -1,0 +1,10 @@
+# F12 control
+t=0.000 TX initialize id=1 142 bytes: b'Content-Length: 119\r\n\r\n{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": null, "capabilities": {}}}'
+t=3.012 RX response id=1 1344 bytes status=open: b'Content-Length: 1263\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n{"id":1,"jsonrpc":"2.0","result":{"capabilities":{"callHierarchyProvider":true,"codeActionProvider":true,"codeLensProvider":{"resolveProvider":false},"completionProvider":{"triggerCharacters":[".","@",":",">","#"]},"definitionProvider":true,"documentFormattingProvider":true,"documentSymbolProvider":true,"foldingRangeP'
+t=3.013 TX initialized 79 bytes: b'Content-Length: 57\r\n\r\n{"jsonrpc": "2.0", "method": "initialized", "params": {}}'
+t=3.013 TX TRIGGER 85 bytes: b'Content-Length: 63\r\n\r\n{"jsonrpc": "2.0", "id": 2, "method": "shutdown", "params": {}}'
+t=3.063 TX health shutdown id=3 85 bytes: b'Content-Length: 63\r\n\r\n{"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}}'
+t=5.068 RX responses after trigger 234 bytes status=open: b'Content-Length: 38\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n{"id":2,"jsonrpc":"2.0","result":null}Content-Length: 38\r\nContent-Type: application/vscode-jsonrpc; charset=utf-8\r\n\r\n{"id":3,"jsonrpc":"2.0","result":null}'
+t=5.870 RX stderr 0 bytes status=open: b''
+alive_before_kill=True
+killed rc=-9

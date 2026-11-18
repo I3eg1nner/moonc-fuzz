@@ -60,16 +60,17 @@ response, not a crash signature:
 - F10 matches [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372)
   (`moon-lsp` `format-nth` hangs at 100% CPU when the last block has no
   trailing newline).
-- F12 has **no matching upstream report**: a single frame that the decoder
-  rejects (UTF-8 BOM before the header, or a valid-JSON-but-not-object body like
-  `[1,2]`) raises out of `Lsp__Io.Make.read` and the whole stdio loop stops, so
-  later complete requests are never read while the process stays alive at 0%
-  CPU with stdout still open. The captured backtrace is in the PoC README.
-- F11 has **no matching upstream report**: `moon-lsp` never answers a request
-  whose `params` is a JSON scalar, while `{}`, `[]` and omitted `params` return
-  a normal `-32602`/`-32601`/`result`. Method-independent (reproduced with
-  `textDocument/hover`, `shutdown`, and an unknown method), 0% CPU, and later
-  requests are blocked behind it.
+- F11 and F12 have **no matching upstream report** and are the same defect with
+  two decoder entry points: an exception raised while converting an input frame
+  escapes `Lsp__Io.Make.read`, after which the process stays alive at ~0% CPU,
+  stdout stays open (not EOF), and later complete requests are never read.
+  F11 raises `invalid structured value` in `Jsonrpc.Packet.t_of_fields` when
+  `params` is a JSON scalar; F12 raises `invalid packet` in
+  `Jsonrpc.Packet.t_of_yojson` for a non-object body such as `[1,2]`, or
+  `content length absent` in `Lsp__Io.Make.read_header` for a UTF-8 BOM.
+  Both are reported as one defect, not two root causes. A dependency-level
+  report exists at [ocaml-lsp#1330](https://github.com/ocaml/ocaml-lsp/issues/1330)
+  and should be linked if these are filed.
 - F12 has **no matching upstream report**: a UTF-8 BOM before the first header,
   or a valid non-object JSON body, makes `moon-lsp` log an uncaught exception,
   stay alive at 0% CPU and never process another complete request. The
