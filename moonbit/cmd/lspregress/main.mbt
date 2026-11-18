@@ -24,13 +24,17 @@
 ///|
 /// What a case asserts about the server's wire behaviour.
 pub(all) enum Expected {
-  /// No response at all within the deadline, process still alive.
+  /// No response frame of any kind within the deadline, process still alive.
   Hang
+  /// F11 defect: a scalar-params request and a following complete request are
+  /// *both* left unanswered, proving session-level loss rather than one
+  /// dropped message.
+  TwoRequestHang(Int32, Int32)
   /// A response with `id` arrives and its body contains `needle`.
   ResponseContains(Int32, String)
   /// A response with `id` arrives and its `error.code` equals `code`.
   ErrorCode(Int32, Int32)
-  /// Every listed response id arrives (used by the F12 control).
+  /// Every listed response id arrives, whether result or error.
   AllAnswered(Array[Int32])
 }
 
@@ -38,6 +42,7 @@ pub(all) enum Expected {
 pub fn Expected::label(self : Expected) -> String {
   match self {
     Hang => "HANG"
+    TwoRequestHang(_, _) => "HANG"
     ResponseContains(_, needle) => "RESPONSE(" + needle + ")"
     ErrorCode(_, code) => "ERROR(" + code.to_string() + ")"
     AllAnswered(ids) => "IDS" + ids_text(ids)
@@ -46,10 +51,16 @@ pub fn Expected::label(self : Expected) -> String {
 
 ///|
 /// One observation of the server's stdout, reduced to response ids/bodies.
-/// Notifications (no `id`) are ignored: they are not responses.
+/// Notifications (no `id` member at all) are ignored: they are not responses.
 pub(all) struct Wire {
+  /// Correlated integer ids, in arrival order.
   ids : Array[Int32]
+  /// Bodies aligned with `ids`.
   bodies : Array[String]
+  /// Every response frame, regardless of id type.  A frame with `id: null`, a
+  /// string id, or even an unparseable id lands here; only notifications do
+  /// not.  `Hang` requires this to be empty.
+  response_frames : Array[String]
   alive : Bool
   timed_out : Bool
   eof : Bool
@@ -122,18 +133,75 @@ pub fn evaluate(e : Expected, w : Wire) -> Verdict {
         )
       } else if w.eof {
         verdict(false, "EXITED", "server exited before the deadline")
-      } else if w.ids.length() > 0 {
+      } else if w.response_frames.length() > 0 {
+        // Any response frame — even one whose id we cannot correlate — means
+        // the server was not silent.  Never report HANG for this case.
+        if w.ids.length() > 0 {
+          verdict(
+            false,
+            response_kind(w.bodies[0]),
+            "response id=" + w.ids[0].to_string() + " arrived; expected silence",
+          )
+        } else {
+          verdict(
+            false,
+            "RESPONSE_UNASSOCIATED",
+            "a response frame arrived but its id could not be correlated: " +
+            clip(w.response_frames[0], 200),
+          )
+        }
+      } else if !w.timed_out {
+        verdict(
+          false, "NO_RESPONSE", "wait ended without a response or timeout",
+        )
+      } else if !w.alive {
+        verdict(false, "CRASH", "server is not alive after the timeout")
+      } else {
+        verdict(true, "HANG", "")
+      }
+    TwoRequestHang(first, second) =>
+      if w.bad_header != "" {
+        verdict(
+          false, "BAD_HEADER", "server produced an unreadable frame header",
+        )
+      } else if w.eof {
+        verdict(false, "EXITED", "server exited before the deadline")
+      } else if body_for_id(w, first) is Some(body) {
+        // The original scalar-params request was answered: F11 is fixed (or
+        // this run did not reproduce it).
         verdict(
           false,
-          response_kind(w.bodies[0]),
-          "response id=" + w.ids[0].to_string() + " arrived; expected silence",
+          response_kind(body),
+          "first request id=" +
+          first.to_string() +
+          " was answered; expected silence",
+        )
+      } else if body_for_id(w, second) is Some(body) {
+        // The follow-up complete request was answered even though the first
+        // was not.  That is queue recovery, not the documented session-level
+        // loss, so it must fail with its own message.
+        verdict(
+          false,
+          "PARTIAL_RECOVERY",
+          "second request id=" +
+          second.to_string() +
+          " was answered after the first was not; this is partial/queue " +
+          "recovery, not the documented F11 session hang: " +
+          clip(body, 200),
+        )
+      } else if w.response_frames.length() > 0 {
+        verdict(
+          false,
+          "RESPONSE_UNASSOCIATED",
+          "a response frame arrived but no expected id could be correlated: " +
+          clip(w.response_frames[0], 200),
         )
       } else if !w.timed_out {
         verdict(
           false, "NO_RESPONSE", "wait ended without a response or timeout",
         )
       } else if !w.alive {
-        verdict(false, "DEAD", "server is not alive after the timeout")
+        verdict(false, "CRASH", "server is not alive after the timeout")
       } else {
         verdict(true, "HANG", "")
       }
@@ -211,14 +279,10 @@ pub fn evaluate(e : Expected, w : Wire) -> Verdict {
       }
     AllAnswered(ids) => {
       let missing : Array[Int32] = []
-      let mut error_body = ""
       for id in ids {
         match body_for_id(w, id) {
           None => missing.push(id)
-          Some(body) =>
-            if @lsp.inspect_response(body).has_error && error_body == "" {
-              error_body = body
-            }
+          Some(_) => ()
         }
       }
       if missing.length() > 0 {
@@ -227,13 +291,11 @@ pub fn evaluate(e : Expected, w : Wire) -> Verdict {
           "MISSING_IDS " + ids_text(missing),
           "saw ids " + ids_text(w.ids),
         )
-      } else if error_body != "" {
-        verdict(
-          false,
-          response_kind(error_body),
-          "control expects a result from every shutdown",
-        )
       } else {
+        // "Answered" means a response frame arrived for every id.  A
+        // spec-conformant server may answer with an error (for example
+        // InvalidRequest after shutdown), and that still proves the stream /
+        // decode loop is healthy, which is what this control checks.
         verdict(true, "IDS " + ids_text(w.ids), "")
       }
     }
@@ -304,8 +366,11 @@ enum Setup {
   Hover(String)
   /// F12 trigger: `Content-Length: 5\r\n\r\n[1,2]`, then shutdown id 3.
   FrameWedge
-  /// F12 control: shutdown id 2, then shutdown id 3.
-  ShutdownTwice
+  /// F12 control: two complete, well-formed `format-nth` requests in a row.
+  TwoHealthy
+  /// F11 defect: scalar-`params` hover (id 2) then a complete `format-nth`
+  /// (id 3).  A healthy server answers both; the defect answers neither.
+  HoverThenFormatNth
 }
 
 ///|
@@ -344,10 +409,10 @@ fn build_cases() -> Array[CaseSpec] {
       FormatNth("fn f() -> Unit {\n  ()\n}\n"),
       "control",
     ),
-    case_spec("F11-hang", Hang, Hover("null"), "defect"),
+    case_spec("F11-hang", TwoRequestHang(2, 3), HoverThenFormatNth, "defect"),
     case_spec("F11-control", ErrorCode(2, -32602), Hover("{}"), "control"),
     case_spec("F12-hang", Hang, FrameWedge, "defect"),
-    case_spec("F12-control", AllAnswered([2, 3]), ShutdownTwice, "control"),
+    case_spec("F12-control", AllAnswered([2, 3]), TwoHealthy, "control"),
   ]
 }
 
@@ -402,6 +467,8 @@ fn now_ms() -> Int64 {
 struct Collected {
   ids : Array[Int32]
   bodies : Array[String]
+  /// Response frames of any id kind (int, string, null, unparseable).
+  frames : Array[String]
   timed_out : Bool
   eof : Bool
   bad_header : String
@@ -434,6 +501,7 @@ async fn collect(
   let deadline = now_ms() + timeout_ms.to_int64()
   let ids : Array[Int32] = []
   let bodies : Array[String] = []
+  let frames : Array[String] = []
   let mut timed_out = true
   let mut eof = false
   let mut bad_header = ""
@@ -445,16 +513,21 @@ async fn collect(
     match read_message(p, left) {
       Msg(body) => {
         let info = @lsp.inspect_response(body)
-        match info.id {
-          // Notifications carry no id and are not responses.
-          None => ()
-          Some(id) => {
-            ids.push(id)
-            bodies.push(body)
-            if satisfied(ids, want) {
-              timed_out = false
-              break
+        if info.is_response() {
+          // Record every response frame.  Correlation by integer id is a
+          // separate concern; silence is not.
+          frames.push(body)
+          match info.id {
+            Some(id) => {
+              ids.push(id)
+              bodies.push(body)
+              if satisfied(ids, want) {
+                timed_out = false
+                break
+              }
             }
+            // id:null, a string id, or another uncorrelatable response.
+            None => ()
           }
         }
       }
@@ -471,7 +544,7 @@ async fn collect(
       }
     }
   }
-  { ids, bodies, timed_out, eof, bad_header, }
+  { ids, bodies, frames, timed_out, eof, bad_header, }
 }
 
 ///|
@@ -587,7 +660,8 @@ async fn drive(
   let want : Array[Int32] = match c.setup {
     FormatNth(_) | Hover(_) => [2]
     FrameWedge => [3]
-    ShutdownTwice => [2, 3]
+    TwoHealthy => [2, 3]
+    HoverThenFormatNth => [2, 3]
   }
   match c.setup {
     FormatNth(content) => send(p, @lsp.format_nth(2, content, 0, false))
@@ -598,10 +672,20 @@ async fn drive(
       @async.sleep(50)
       send(p, @lsp.shutdown(3, Some("{}")))
     }
-    ShutdownTwice => {
-      send(p, @lsp.shutdown(2, Some("{}")))
+    TwoHealthy => {
+      // Two complete, well-formed requests.  Both must be answered; unlike a
+      // second `shutdown`, a non-lifecycle request is always legal here.
+      send(p, @lsp.format_nth(2, "fn f() -> Unit {\n  ()\n}\n", 0, false))
       @async.sleep(30)
-      send(p, @lsp.shutdown(3, Some("{}")))
+      send(p, @lsp.format_nth(3, "fn g() -> Unit {\n  ()\n}\n", 0, false))
+    }
+    HoverThenFormatNth => {
+      // The F11 trigger: a scalar `params` wedges the request loop.  The
+      // second request is complete and would answer in ~40 ms on a healthy
+      // server, so silence for it proves session-level loss.
+      send(p, @lsp.raw_request(2, "textDocument/hover", "null"))
+      @async.sleep(100)
+      send(p, @lsp.format_nth(3, "fn f() -> Unit {\n  ()\n}\n", 0, false))
     }
   }
   let col = collect(p, want, timeout_ms)
@@ -609,6 +693,7 @@ async fn drive(
   let wire = {
     ids: col.ids,
     bodies: col.bodies,
+    response_frames: col.frames,
     alive,
     timed_out: col.timed_out,
     eof: col.eof,
@@ -747,6 +832,13 @@ async fn main {
       @lsp.json_quote(
         if v.ok {
           ""
+        } else if v.observed == "PARTIAL_RECOVERY" {
+          c.name +
+          ": PARTIAL_RECOVERY — the follow-up complete request was answered " +
+          "while the first was not; this is queue recovery, not the " +
+          "documented session-level defect, so the case is not confirmed (" +
+          v.detail +
+          ")"
         } else if c.kind == "defect" {
           c.name +
           ": expected " +

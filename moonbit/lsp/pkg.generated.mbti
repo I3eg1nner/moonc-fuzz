@@ -65,6 +65,15 @@ pub(all) enum FrameStatus {
   Malformed(String)
 }
 
+pub(all) enum IdKind {
+  IdMissing
+  IdNull
+  IdInt(Int32)
+  IdString(String)
+  IdOther
+}
+pub fn IdKind::text(Self) -> String
+
 #derive(Eq, @debug.Debug)
 pub(all) enum Outcome {
   Ok
@@ -93,10 +102,14 @@ pub(all) struct Request {
 
 pub(all) struct ResponseInfo {
   id : Int32?
+  id_kind : IdKind
   has_error : Bool
   has_result : Bool
   error_code : Int32?
 }
+pub fn ResponseInfo::has_id(Self) -> Bool
+pub fn ResponseInfo::id_text(Self) -> String
+pub fn ResponseInfo::is_response(Self) -> Bool
 
 pub(all) enum RpcMethod {
   Initialize

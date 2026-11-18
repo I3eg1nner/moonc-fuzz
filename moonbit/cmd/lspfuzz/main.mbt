@@ -1085,10 +1085,11 @@ async fn wait_for_id(
   p : @process.OrphanProcess,
   id : Int32,
   timeout_ms : Int32,
-) -> (ReadResult, Int64) {
+) -> (ReadResult, Int64, Bool) {
   let t0 = now_ms()
   let deadline = t0 + timeout_ms.to_int64()
   let mut result = TimedOut
+  let mut saw_response = false
   while now_ms() < deadline {
     let left = (deadline - now_ms()).to_int()
     if left <= 0 {
@@ -1100,6 +1101,12 @@ async fn wait_for_id(
         if info.id == Some(id) {
           result = Msg(body)
           break
+        }
+        // Any response frame — including id:null or a string id — proves the
+        // server was not silent.  TimedOut then means "unassociated", not
+        // HANG.
+        if info.is_response() {
+          saw_response = true
         }
         // Diagnostic notifications and unrelated responses are skipped.
       }
@@ -1117,7 +1124,7 @@ async fn wait_for_id(
       }
     }
   }
-  (result, now_ms() - t0)
+  (result, now_ms() - t0, saw_response)
 }
 
 ///|
@@ -1374,6 +1381,8 @@ struct Seen {
 ///|
 struct Collect {
   seen : Array[Seen]
+  /// At least one response frame arrived, whatever its id type.
+  saw_response : Bool
   eof : Bool
   bad_header : String
   ms : Int64
@@ -1433,6 +1442,7 @@ async fn collect_responses(
   let t0 = now_ms()
   let deadline = t0 + timeout_ms.to_int64()
   let seen : Array[Seen] = []
+  let mut saw_response = false
   let mut eof = false
   let mut bad = ""
   while now_ms() < deadline {
@@ -1443,6 +1453,9 @@ async fn collect_responses(
     match read_message(p, left) {
       Msg(body) => {
         let info = @lsp.inspect_response(body)
+        if info.is_response() {
+          saw_response = true
+        }
         seen.push({
           id: info.id,
           has_error: info.has_error,
@@ -1464,7 +1477,7 @@ async fn collect_responses(
       }
     }
   }
-  { seen, eof, bad_header: bad, ms: now_ms() - t0, }
+  { seen, saw_response, eof, bad_header: bad, ms: now_ms() - t0, }
 }
 
 ///|
@@ -1494,6 +1507,11 @@ fn classify_collect(c : Case, col : Collect, alive : Bool) -> @lsp.Outcome {
   }
   if c.expected_wait {
     return @lsp.Stall
+  }
+  if col.saw_response {
+    // Some response frame arrived, just not the expected id(s).  The stream
+    // was not silent, so this is DESYNC, never HANG.
+    return @lsp.Desync
   }
   if c.kind == "method" {
     return @lsp.Hang
@@ -1542,7 +1560,7 @@ async fn run_once(
   // Handshake.
   send(p, @lsp.initialize(1, Some("file://" + dir)))
   let c0 = cpu_ticks(p.pid)
-  let (init_res, init_ms) = wait_for_id(p, 1, timeout_ms)
+  let (init_res, init_ms, init_saw_response) = wait_for_id(p, 1, timeout_ms)
   let c1 = cpu_ticks(p.pid)
   let init_ticks = match (c0, c1) {
     (Some(a), Some(b)) => b - a
@@ -1608,7 +1626,7 @@ async fn run_once(
       Some(r) => {
         let c2 = cpu_ticks(p.pid)
         send(p, r)
-        let (res, ms) = wait_for_id(p, 2, timeout_ms)
+        let (res, ms, saw_response) = wait_for_id(p, 2, timeout_ms)
         elapsed = ms
         excerpt = excerpt_of(res)
         let c3 = cpu_ticks(p.pid)
@@ -1632,10 +1650,14 @@ async fn run_once(
           }
           TimedOut => {
             let alive = proc_alive(p.pid)
-            if alive {
-              @lsp.Hang
-            } else {
+            if !alive {
               @lsp.Crash
+            } else if saw_response {
+              // A response frame arrived, but not the id we wanted.  That is
+              // unassociated traffic, never silence.
+              @lsp.Desync
+            } else {
+              @lsp.Hang
             }
           }
           Eof => @lsp.Crash
@@ -1649,10 +1671,10 @@ async fn run_once(
                 p,
                 @lsp.text_document_request(3, @lsp.Hover, use_uri, Some((0, 3))),
               )
-              let (res2, ms2) = wait_for_id(p, 3, timeout_ms)
+              let (res2, ms2, saw_response2) = wait_for_id(p, 3, timeout_ms)
               elapsed += ms2
               if res2 is TimedOut && proc_alive(p.pid) {
-                outcome = @lsp.Hang
+                outcome = if saw_response2 { @lsp.Desync } else { @lsp.Hang }
               }
               excerpt = excerpt_of(res2)
             }
@@ -1747,7 +1769,14 @@ async fn run_once(
   if stage == "initialize" && (init_res is TimedOut || init_res is Eof) {
     let alive = proc_alive(p.pid)
     match init_res {
-      TimedOut => outcome = if alive { @lsp.InitHang } else { @lsp.Crash }
+      TimedOut =>
+        outcome = if init_saw_response {
+          @lsp.Desync
+        } else if alive {
+          @lsp.InitHang
+        } else {
+          @lsp.Crash
+        }
       Eof => {
         outcome = @lsp.Crash
         rc = -1

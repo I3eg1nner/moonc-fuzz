@@ -25,6 +25,7 @@ type Collected
 
 pub(all) enum Expected {
   Hang
+  TwoRequestHang(Int32, Int32)
   ResponseContains(Int32, String)
   ErrorCode(Int32, Int32)
   AllAnswered(Array[Int32])
@@ -44,6 +45,7 @@ pub(all) struct Verdict {
 pub(all) struct Wire {
   ids : Array[Int32]
   bodies : Array[String]
+  response_frames : Array[String]
   alive : Bool
   timed_out : Bool
   eof : Bool

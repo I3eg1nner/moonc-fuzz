@@ -11,7 +11,9 @@ fn mk_wire(
   eof : Bool,
   bad_header : String,
 ) -> Wire {
-  { ids, bodies, alive, timed_out, eof, bad_header, }
+  // `bodies` are responses by construction; the frame log therefore mirrors
+  // them.  A null/string id response is written as ids=[] with one body.
+  { ids, bodies, response_frames: bodies, alive, timed_out, eof, bad_header, }
 }
 
 ///|
@@ -55,7 +57,7 @@ test "hang matcher: silence+alive passes, any response fails" {
   let zombie = mk_wire([], [], false, true, false, "")
   let v5 = evaluate(Hang, zombie)
   assert_false(v5.ok)
-  assert_eq(v5.observed, "DEAD")
+  assert_eq(v5.observed, "CRASH")
 }
 
 ///|
@@ -181,7 +183,143 @@ test "error-code matcher and control mismatch" {
     false,
     "",
   )
-  assert_false(evaluate(AllAnswered([2, 3]), both_errors).ok)
+  // "Answered" includes a spec-conformant error, e.g. InvalidRequest after
+  // shutdown: the frame still proves the stream and decode loop are healthy.
+  assert_true(evaluate(AllAnswered([2, 3]), both_errors).ok)
+}
+
+///|
+/// The external reviewer's counterexample: a JSON-RPC error whose id is null
+/// or a string is still a response frame and must disable HANG.
+test "hang matcher: unassociated response frames are never HANG" {
+  let null_id = mk_wire(
+    [],
+    [
+      "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"invalid request\"}}",
+    ],
+    true,
+    true,
+    false,
+    "",
+  )
+  let v = evaluate(Hang, null_id)
+  assert_false(v.ok)
+  assert_eq(v.observed, "RESPONSE_UNASSOCIATED")
+  assert_true(v.detail.contains("id\":null"))
+
+  let string_id = mk_wire(
+    [],
+    [
+      "{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"error\":{\"code\":-32600,\"message\":\"invalid request\"}}",
+    ],
+    true,
+    true,
+    false,
+    "",
+  )
+  let v2 = evaluate(Hang, string_id)
+  assert_false(v2.ok)
+  assert_eq(v2.observed, "RESPONSE_UNASSOCIATED")
+  assert_true(v2.detail.contains("id\":\"2\""))
+}
+
+///|
+/// The verdict table required by the fix: only silence for the whole window
+/// plus a live process can be HANG.
+test "verdict table: integer/null/string ids vs silence and death" {
+  let int_response = mk_wire(
+    [2],
+    ["{\"id\":2,\"result\":null}"],
+    true,
+    false,
+    false,
+    "",
+  )
+  assert_false(evaluate(Hang, int_response).ok)
+
+  let null_error = mk_wire(
+    [],
+    ["{\"id\":null,\"error\":{\"code\":-32600,\"message\":\"x\"}}"],
+    true,
+    true,
+    false,
+    "",
+  )
+  assert_false(evaluate(Hang, null_error).ok)
+  assert_eq(evaluate(Hang, null_error).observed, "RESPONSE_UNASSOCIATED")
+
+  let string_error = mk_wire(
+    [],
+    ["{\"id\":\"2\",\"error\":{\"code\":-32600,\"message\":\"x\"}}"],
+    true,
+    true,
+    false,
+    "",
+  )
+  assert_false(evaluate(Hang, string_error).ok)
+  assert_eq(evaluate(Hang, string_error).observed, "RESPONSE_UNASSOCIATED")
+
+  let silent_alive = mk_wire([], [], true, true, false, "")
+  let hang = evaluate(Hang, silent_alive)
+  assert_true(hang.ok)
+  assert_eq(hang.observed, "HANG")
+
+  let silent_dead = mk_wire([], [], false, true, false, "")
+  let crash = evaluate(Hang, silent_dead)
+  assert_false(crash.ok)
+  assert_eq(crash.observed, "CRASH")
+}
+
+///|
+/// F11 must prove session-level loss: both the scalar-params request and the
+/// following complete request stay unanswered.  If the second one is
+/// answered, report PARTIAL_RECOVERY instead of confirming the defect.
+test "F11 two-request logic: both silent confirms, second answered fails distinctly" {
+  let both_silent = mk_wire([], [], true, true, false, "")
+  let confirmed = evaluate(TwoRequestHang(2, 3), both_silent)
+  assert_true(confirmed.ok)
+  assert_eq(confirmed.observed, "HANG")
+
+  let second_answered = mk_wire(
+    [3],
+    ["{\"id\":3,\"result\":{\"newText\":\"fn f() -> Unit {\\n  ()\\n}\\n\"}}"],
+    true,
+    true,
+    false,
+    "",
+  )
+  let partial = evaluate(TwoRequestHang(2, 3), second_answered)
+  assert_false(partial.ok)
+  assert_eq(partial.observed, "PARTIAL_RECOVERY")
+  assert_true(partial.detail.contains("second request id=3"))
+
+  // Both answered means the defect is fixed, not a partial recovery.
+  let both_answered = mk_wire(
+    [2, 3],
+    ["{\"id\":2,\"result\":null}", "{\"id\":3,\"result\":{\"newText\":\"x\"}}"],
+    true,
+    false,
+    false,
+    "",
+  )
+  let fixed = evaluate(TwoRequestHang(2, 3), both_answered)
+  assert_false(fixed.ok)
+  assert_eq(fixed.observed, "OK")
+  assert_true(fixed.detail.contains("first request id=2"))
+
+  // An uncorrelated frame is not enough to prove the defect either.
+  let unassociated = mk_wire(
+    [],
+    ["{\"id\":null,\"error\":{\"code\":-32600,\"message\":\"x\"}}"],
+    true,
+    true,
+    false,
+    "",
+  )
+  assert_eq(
+    evaluate(TwoRequestHang(2, 3), unassociated).observed,
+    "RESPONSE_UNASSOCIATED",
+  )
 }
 
 ///|

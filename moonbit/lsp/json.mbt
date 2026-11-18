@@ -41,12 +41,66 @@ pub fn json_quote(s : String) -> String {
 }
 
 ///|
-/// Top-level facts extracted from a JSON-RPC response body.
+/// How the top-level `id` member was written.  JSON-RPC allows an id to be a
+/// number or a string, and an *error* response generated for a request whose
+/// id could not be parsed must carry `id: null`.  `IdMissing` is the only
+/// value that means "notification"; every other value proves a response frame.
+pub(all) enum IdKind {
+  IdMissing
+  IdNull
+  IdInt(Int32)
+  IdString(String)
+  /// An id member was present but had an unexpected JSON type (object, array,
+  /// boolean).  Malformed, but still a response-shaped frame, never a
+  /// notification.
+  IdOther
+}
+
+///|
+pub fn IdKind::text(self : IdKind) -> String {
+  match self {
+    IdMissing => "missing"
+    IdNull => "null"
+    IdInt(n) => n.to_string()
+    IdString(s) => "\"" + s + "\""
+    IdOther => "other"
+  }
+}
+
+///|
+/// Top-level facts extracted from a JSON-RPC frame.
 pub(all) struct ResponseInfo {
+  /// The integer id, when one was present.  Kept for id correlation; it is
+  /// `None` for `id: null`, string ids and notifications.
   id : Int32?
+  id_kind : IdKind
   has_error : Bool
   has_result : Bool
   error_code : Int32?
+}
+
+///|
+/// True when the frame has an `id` member of any type.  Notifications have no
+/// `id` at all; an `id: null` error response is *not* a notification.
+pub fn ResponseInfo::has_id(self : ResponseInfo) -> Bool {
+  match self.id_kind {
+    IdMissing => false
+    _ => true
+  }
+}
+
+///|
+/// True when the frame is a response: it has an `id` member and a top-level
+/// `result` or `error` member.  Detection is deliberately independent of the
+/// id's type, so `{"id":null,"error":{...}}` and `{"id":"2",...}` count.
+pub fn ResponseInfo::is_response(self : ResponseInfo) -> Bool {
+  self.has_id() && (self.has_result || self.has_error)
+}
+
+///|
+/// Short, type-preserving rendering of the id for diagnostics.
+pub fn ResponseInfo::id_text(self : ResponseInfo) -> String {
+  self.id_kind.text()
 }
 
 ///|
@@ -201,10 +255,17 @@ pub fn inspect_response(body : String) -> ResponseInfo {
   let n = body.length()
   let mut i = skip_ws(body, 0)
   if i >= n || body.get_char(i) != Some('{') {
-    return { id: None, has_error: false, has_result: false, error_code: None, }
+    return {
+      id: None,
+      id_kind: IdMissing,
+      has_error: false,
+      has_result: false,
+      error_code: None,
+    }
   }
   i += 1
   let mut id = None
+  let mut id_kind = IdMissing
   let mut has_error = false
   let mut has_result = false
   let mut error_code = None
@@ -224,9 +285,40 @@ pub fn inspect_response(body : String) -> ResponseInfo {
     }
     i = skip_ws(body, i + 1)
     if key == "id" {
-      let (v, next) = parse_int_at(body, i)
-      id = v
-      i = next
+      // Do not lose a response because its id is null or a string: parse the
+      // type, keep the integer when there is one, and fall through to the
+      // generic skipper for the actual value.
+      let start = i
+      match body.get_char(i) {
+        Some('"') => {
+          let end = scan_string(body, i)
+          id_kind = IdString(body[i + 1:end - 1].to_owned())
+        }
+        Some('n') => id_kind = IdNull
+        Some('-')
+        | Some('0')
+        | Some('1')
+        | Some('2')
+        | Some('3')
+        | Some('4')
+        | Some('5')
+        | Some('6')
+        | Some('7')
+        | Some('8')
+        | Some('9') => {
+          let (v, _) = parse_int_at(body, i)
+          match v {
+            Some(n) => {
+              id = Some(n)
+              id_kind = IdInt(n)
+            }
+            None => id_kind = IdOther
+          }
+        }
+        Some(_) => id_kind = IdOther
+        None => ()
+      }
+      i = skip_value(body, start)
     } else {
       if key == "error" {
         has_error = true
@@ -241,5 +333,5 @@ pub fn inspect_response(body : String) -> ResponseInfo {
       i += 1
     }
   }
-  { id, has_error, has_result, error_code, }
+  { id, id_kind, has_error, has_result, error_code, }
 }
