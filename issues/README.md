@@ -1,6 +1,6 @@
 # 上游 issue 草稿
 
-这里的 7 份草稿对应 `poc/` 中已复现的缺陷。11 个 PoC 不拆成 11 条 issue：
+这里的 8 份草稿对应 `poc/` 中已复现的缺陷。11 个 PoC 不拆成 11 条 issue：
 F1b、F2b、F4b 与各自的主缺陷共用栈顶或异常签名，作为同一条 issue 里的第二个
 witness。
 
@@ -72,3 +72,28 @@ https://github.com/moonbitlang/moonbit-docs/issues/new?template=ice.md
 
 提交账号没有 triage 权限，`--label` 被 GitHub 静默丢弃，七条目前都没有 label；
 标题和正文按模板写，标签留给 maintainer。
+
+## LSP 草稿（第 8 份，待决定是否提交）
+
+`08-lsp-decode-exception-unresponsive.md` 与上面 7 份的来源不同：它不是编译器
+缺陷，而是 `moon-lsp` 的会话可靠性缺陷，且 **F11 与 F12 合并为一份报告**。
+
+合并理由是外部 Codex 复核（`findings/codex_lsp_review.md`）的结论，我们复验后
+接受：两者都由“解码期异常逃出 `Lsp__Io.Make.read`”导致，进程存活、0% CPU、
+stdout 未关闭、后续请求字节滞留管道；区别只在抛出点
+（`Packet.t_of_fields` / `Packet.t_of_yojson` / `read_header`）。把它们写成两条
+issue 会人为拆开同一个根因。
+
+草稿与 F1–F6 的差异：
+
+- 标题不加 `ICE:` 前缀（不是 ICE），也不宣称根因；
+- 主证据用完整正确分帧的 `[1,2]`，BOM 作为“损坏传输”的补充触发；
+- 显式写“15 秒观察窗口”，不写“永久”；
+- 主动关联依赖层报告
+  [ocaml-lsp#1330](https://github.com/ocaml/ocaml-lsp/issues/1330)，并说明它
+  只覆盖抛出点、不覆盖产品层“活着但不服务”的行为；
+- 与 [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372)（F10，
+  100% CPU 自旋）明确区分。
+
+**尚未提交。** 提交前需要确认：仓库选择（`moonbit-docs` 是 ICE banner 的入口，
+但这条不是 ICE）、以及是否附上 transcript 文件。
