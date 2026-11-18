@@ -26,6 +26,7 @@ Set `MOONC`/`MOON`/`MOONFMT` or use `$HOME/.moon/bin/...`.
 | F8 | [`f8_async_raise_ice/`](f8_async_raise_ice/) | `moon test --target js` (also wasm/native) | `link-core` assertion after async suspension |
 | F9 | [`f9_native_v128_stub_ice/`](f9_native_v128_stub_ice/) | `moon test --target native` | native debug stub-wrapper ICE for `V128` |
 | F10 | [`f10_lsp_format_nth_hang/`](f10_lsp_format_nth_hang/) | `python3 replay.py hang.json` | LSP `format-nth` never returns, 100% CPU |
+| F11 | [`f11_lsp_shutdown_null_hang/`](f11_lsp_shutdown_null_hang/) | `python3 replay.py hang.json 5` | LSP `shutdown` with `params: null` never returns, ~0% CPU |
 | P1 | [`p1_fmt_interp/`](p1_fmt_interp/) | `./generate.sh 2048` then 5x `moonfmt` | ~10x per doubling |
 
 Run all local PoCs:

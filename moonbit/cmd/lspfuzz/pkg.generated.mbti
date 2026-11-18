@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cmd/lspfuzz"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Action
+
+type Case
+
+type ReadResult
+
+type Row
+
+// Type aliases
+
+// Traits

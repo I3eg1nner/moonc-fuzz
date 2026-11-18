@@ -1,0 +1,118 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/lsp"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn classify(SyntheticOutcome) -> Outcome
+
+pub fn classify_stage(SyntheticOutcome, Bool) -> Outcome
+
+pub fn confirm(Outcome, Int32, Int32) -> Outcome
+
+pub fn content_length(String) -> Int32?
+
+pub fn crash_signature(Int32) -> String
+
+pub fn did_open(String, String) -> Request
+
+pub fn encode_request(Request) -> String
+
+pub fn exit() -> Request
+
+pub fn format_nth(Int32, String, Int32, Bool) -> Request
+
+pub fn frame_message(String) -> String
+
+pub fn initialize(Int32, String?) -> Request
+
+pub fn initialized() -> Request
+
+pub fn inspect_response(String) -> ResponseInfo
+
+pub fn json_escape(String) -> String
+
+pub fn json_quote(String) -> String
+
+pub fn parse_frame(BytesView) -> FrameStatus
+
+pub fn shutdown(Int32, String?) -> Request
+
+pub fn signature(Outcome, String, Int32) -> String
+
+pub fn text_document_request(Int32, RpcMethod, String, (Int32, Int32)?) -> Request
+
+pub fn unknown(Int32, String) -> Request
+
+// Errors
+
+// Types and methods
+pub(all) enum FrameStatus {
+  Complete(String, Int32)
+  Incomplete
+  Malformed(String)
+}
+
+#derive(Eq, @debug.Debug)
+pub(all) enum Outcome {
+  Ok
+  ErrorResponse
+  Hang
+  FlakyHang
+  FlakyCrash
+  Crash
+  InitHang
+  Incomplete
+}
+pub fn Outcome::equal(Self, Self) -> Bool
+pub fn Outcome::not_equal(Self, Self) -> Bool
+pub fn Outcome::to_repr(Self) -> @debug.Repr
+pub fn Outcome::to_string(Self) -> String
+
+pub(all) struct Request {
+  id : Int32?
+  rpc_method : RpcMethod
+  params : String?
+}
+
+pub(all) struct ResponseInfo {
+  id : Int32?
+  has_error : Bool
+  has_result : Bool
+}
+
+pub(all) enum RpcMethod {
+  Initialize
+  Initialized
+  DidOpen
+  FormatNth
+  Hover
+  Completion
+  Formatting
+  DocumentSymbol
+  Diagnostic
+  Shutdown
+  Exit
+  Unknown(String)
+}
+pub fn RpcMethod::equal(Self, Self) -> Bool
+pub fn RpcMethod::name(Self) -> String
+pub fn RpcMethod::not_equal(Self, Self) -> Bool
+pub impl Eq for RpcMethod
+
+#derive(Eq, @debug.Debug)
+pub(all) enum SyntheticOutcome {
+  Response(Bool)
+  TimeoutAlive
+  TimeoutDead(Int32)
+  Exited(Int32)
+}
+pub fn SyntheticOutcome::equal(Self, Self) -> Bool
+pub fn SyntheticOutcome::not_equal(Self, Self) -> Bool
+pub fn SyntheticOutcome::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

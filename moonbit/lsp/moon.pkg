@@ -1,0 +1,10 @@
+// LSP stdio framing, request model and outcome classifier.
+// Pure: no process spawning and no file IO.  The executable in
+// `cmd/lspfuzz` owns all side effects.
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+}
+
+warnings = "-test_unqualified_package"

@@ -1,0 +1,18 @@
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/async/process",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/lsp",
+}
+
+options(
+  "allow-experimental-packages": [
+    "moonbitlang/core/async",
+    "moonbitlang/core/async/process",
+  ],
+)
+
+pkgtype(kind: "executable")
