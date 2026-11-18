@@ -109,9 +109,23 @@ line case is `"fn f() -> Unit { let x = " + "1 + ".repeat(400) + "1 }"`.
   deadlock, not a spin), a later `hover` is also unanswered, and the controls
   are unambiguous: omitting `params` returns `{"result": null}` immediately,
   `params: {}` and `params: []` also return immediately. Scalar `params: 0`
-  deadlocks too. PoC: `poc/f11_lsp_shutdown_null_hang/` with `replay.py`,
-  `hang.json`, controls and 3/3 evidence. Not root-caused, no upstream issue
-  claimed.
+  deadlocks too.
+
+  **Post-probe generalisation (project-manager verification, after the commit).**
+  The trigger is not `shutdown` and not `null` specifically: it is *any scalar
+  `params`*, on *any method*. Verified with the committed `replay.py`:
+
+  | method | `null` | `0` | `"x"` | `true` | `{}` | `[]` | omitted |
+  |---|---|---|---|---|---|---|---|
+  | `textDocument/hover` | hang | hang | hang | hang | `-32602` | `-32602` | `-32602` |
+  | `shutdown` | hang | — | — | — | `null` | — | — |
+  | `no/such-method` | hang | — | — | — | `-32601` | — | — |
+
+  Queued requests are also blocked: `shutdown` with `params: null` followed by a
+  well-formed `format-nth` yields two consecutive timeouts, where the same
+  `format-nth` answers in under 10 ms on a clean server. PoC renamed to
+  `poc/f11_lsp_scalar_params_deadlock/`; `README.md` there carries the full
+  matrix, the 3/3 repeats and the no-upstream-report note. Not root-caused.
 - **Seven F10-adjacent format hangs.** Each hangs 3/3 at 99–100% CPU with the
   same trigger condition as F10: `format-nth` on the *last* top-level block
   when the content has no final newline. I am **not** claiming these as a new

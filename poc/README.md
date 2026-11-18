@@ -26,7 +26,7 @@ Set `MOONC`/`MOON`/`MOONFMT` or use `$HOME/.moon/bin/...`.
 | F8 | [`f8_async_raise_ice/`](f8_async_raise_ice/) | `moon test --target js` (also wasm/native) | `link-core` assertion after async suspension |
 | F9 | [`f9_native_v128_stub_ice/`](f9_native_v128_stub_ice/) | `moon test --target native` | native debug stub-wrapper ICE for `V128` |
 | F10 | [`f10_lsp_format_nth_hang/`](f10_lsp_format_nth_hang/) | `python3 replay.py hang.json` | LSP `format-nth` never returns, 100% CPU |
-| F11 | [`f11_lsp_shutdown_null_hang/`](f11_lsp_shutdown_null_hang/) | `python3 replay.py hang.json 5` | LSP `shutdown` with `params: null` never returns, ~0% CPU |
+| F11 | [`f11_lsp_scalar_params_deadlock/`](f11_lsp_scalar_params_deadlock/) | `python3 replay.py hang_null.json 3` | LSP deadlocks on any request with scalar `params` (`null`/number/string/bool) |
 | P1 | [`p1_fmt_interp/`](p1_fmt_interp/) | `./generate.sh 2048` then 5x `moonfmt` | ~10x per doubling |
 
 Run all local PoCs:
@@ -52,17 +52,23 @@ upstream reports on the pinned toolchain and are kept as regression evidence:
 - F9 matches [#1344](https://github.com/moonbitlang/moonbit-docs/issues/1344)
   (`finish_stub_wrapper_shell` for an `extern "C"` taking `V128`).
 
-F7/F8/F9 are compiler/link-time crashes, not claims of miscompilation. F10 is
-an LSP-level hang whose oracle is a timeout, not a crash signature:
+F7/F8/F9 are compiler/link-time crashes, not claims of miscompilation. F10 and
+F11 are LSP-level response failures whose oracle is a timeout, not a crash
+signature:
 
 - F10 matches [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372)
   (`moon-lsp` `format-nth` hangs at 100% CPU when the last block has no
   trailing newline).
+- F11 has **no matching upstream report**: `moon-lsp` never answers a request
+  whose `params` is a JSON scalar, while `{}`, `[]` and omitted `params` return
+  a normal `-32602`/`-32601`/`result`. Method-independent (reproduced with
+  `textDocument/hover`, `shutdown`, and an unknown method), 0% CPU, and later
+  requests are blocked behind it.
 
 An independent Codex run (three repeats each, with negative controls) is
 archived in `findings/codex_open_ice_review.md`; it covered F7–F9 and also
-corrected the F9 README claim about `moon test --build-only`. F10 was found
-later and has not been through that review.
+corrected the F9 README claim about `moon test --build-only`. F10 and F11 were
+found later and have not been through that review.
 
 They are excluded from `scripts/reproduce_all.sh` because that script asserts the
 F1–F6 fixed behavior; run the commands in each PoC README directly.
