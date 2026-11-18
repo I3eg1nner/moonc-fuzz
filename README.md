@@ -6,7 +6,8 @@
 MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不参与
 主分支构建或验收。目前复现 6 个缺陷（F1–F6）和 1 个 formatter 性能异常
 （P1），7 个 issue 已提交至 `moonbitlang/moonbit-docs`；另在固定版本上复现
-3 个上游仍开放的链接期 ICE（F7/F8/F9）。
+3 个上游仍开放的链接期 ICE（F7/F8/F9），以及 3 个 LSP 层缺陷
+（F10/F11/F12，其中只有 F10 有上游报告）。
 
 - 仓库：<https://github.com/I3eg1nner/moonc-fuzz>
 - 包：<https://mooncakes.io/docs/I3eg1nner/mbtfuzz>（`moon add I3eg1nner/mbtfuzz`）
@@ -77,8 +78,9 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ```
 
 `cmd/accept` 依次检查：工具链 pin、`moon build`、`moon test`、`moon check`、
-12 例缺陷回归、合成 trace 精确输出、真实 QEMU trace 的 599 函数集合、
-覆盖并集、25 个模板的 wasm/js 差分、负控制。任一项失败即非零退出。
+12 例编译器缺陷回归、6 例 LSP 缺陷回归、合成 trace 精确输出、真实 QEMU
+trace 的 599 函数集合、覆盖并集、25 个模板的 wasm/js 差分、负控制。任一项
+失败即非零退出。
 
 仓库不提交 `out/`、`seeds/`、`assets/`、`moonbit/_build/` 和 12 MB 的
 `WeiR-h/moonldif@0.7.6`。F6 另有 10 行最小复现，不依赖下载。
@@ -204,6 +206,39 @@ plain-struct 控制在四个后端都 ALL_EQUAL。async 侧改为比较测试驱
 **不是**缺陷发现效果的证明；`29.75%` 的函数口径没有改动。
 详见 `findings/edge_feedback.md`。
 
+### 5.3 LSP 层：三条互不重叠的健壮性缺陷
+
+`moon-lsp` 是本项目唯一一个**不经过编译器**的攻击面，oracle 也最干净：
+**没有响应就是缺陷**，不需要签名归一化。
+
+| ID | 触发 | 现象 | 上游 |
+|---|---|---|---|
+| F10 | `format-nth` 的最后一个块无结尾换行 | **100% CPU 自旋**，永不返回；加一个 `\n` 即恢复 | [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372) |
+| F11 | 任意请求，`params` 是 JSON 标量（`null`/数字/字符串/布尔） | **0% CPU 死锁**，方法无关，后续请求全部阻塞；`{}`/`[]`/省略均正常返回 `-32602`/`-32601`/结果 | 无 |
+| F12 | 一个解码不了的帧（头部前 UTF-8 BOM，或顶层非对象如 `[1,2]`） | 未捕获异常从 `Lsp__Io.Make.read` 逃逸，读循环停止；stdout 开着但不吐字节，后续完整请求永不处理 | 无 |
+
+三者层次不同，不是同一 bug 的变体：F10 在格式化器、F11 在 JSON-RPC 分派、
+F12 在传输解码。F12 的机制有服务端自身栈帧支撑（`Jsonrpc__Import.Json.error`
+→ `Jsonrpc.Packet.t_of_yojson` → `Lsp__Io.Make.read` → `Fiber__Scheduler.exec`），
+但修法未验证。
+
+探测与回归：
+
+```
+cd moonbit
+moon run cmd/lspfuzz -- --out /tmp/lsp_run --family all --timeout-ms 700
+moon run cmd/lspregress
+```
+
+`cmd/lspfuzz` 每个 case 起一个全新服务、结束必杀进程；136 个 case 的分布见
+`findings/lsp_framing.md`（framing 32、methods 41、其余 63 为前一轮回归）。
+`cmd/lspregress` 是**反向 oracle**：它断言 F10/F11/F12 仍然复现，上游修好后
+会**响亮失败**并提示更新 PoC 与 findings，防止断言被悄悄反转。6 个 case
+（3 个缺陷 + 3 个控制）约 6.3 s，已接入 `cmd/accept`。
+
+方法层是负结果：13 个 advertise 的方法在真实 `didOpen`、未打开文档、空
+`{}` 三种输入下都正常响应，只有 2 个未 advertise 的返回 `-32603`。
+
 独立探针（`scripts/probe/native_feature_probe.py`）跑了 269 个 native
 布局/ABI/async case，**只**命中 F7/F8/F9 三个已知签名，没有第四个：
 `findings/feature_probe_negative.md`。同一份记录还说明：并行跑大量 `moon`
@@ -224,10 +259,11 @@ plain-struct 控制在四个后端都 ALL_EQUAL。async 侧改为比较测试驱
 - `oracle/`：wasm/js 与 wasm/native 差分；
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
   `regress`、`f6matrix`、`accept`、`optdiff`、`irprobe`、`featfuzz`、
-  `asyncfuzz`、`verify`；
-- `featuregen/`、`asyncgen/`：特性定向源生成器（native 布局矩阵、async 状态机矩阵）。
+  `asyncfuzz`、`verify`、`xdiff`、`lspfuzz`、`lspregress`；
+- `featuregen/`、`asyncgen/`：特性定向源生成器（native 布局矩阵、async 状态机矩阵）；
+- `lsp/`：LSP 帧/请求模型与结果分类（纯函数，29 个测试）。
 
-当前 195 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 271 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
@@ -349,6 +385,9 @@ moon test --target native
 | `findings/async_cancel_probe.md` | async 超时/取消/组合子探针的负结果 |
 | `findings/campaign_caps.md` | 父本池与证据落盘上限、淘汰策略、前后对比 |
 | `findings/stage_summary_2026-11-17.md` | 阶段性总结：证据、解释边界、下一步排序 |
+| `findings/lsp_probe.md` | LSP 首轮 63 case：F10 已知、F11 新发现 |
+| `findings/lsp_framing.md` | 框架/传输 32 case 与方法 41 case：F12 与 DESYNC 分类 |
+| `findings/lsp_regression.md` | LSP 反向 oracle 门禁：断言缺陷仍复现 |
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
 | `examples/trace2funcs.sh` | 最小可运行示例 |
 
