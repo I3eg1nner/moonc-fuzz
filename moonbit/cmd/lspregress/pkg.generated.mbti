@@ -1,0 +1,55 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cmd/lspregress"
+
+// Values
+pub fn check_server(String, (String) -> Bool) -> String?
+
+pub fn clip(String, Int32) -> String
+
+pub fn evaluate(Expected, Wire) -> Verdict
+
+pub fn expand_home(String, String) -> String
+
+pub fn ids_text(Array[Int32]) -> String
+
+pub fn parse_only(String) -> Array[String]
+
+pub fn response_kind(String) -> String
+
+// Errors
+
+// Types and methods
+type CaseSpec
+
+type Collected
+
+pub(all) enum Expected {
+  Hang
+  ResponseContains(Int32, String)
+  ErrorCode(Int32, Int32)
+  AllAnswered(Array[Int32])
+}
+pub fn Expected::label(Self) -> String
+
+type ReadResult
+
+type Setup
+
+pub(all) struct Verdict {
+  ok : Bool
+  observed : String
+  detail : String
+}
+
+pub(all) struct Wire {
+  ids : Array[Int32]
+  bodies : Array[String]
+  alive : Bool
+  timed_out : Bool
+  eof : Bool
+  bad_header : String
+}
+
+// Type aliases
+
+// Traits

@@ -112,6 +112,41 @@ async fn main {
     ),
   )
 
+  // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
+  // F11 and F12 *still reproduce*, so an upstream fix must fail this check
+  // rather than quietly changing `regressions_12`.  Six serial cases with one
+  // fresh `moon-lsp` each; the detail records how long the whole check took.
+  // A missing binary is a failure with a fixed reason, never a silent skip.
+  let lsp_bin = join(join(home, ".moon/bin"), "moon-lsp")
+  let lsp_present = @fs.path_exists(lsp_bin)
+  let lsp_start = @env.now()
+  let lsp = @exec.run(
+    join(bin, "cmd/lspregress/lspregress.exe"),
+    [],
+    root,
+    60000,
+  )
+  let lsp_ms = @env.now() - lsp_start
+  let lsp_rows = count_lines(lsp.stdout)
+  // 6 case rows + 1 summary row.
+  let mut lsp_ok = lsp_present && lsp.rc == 0 && lsp_rows == 7
+  for line in lsp.stdout.split("\n") {
+    if line.trim().char_length() > 0 && !line.contains("\"ok\":true") {
+      lsp_ok = false
+    }
+  }
+  let lsp_detail = if !lsp_present {
+    "moon-lsp not found"
+  } else {
+    "rc=" +
+    lsp.rc.to_string() +
+    " cases=6 rows=" +
+    lsp_rows.to_string() +
+    " ms=" +
+    lsp_ms.to_string()
+  }
+  results.push(check("lsp_regress_6", lsp_ok, lsp_detail))
+
   // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
   let tr = @exec.run(
     join(bin, "cmd/trace2funcs/trace2funcs.exe"),
