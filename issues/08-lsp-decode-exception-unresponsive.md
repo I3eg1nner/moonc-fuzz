@@ -1,31 +1,57 @@
 ---
-title: "moon-lsp: an input-decode exception escapes the stdio read loop and leaves a live but unresponsive session"
-labels: [bug, lsp]
-state: draft
-toolchain: moon 0.1.20261104, moonc v0.10.20+65efd5b93
+repo: moonbitlang/moonbit-docs
+template: blank issue (the only template is ICE; this is not an ICE)
+title: "moon-lsp: exception while decoding an input JSON-RPC frame escapes Lsp__Io.Make.read, server stays alive at 0% CPU and stops reading requests"
+labels: [bug, moonbit-lsp]
+state: draft, not filed
+toolchain: moon 0.1.20261104 (940aa18), moonc v0.10.20+65efd5b93, moonrun 0.1.20261104
+host: Linux x86_64
 moon_lsp_sha256: 5b9f19e9f4874a7ba56624ef3a9bdcd7571702efa01c8a365eede252c2f8801d
-upstream_duplicate_check: 2026-11-18
+upstream_duplicate_check: 2026-11-18, no matching report; #1372 is a different moon-lsp defect
 ---
 
-# `moon-lsp`: an input-decode exception escapes the stdio read loop and leaves a live but unresponsive session
+> Channel notes (not part of the issue body): `moonbitlang/moonbit-compiler` has
+> `has_issues=false`, and `moonbit-docs` has exactly one template (`ice.md`),
+> so this goes in as a **blank issue**. The `moonbit-lsp` label exists and has
+> been used for LSP reports (#1046). Precedent: #1372, #912, #1240. Do **not**
+> add the `ICE` label.
 
-Two request shapes make `moon-lsp` stop serving. In both cases the server stays
+# `moon-lsp`: exception while decoding an input JSON-RPC frame escapes `Lsp__Io.Make.read`, server stays alive at 0% CPU and stops reading requests
+
+Four request shapes make `moon-lsp` stop serving. In both cases the server stays
 alive at ~0% CPU, keeps stdout open, sends no response, and **never reads later
 requests** — their bytes stay unread in the stdin pipe. The server prints an
 uncaught-exception block to stderr naming the same escape path in both cases.
 
 They are reported together because the mechanism is the same (an exception
 raised while decoding an input frame escapes `Lsp__Io.Make.read`); only the
-raise site differs.
+raise site differs. All four were reproduced 3/3 in fresh processes, and in
+every case a complete, well-formed request sent afterwards was never read.
 
 | trigger | stderr |
 |---|---|
 | request whose `params` is a JSON scalar | `Jsonrpc: json conversion failed: invalid structured value`, raised in `Jsonrpc.Packet.t_of_fields` |
 | frame whose top-level JSON value is not an object (e.g. `[1,2]`) | `Jsonrpc: json conversion failed: invalid packet`, raised in `Jsonrpc.Packet.t_of_yojson` |
+| frame whose body is not valid JSON at all (e.g. `{,}`) | `Yojson.Json_error(...)`, raised inside `Yojson.Safe.__ocaml_lex_read_json_rec` |
 
 A third, related shape fails one layer earlier, in header parsing: a UTF-8 BOM
 before `Content-Length` raises `Error: content length absent` in
 `Lsp__Io.Make.read_header`, with the same outcome.
+
+## Environment
+
+```
+moon 0.1.20261104 (940aa18 2026-11-04)
+moonc v0.10.20+65efd5b93 (2026-11-05)
+moonrun 0.1.20261104 (940aa18 2026-11-04)
+Feature flags enabled: rr_moon_mod, rr_moon_pkg
+```
+
+- Host: Linux x86_64.
+- `moon-lsp` sha256: `5b9f19e9f4874a7ba56624ef3a9bdcd7571702efa01c8a365eede252c2f8801d`
+  (`~/.moon/bin/moon-lsp`, from the toolchain above).
+- This is **not** an ICE and not a `moonc` crash: `moonc` is not involved in any
+  of the three triggers.
 
 ## Reproduction
 
@@ -50,11 +76,70 @@ Content-Length: 5\r\n\r\n[1,2]
 
 `[1,2]` is valid JSON. `Content-Length` matches the body exactly.
 
+### Trigger D — body that is not valid JSON
+
+```
+Content-Length: 3\r\n\r\n{,}
+```
+
+Any malformed JSON body behaves the same way; `{,}` is only the shortest one we
+tried. This is the most obvious bad-input case and it is the one a client bug is
+most likely to produce.
+
 ### Trigger C — BOM before the header
 
 ```
 \xef\xbb\xbfContent-Length: 63\r\n\r\n{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}
 ```
+
+### Minimal replay script
+
+```python
+import json, os, select, subprocess, time
+
+p = subprocess.Popen([os.path.expanduser("~/.moon/bin/moon-lsp"), "--stdio"],
+                     stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
+
+def send_raw(b):
+    """Send bytes exactly as given (used for the trigger frame)."""
+    p.stdin.write(b)
+    p.stdin.flush()
+
+def send_obj(obj):
+    """Frame a JSON value as one complete request."""
+    b = json.dumps(obj).encode()
+    p.stdin.write(b"Content-Length: %d\r\n\r\n" % len(b) + b)
+    p.stdin.flush()
+
+def drain(seconds):
+    out, end = b"", time.time() + seconds
+    while time.time() < end:
+        r, _, _ = select.select([p.stdout], [], [], 0.05)
+        if r:
+            out += os.read(p.stdout.fileno(), 65536)
+    return out
+
+send_obj({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+      "params": {"processId": None, "rootUri": None, "capabilities": {}}})
+drain(3)
+send_obj({"jsonrpc": "2.0", "method": "initialized", "params": {}})
+
+# trigger: pick ONE of the three
+send_raw(b"Content-Length: 5\r\n\r\n[1,2]")      # B: non-object body
+# send_obj({"jsonrpc": "2.0", "id": 2, "method": "textDocument/hover", "params": None})  # A
+# send_raw(b"\xef\xbb\xbf" + b"Content-Length: 63\r\n\r\n" + b'{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}')  # C
+
+time.sleep(0.1)
+send_obj({"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": {}})  # healthy follow-up
+print("stdout bytes:", len(drain(2)))     # 0
+print("alive:", p.poll() is None)         # True
+print("stderr:", p.stderr.read1(4096).decode("utf8", "replace")[:200])
+p.kill()
+```
+
+Observed: `stdout bytes: 0`, `alive: True`, and stderr begins with
+`| Internal error: Uncaught exception.`
 
 ## Observed
 
@@ -65,6 +150,7 @@ Fresh process per run; published toolchain and binary:
 | A `params: null` | none | **none** | alive | ~0% | open, not EOF |
 | B `[1,2]` | none | **none** | alive | ~0% | open, not EOF |
 | C BOM | none | **none** | alive | ~0% | open, not EOF |
+| D body `{,}` | none | **none** | alive | ~0% | open, not EOF |
 | control: `params: {}` | `-32602` | answered | alive | — | — |
 | control: valid object `params` | `hover` result | answered | alive | — | — |
 | control: `params` omitted | `-32602 params are required` | answered | alive | — | — |
