@@ -24,7 +24,11 @@ pub fn exit() -> Request
 
 pub fn format_nth(Int32, String, Int32, Bool) -> Request
 
+pub fn frame_declared(Int32, String) -> String
+
 pub fn frame_message(String) -> String
+
+pub fn frame_with_header(String, String) -> String
 
 pub fn initialize(Int32, String?) -> Request
 
@@ -38,9 +42,15 @@ pub fn json_quote(String) -> String
 
 pub fn parse_frame(BytesView) -> FrameStatus
 
+pub fn raw_request(Int32, String, String) -> Request
+
+pub fn scan_stream(BytesView) -> StreamScan
+
 pub fn shutdown(Int32, String?) -> Request
 
 pub fn signature(Outcome, String, Int32) -> String
+
+pub fn split_at(String, Int32) -> (String, String)
 
 pub fn text_document_request(Int32, RpcMethod, String, (Int32, Int32)?) -> Request
 
@@ -65,6 +75,10 @@ pub(all) enum Outcome {
   Crash
   InitHang
   Incomplete
+  Desync
+  FlakyDesync
+  Stall
+  Unsupported
 }
 pub fn Outcome::equal(Self, Self) -> Bool
 pub fn Outcome::not_equal(Self, Self) -> Bool
@@ -81,6 +95,7 @@ pub(all) struct ResponseInfo {
   id : Int32?
   has_error : Bool
   has_result : Bool
+  error_code : Int32?
 }
 
 pub(all) enum RpcMethod {
@@ -101,6 +116,12 @@ pub fn RpcMethod::equal(Self, Self) -> Bool
 pub fn RpcMethod::name(Self) -> String
 pub fn RpcMethod::not_equal(Self, Self) -> Bool
 pub impl Eq for RpcMethod
+
+pub(all) enum StreamScan {
+  AllFrames(Array[String])
+  PartialFrame(Array[String], Int32)
+  Desynced(Array[String], Int32, String)
+}
 
 #derive(Eq, @debug.Debug)
 pub(all) enum SyntheticOutcome {

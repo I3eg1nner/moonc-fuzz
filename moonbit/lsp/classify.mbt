@@ -12,6 +12,18 @@ pub(all) enum Outcome {
   /// Intentionally incomplete frame (declared Content-Length > bytes sent):
   /// no response is expected, so this is excluded from hang counts.
   Incomplete
+  /// A complete frame was followed by bytes that cannot start a valid frame,
+  /// or a malformed frame poisoned the input loop so a later complete request
+  /// was never processed.  Distinct from HANG: the stream, not one request,
+  /// is stuck.
+  Desync
+  FlakyDesync
+  /// Server is alive and silent while a frame is legitimately incomplete.
+  /// Excluded from defect counts as EXPECTED_WAIT.
+  Stall
+  /// Advertised-method probe name that this binary does not implement
+  /// (-32601/-32603 and absent from `initialize` capabilities).
+  Unsupported
 }
 
 ///|
@@ -37,6 +49,10 @@ pub fn Outcome::to_string(self : Outcome) -> String {
     Crash => "CRASH"
     InitHang => "INIT_HANG"
     Incomplete => "INCOMPLETE"
+    Desync => "DESYNC"
+    FlakyDesync => "FLAKY_DESYNC"
+    Stall => "STALL"
+    Unsupported => "UNSUPPORTED"
   }
 }
 
@@ -98,6 +114,7 @@ pub fn signature(outcome : Outcome, rpc_method : String, rc : Int32) -> String {
   match outcome {
     Hang | FlakyHang => "hang:" + rpc_method
     Crash | FlakyCrash => crash_signature(rc)
+    Desync | FlakyDesync => "desync:" + rpc_method
     _ => ""
   }
 }
@@ -109,6 +126,12 @@ pub fn confirm(candidate : Outcome, attempts : Int32, count : Int32) -> Outcome 
   match candidate {
     Hang => if attempts >= 3 && count == attempts { Hang } else { FlakyHang }
     Crash => if attempts >= 3 && count == attempts { Crash } else { FlakyCrash }
+    Desync =>
+      if attempts >= 3 && count == attempts {
+        Desync
+      } else {
+        FlakyDesync
+      }
     other => other
   }
 }

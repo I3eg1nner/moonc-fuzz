@@ -46,6 +46,7 @@ pub(all) struct ResponseInfo {
   id : Int32?
   has_error : Bool
   has_result : Bool
+  error_code : Int32?
 }
 
 ///|
@@ -155,6 +156,44 @@ fn parse_int_at(s : String, start : Int32) -> (Int32?, Int32) {
 }
 
 ///|
+/// `i` points at the value of a top-level `"error"` member.  Walk the object
+/// and return its integer `code`, or `None` when the shape is unexpected.
+fn error_code_at(s : String, start : Int32) -> Int32? {
+  let n = s.length()
+  let mut i = skip_ws(s, start)
+  if i >= n || s.get_char(i) != Some('{') {
+    return None
+  }
+  i += 1
+  while i < n {
+    i = skip_ws(s, i)
+    if i >= n || s.get_char(i) == Some('}') {
+      break
+    }
+    if s.get_char(i) != Some('"') {
+      break
+    }
+    let key_end = scan_string(s, i)
+    let key = s[i + 1:key_end - 1].to_owned()
+    i = skip_ws(s, key_end)
+    if i >= n || s.get_char(i) != Some(':') {
+      break
+    }
+    i = skip_ws(s, i + 1)
+    if key == "code" {
+      let (v, _) = parse_int_at(s, i)
+      return v
+    }
+    i = skip_value(s, i)
+    i = skip_ws(s, i)
+    if i < n && s.get_char(i) == Some(',') {
+      i += 1
+    }
+  }
+  None
+}
+
+///|
 /// Scan a response body for the top-level `id`, `error` and `result` keys.
 /// Values are skipped with a string- and nesting-aware scanner, so an
 /// `"error"` inside a result string does not count.
@@ -162,12 +201,13 @@ pub fn inspect_response(body : String) -> ResponseInfo {
   let n = body.length()
   let mut i = skip_ws(body, 0)
   if i >= n || body.get_char(i) != Some('{') {
-    return { id: None, has_error: false, has_result: false, }
+    return { id: None, has_error: false, has_result: false, error_code: None, }
   }
   i += 1
   let mut id = None
   let mut has_error = false
   let mut has_result = false
+  let mut error_code = None
   while i < n {
     i = skip_ws(body, i)
     if i >= n || body.get_char(i) == Some('}') {
@@ -190,6 +230,7 @@ pub fn inspect_response(body : String) -> ResponseInfo {
     } else {
       if key == "error" {
         has_error = true
+        error_code = error_code_at(body, i)
       } else if key == "result" {
         has_result = true
       }
@@ -200,5 +241,5 @@ pub fn inspect_response(body : String) -> ResponseInfo {
       i += 1
     }
   }
-  { id, has_error, has_result, }
+  { id, has_error, has_result, error_code, }
 }

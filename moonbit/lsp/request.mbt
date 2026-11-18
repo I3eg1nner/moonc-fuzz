@@ -185,3 +185,11 @@ pub fn exit() -> Request {
 pub fn unknown(id : Int32, name : String) -> Request {
   { id: Some(id), rpc_method: Unknown(name), params: Some("{}"), }
 }
+
+///|
+/// Request with a caller-supplied method name and literal params object.
+/// Used by the advertised-method matrix, where the params shape varies per
+/// method.  The caller is responsible for sending valid JSON.
+pub fn raw_request(id : Int32, name : String, params : String) -> Request {
+  { id: Some(id), rpc_method: Unknown(name), params: Some(params), }
+}

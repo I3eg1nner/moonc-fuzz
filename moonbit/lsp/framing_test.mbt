@@ -122,3 +122,90 @@ test "content_length accepts lower case and junk spacing" {
   assert_eq(content_length("Content-Length: -1"), None)
   assert_eq(content_length("Content-Type: x"), None)
 }
+
+///|
+test "frame_declared writes the declared length, not the body length" {
+  let f = frame_declared(200, "{\"id\":1}")
+  assert_true(f.has_prefix("Content-Length: 200\r\n\r\n"))
+  assert_true(f.has_suffix("{\"id\":1}"))
+}
+
+///|
+test "frame_with_header keeps arbitrary header bytes" {
+  let f = frame_with_header("\u{feff}Content-Length: 2", "{}")
+  assert_eq(f, "\u{feff}Content-Length: 2\r\n\r\n{}")
+  let g = frame_with_header("Content-Length : 2", "{}")
+  assert_eq(g, "Content-Length : 2\r\n\r\n{}")
+}
+
+///|
+test "split_at round-trips and clamps" {
+  let (a, b) = split_at("Content-Length: 2\r\n\r\n{}", 15)
+  assert_eq(a + b, "Content-Length: 2\r\n\r\n{}")
+  assert_eq(a, "Content-Length:")
+  assert_eq(split_at("abcdef", -1).0, "")
+  assert_eq(split_at("abcdef", 99).1, "")
+}
+
+///|
+test "scan_stream reads two frames with no remainder" {
+  let all = frame_message("{\"id\":1}") + frame_message("{\"id\":2}")
+  match scan_stream(@utf8.encode(all)) {
+    AllFrames(fs) => {
+      assert_eq(fs.length(), 2)
+      assert_eq(fs[0], "{\"id\":1}")
+      assert_eq(fs[1], "{\"id\":2}")
+    }
+    _ => fail("expected AllFrames")
+  }
+}
+
+///|
+test "scan_stream flags surplus bytes after an undersized length" {
+  let bytes = @utf8.encode(
+    frame_declared(5, "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"shutdown\"}"),
+  )
+  match scan_stream(bytes) {
+    Desynced(fs, off, _) => {
+      assert_eq(fs.length(), 1)
+      assert_eq(fs[0], "{\"jso")
+      assert_eq(off, "Content-Length: 5\r\n\r\n".length() + 5)
+    }
+    _ => fail("expected Desynced for surplus bytes")
+  }
+}
+
+///|
+test "scan_stream waits for the rest of an oversized frame" {
+  let bytes = @utf8.encode(frame_declared(200, "{\"id\":1}"))
+  match scan_stream(bytes) {
+    PartialFrame(fs, off) => {
+      assert_eq(fs.length(), 0)
+      assert_eq(off, 0)
+    }
+    _ => fail("expected PartialFrame")
+  }
+}
+
+///|
+test "scan_stream rejects a UTF-8 BOM before the header" {
+  let bytes = @utf8.encode(frame_with_header("\u{feff}Content-Length: 2", "{}"))
+  match scan_stream(bytes) {
+    Desynced(fs, off, _) => {
+      assert_eq(fs.length(), 0)
+      assert_eq(off, 0)
+    }
+    _ => fail("expected Desynced for BOM")
+  }
+}
+
+///|
+test "scan_stream waits on LF-only headers, unlike moon-lsp" {
+  // The server accepts `Content-Length: 2\n\n{}`; this strict parser only
+  // recognises CRLF, so it reports a partial frame.  Documented limitation.
+  let bytes = @utf8.encode("Content-Length: 2\n\n{}")
+  match scan_stream(bytes) {
+    PartialFrame(fs, _) => assert_eq(fs.length(), 0)
+    _ => fail("expected PartialFrame for LF-only header")
+  }
+}

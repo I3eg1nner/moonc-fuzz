@@ -10,9 +10,15 @@ type Action
 
 type Case
 
+type Collect
+
 type ReadResult
 
 type Row
+
+type Seen
+
+type Step
 
 // Type aliases
 

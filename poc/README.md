@@ -27,6 +27,7 @@ Set `MOONC`/`MOON`/`MOONFMT` or use `$HOME/.moon/bin/...`.
 | F9 | [`f9_native_v128_stub_ice/`](f9_native_v128_stub_ice/) | `moon test --target native` | native debug stub-wrapper ICE for `V128` |
 | F10 | [`f10_lsp_format_nth_hang/`](f10_lsp_format_nth_hang/) | `python3 replay.py hang.json` | LSP `format-nth` never returns, 100% CPU |
 | F11 | [`f11_lsp_scalar_params_deadlock/`](f11_lsp_scalar_params_deadlock/) | `python3 replay.py hang_null.json 3` | LSP deadlocks on any request with scalar `params` (`null`/number/string/bool) |
+| F12 | [`f12_lsp_frame_wedge/`](f12_lsp_frame_wedge/) | `python3 replay.py bom` | One unparsable frame wedges the stdio loop: no response, process alive at 0% CPU, later complete request unanswered |
 | P1 | [`p1_fmt_interp/`](p1_fmt_interp/) | `./generate.sh 2048` then 5x `moonfmt` | ~10x per doubling |
 
 Run all local PoCs:
@@ -64,6 +65,12 @@ signature:
   a normal `-32602`/`-32601`/`result`. Method-independent (reproduced with
   `textDocument/hover`, `shutdown`, and an unknown method), 0% CPU, and later
   requests are blocked behind it.
+- F12 has **no matching upstream report**: a UTF-8 BOM before the first header,
+  or a valid non-object JSON body, makes `moon-lsp` log an uncaught exception,
+  stay alive at 0% CPU and never process another complete request. The
+  single-request silence of malformed JSON was already noted in
+  `findings/lsp_probe.md`; F12 proves the session is permanently wedged and
+  adds the transport/encoding triggers.
 
 An independent Codex run (three repeats each, with negative controls) is
 archived in `findings/codex_open_ice_review.md`; it covered F7–F9 and also

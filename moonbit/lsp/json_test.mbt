@@ -37,3 +37,13 @@ test "inspect_response survives ids with surrounding whitespace" {
   assert_eq(info.id, Some(12))
   assert_true(info.has_result)
 }
+
+///|
+test "inspect_response extracts the error code" {
+  let info = inspect_response(
+    "{\"id\":2,\"error\":{\"code\":-32602,\"message\":\"bad params\"}}",
+  )
+  assert_eq(info.error_code, Some(-32602))
+  let ok = inspect_response("{\"id\":2,\"result\":null}")
+  assert_eq(ok.error_code, None)
+}

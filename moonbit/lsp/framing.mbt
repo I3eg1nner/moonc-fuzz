@@ -178,3 +178,64 @@ pub fn parse_frame(buf : BytesView) -> FrameStatus {
     }
   }
 }
+
+///|
+/// Encode a frame with an arbitrary header block (no terminator appended).
+/// The caller supplies the exact header text, so tests can produce a BOM,
+/// a wrong header name, an extra header or a deliberately wrong length.
+pub fn frame_with_header(header : String, body : String) -> String {
+  header + "\r\n\r\n" + body
+}
+
+///|
+/// Encode a frame whose `Content-Length` is `declared`, independent of the
+/// number of bytes actually appended.  `declared` larger than the body models
+/// a frame that is still in flight; smaller models an undersized length whose
+/// surplus bytes become a new (bogus) header.
+pub fn frame_declared(declared : Int32, body : String) -> String {
+  "Content-Length: " + declared.to_string() + "\r\n\r\n" + body
+}
+
+///|
+/// Split a string at a character index, clamping out-of-range values.  Used by
+/// the driver to write one frame in pieces; the probe only splits ASCII
+/// headers and bodies, so character and byte offsets coincide.
+pub fn split_at(s : String, n : Int32) -> (String, String) {
+  let k = if n < 0 { 0 } else if n > s.length() { s.length() } else { n }
+  (s[0:k].to_owned(), s[k:].to_owned())
+}
+
+///|
+/// Result of scanning a buffer that may hold zero or more frames.
+///
+/// `Desynced` is the important case: at least one frame was complete, but the
+/// bytes that follow cannot start a valid frame.  This is what an undersized
+/// `Content-Length` produces when the surplus body bytes are re-interpreted as
+/// a header.  `PartialFrame` is a legitimate wait for more bytes.
+pub(all) enum StreamScan {
+  AllFrames(Array[String])
+  PartialFrame(Array[String], Int32)
+  Desynced(Array[String], Int32, String)
+}
+
+///|
+/// Parse as many frames as possible from `buf`.  `Desynced` carries the number
+/// of frames parsed before the bad offset and the parser's complaint.
+pub fn scan_stream(buf : BytesView) -> StreamScan {
+  let frames : Array[String] = []
+  let mut off = 0
+  while off < buf.length() {
+    match parse_frame(buf[off:]) {
+      Complete(body, used) => {
+        if used <= 0 {
+          return Desynced(frames, off, "zero-length frame")
+        }
+        frames.push(body)
+        off += used
+      }
+      Incomplete => return PartialFrame(frames, off)
+      Malformed(msg) => return Desynced(frames, off, msg)
+    }
+  }
+  AllFrames(frames)
+}

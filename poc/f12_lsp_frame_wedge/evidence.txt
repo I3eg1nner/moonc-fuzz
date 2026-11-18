@@ -1,0 +1,15 @@
+# F12 evidence: 2026-11-18T04:12:16Z
+# moon-lsp: 5b9f19e9f4874a7ba56624ef3a9bdcd7571702efa01c8a365eede252c2f8801d
+# moon: moon 0.1.20261104 (940aa18 2026-11-04)
+## control
+{"alive": true, "elapsed_ms": 2052, "id2_answered": true, "id3_answered": true, "ids": [2, 3], "init_ok": true, "mode": "control", "server_cpu_pct": 0.0, "stderr": "", "verdict": "CONTROL_OK"}
+{"alive": true, "elapsed_ms": 2053, "id2_answered": true, "id3_answered": true, "ids": [2, 3], "init_ok": true, "mode": "control", "server_cpu_pct": 0.0, "stderr": "", "verdict": "CONTROL_OK"}
+{"alive": true, "elapsed_ms": 2053, "id2_answered": true, "id3_answered": true, "ids": [2, 3], "init_ok": true, "mode": "control", "server_cpu_pct": 0.0, "stderr": "", "verdict": "CONTROL_OK"}
+## bom
+{"alive": true, "elapsed_ms": 2053, "id2_answered": false, "id3_answered": false, "ids": [], "init_ok": true, "mode": "bom", "server_cpu_pct": 0.0, "stderr": "Internal error: Uncaught exception.", "verdict": "WEDGED"}
+{"alive": true, "elapsed_ms": 2052, "id2_answered": false, "id3_answered": false, "ids": [], "init_ok": true, "mode": "bom", "server_cpu_pct": 0.0, "stderr": "Internal error: Uncaught exception.", "verdict": "WEDGED"}
+{"alive": true, "elapsed_ms": 2052, "id2_answered": false, "id3_answered": false, "ids": [], "init_ok": true, "mode": "bom", "server_cpu_pct": 0.0, "stderr": "Internal error: Uncaught exception.", "verdict": "WEDGED"}
+## array
+{"alive": true, "elapsed_ms": 2053, "id2_answered": false, "id3_answered": false, "ids": [], "init_ok": true, "mode": "array", "server_cpu_pct": 0.0, "stderr": "Internal error: Uncaught exception.", "verdict": "WEDGED"}
+{"alive": true, "elapsed_ms": 2052, "id2_answered": false, "id3_answered": false, "ids": [], "init_ok": true, "mode": "array", "server_cpu_pct": 0.0, "stderr": "Internal error: Uncaught exception.", "verdict": "WEDGED"}
+{"alive": true, "elapsed_ms": 2052, "id2_answered": false, "id3_answered": false, "ids": [], "init_ok": true, "mode": "array", "server_cpu_pct": 0.0, "stderr": "Internal error: Uncaught exception.", "verdict": "WEDGED"}

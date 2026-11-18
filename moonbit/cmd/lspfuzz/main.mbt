@@ -6,6 +6,14 @@
 /// a fresh server because one unresponsive request poisons the queue.
 
 ///|
+/// One write and the delay to observe before the next write.  A delay of 0
+/// means "write immediately"; the driver still flushes after every chunk.
+struct Step {
+  data : String
+  delay_ms : Int32
+}
+
+///|
 enum Action {
   FormatNth(String, Int32, Bool)
   /// Method, URI mode, optional didOpen text, line, character.
@@ -16,6 +24,10 @@ enum Action {
   UnknownMethod
   /// Raw bytes sent after the handshake; no id is awaited.
   Raw(String)
+  /// Ordered byte chunks for split-write and desync cases.
+  Steps(Array[Step])
+  /// Arbitrary method name plus literal params, sent as request id 2.
+  Rpc(String, String, Bool)
 }
 
 ///|
@@ -24,6 +36,17 @@ struct Case {
   family : String
   rpc_method : String
   action : Action
+  /// Oracle shape: request, control, method, unsupported, incomplete,
+  /// desync, pipeline, mixed, large.
+  kind : String
+  /// Response ids that must arrive, including duplicates for dup-id cases.
+  expect_ids : Array[Int32]
+  /// Text to `didOpen` before the probe, or None for no open.
+  open_text : String?
+  /// A frame is deliberately incomplete, so silence is EXPECTED_WAIT.
+  expected_wait : Bool
+  /// Pre-set classification note (known_f10, expected_wait, ...).
+  known_kind : String
 }
 
 ///|
@@ -33,7 +56,42 @@ fn case(
   rpc_method : String,
   action : Action,
 ) -> Case {
-  { cid, family, rpc_method, action, }
+  {
+    cid,
+    family,
+    rpc_method,
+    action,
+    kind: "request",
+    expect_ids: [],
+    open_text: None,
+    expected_wait: false,
+    known_kind: "",
+  }
+}
+
+///|
+fn probe_case(
+  cid : String,
+  family : String,
+  rpc_method : String,
+  action : Action,
+  kind : String,
+  expect_ids : Array[Int32],
+  open_text : String?,
+  expected_wait : Bool,
+  known_kind : String,
+) -> Case {
+  {
+    cid,
+    family,
+    rpc_method,
+    action,
+    kind,
+    expect_ids,
+    open_text,
+    expected_wait,
+    known_kind,
+  }
 }
 
 ///|
@@ -303,7 +361,589 @@ fn build_cases() -> Array[Case] {
       ),
     ),
   )
+  add_framing_cases(cs)
+  add_method_cases(cs)
   cs
+}
+
+///|
+fn replace_all(s : String, needle : String, repl : String) -> String {
+  if needle == "" {
+    return s
+  }
+  let b = StringBuilder()
+  let n = needle.length()
+  let mut i = 0
+  while i < s.length() {
+    if i + n <= s.length() && s[i:i + n].to_owned() == needle {
+      b.write_string(repl)
+      i += n
+      continue
+    }
+    b.write_char(s.get_char(i).unwrap())
+    i += 1
+  }
+  b.to_string()
+}
+
+///|
+fn fstep(data : String, delay_ms : Int32) -> Step {
+  { data, delay_ms, }
+}
+
+///|
+/// Family A: transport/framing.  Every case sends bytes and then, where the
+/// frame is not deliberately incomplete, a complete follow-up request id 3 so
+/// "no error response" can be separated from "input loop is permanently
+/// wedged".  Ids 2/3 are probes whose clean answer is -32601; that is a
+/// perfectly valid response for a complete request.
+fn add_framing_cases(cs : Array[Case]) -> Unit {
+  let req2 = @lsp.encode_request(@lsp.unknown(2, "probe/no-such-method"))
+  let req3 = @lsp.encode_request(@lsp.unknown(3, "probe/no-such-method"))
+  let f2 = @lsp.frame_message(req2)
+  let f3 = @lsp.frame_message(req3)
+  let n = @utf8.encode(req2).length()
+  let add = fn(
+    cid : String,
+    label : String,
+    steps : Array[Step],
+    expect : Array[Int32],
+    kind : String,
+    wait : Bool,
+    known : String,
+  ) {
+    cs.push(
+      probe_case(
+        cid,
+        "framing",
+        label,
+        Steps(steps),
+        kind,
+        expect,
+        None,
+        wait,
+        known,
+      ),
+    )
+  }
+  // 1. Declared length larger than the body.  Alone this is a legitimate
+  //    wait for more bytes and is excluded as EXPECTED_WAIT.
+  add(
+    "fr-larger-expect-wait",
+    "content-length-too-large-alone",
+    [fstep(@lsp.frame_declared(n + 200, req2), 0)],
+    [2],
+    "incomplete",
+    true,
+    "expected_wait",
+  )
+  // A complete follow-up request makes the oversized declaration observable.
+  add(
+    "fr-larger-then-valid",
+    "content-length-too-large+next",
+    [fstep(@lsp.frame_declared(n + 20, req2), 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "known_prior_silence",
+  )
+  add(
+    "fr-larger-far-then-valid",
+    "content-length-way-too-large+next",
+    [fstep(@lsp.frame_declared(n + 400, req2), 0), fstep(f3, 60)],
+    [2, 3],
+    "incomplete",
+    true,
+    "expected_wait",
+  )
+  // 2. Declared length smaller than the body: the surplus bytes become a
+  //    bogus header and the stream is desynchronised.
+  add(
+    "fr-short-then-valid",
+    "content-length-too-small+next",
+    [fstep(@lsp.frame_declared(5, req2), 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "known_prior_silence",
+  )
+  // 3. Header variants.
+  add(
+    "fr-missing-length-then-valid",
+    "header-without-content-length+next",
+    [fstep(@lsp.frame_with_header("X-Test: 1", req2), 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-wrong-header-name-then-valid",
+    "content-lenght-typo+next",
+    [
+      fstep(@lsp.frame_with_header("Content-Lenght: " + n.to_string(), req2), 0),
+      fstep(f3, 60),
+    ],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-extra-content-type",
+    "extra-content-type",
+    [
+      fstep(
+        @lsp.frame_with_header(
+          "Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n" +
+          "Content-Length: " +
+          n.to_string(),
+          req2,
+        ),
+        0,
+      ),
+    ],
+    [2],
+    "control",
+    false,
+    "",
+  )
+  add(
+    "fr-extra-unknown-header",
+    "extra-unknown-header",
+    [
+      fstep(
+        @lsp.frame_with_header(
+          "X-Foo: bar\r\nContent-Length: " + n.to_string(),
+          req2,
+        ),
+        0,
+      ),
+    ],
+    [2],
+    "control",
+    false,
+    "",
+  )
+  add(
+    "fr-lowercase-header",
+    "lowercase-content-length",
+    [fstep(@lsp.frame_with_header("content-length: " + n.to_string(), req2), 0)],
+    [2],
+    "control",
+    false,
+    "",
+  )
+  add(
+    "fr-space-before-colon-then-valid",
+    "space-before-colon+next",
+    [
+      fstep(
+        @lsp.frame_with_header("Content-Length : " + n.to_string(), req2),
+        0,
+      ),
+      fstep(f3, 60),
+    ],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-extra-space-value",
+    "space-after-colon",
+    [
+      fstep(
+        @lsp.frame_with_header("Content-Length:   " + n.to_string(), req2),
+        0,
+      ),
+    ],
+    [2],
+    "control",
+    false,
+    "",
+  )
+  add(
+    "fr-trailing-crlf-between",
+    "blank-line-between-frames",
+    [fstep(f2 + "\r\n" + f3, 0)],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  // 4. Split writes.
+  let (h1, h2) = @lsp.split_at(f2, 15)
+  add(
+    "fr-header-split",
+    "header-split-across-writes",
+    [fstep(h1, 0), fstep(h2, 50)],
+    [2],
+    "control",
+    false,
+    "",
+  )
+  let (b1, b2) = @lsp.split_at(f2, 45)
+  add(
+    "fr-body-split",
+    "body-split-across-writes",
+    [fstep(b1, 0), fstep(b2, 50)],
+    [2],
+    "control",
+    false,
+    "",
+  )
+  let bytewise : Array[Step] = []
+  let mut off = 0
+  while off < f2.length() {
+    let (chunk, _) = @lsp.split_at(f2[off:].to_owned(), 9)
+    bytewise.push(fstep(chunk, 15))
+    off += 9
+  }
+  add(
+    "fr-bytewise-split",
+    "frame-in-nine-byte-writes",
+    bytewise,
+    [2],
+    "control",
+    false,
+    "",
+  )
+  // 9. BOM and LF-only.
+  add(
+    "fr-bom-then-valid",
+    "utf8-bom+next",
+    [fstep("\u{feff}" + f2, 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-lf-only-header",
+    "lf-only-terminator",
+    [fstep(replace_all(f2, "\r\n", "\n"), 0)],
+    [2],
+    "control",
+    false,
+    "",
+  )
+  // 5. Valid JSON that is not a JSON-RPC object.
+  add(
+    "fr-top-array-then-valid",
+    "top-level-array+next",
+    [
+      fstep(@lsp.frame_with_header("Content-Length: 5", "[1,2]"), 0),
+      fstep(f3, 60),
+    ],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-top-number-then-valid",
+    "top-level-number+next",
+    [fstep(@lsp.frame_with_header("Content-Length: 2", "42"), 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-top-string-then-valid",
+    "top-level-string+next",
+    [
+      fstep(@lsp.frame_with_header("Content-Length: 3", "\"x\""), 0),
+      fstep(f3, 60),
+    ],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-top-null-then-valid",
+    "top-level-null+next",
+    [
+      fstep(@lsp.frame_with_header("Content-Length: 4", "null"), 0),
+      fstep(f3, 60),
+    ],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  add(
+    "fr-empty-body-then-valid",
+    "content-length-zero+next",
+    [fstep(@lsp.frame_declared(0, ""), 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "new_trigger",
+  )
+  // 6. Pipelining and duplicate ids.
+  add(
+    "fr-pipeline-two-valid",
+    "two-valid-requests-one-write",
+    [fstep(f2 + f3, 0)],
+    [2, 3],
+    "pipeline",
+    false,
+    "",
+  )
+  add(
+    "fr-pipeline-valid-then-bad",
+    "valid-then-malformed-one-write",
+    [fstep(f2 + "Content-Length: 9\r\n\r\n{not json", 0)],
+    [2],
+    "mixed",
+    false,
+    "",
+  )
+  add(
+    "fr-duplicate-id",
+    "duplicate-id-two-responses",
+    [fstep(f2 + f2, 0)],
+    [2, 2],
+    "dup",
+    false,
+    "",
+  )
+  // 7. Large single request.
+  add(
+    "fr-large-1mb",
+    "1mb-params",
+    [
+      fstep(
+        @lsp.frame_message(
+          @lsp.encode_request(
+            @lsp.raw_request(
+              2,
+              "probe/no-such-method",
+              "{\"s\":\"" + "x".repeat(1024 * 1024) + "\"}",
+            ),
+          ),
+        ),
+        0,
+      ),
+    ],
+    [2],
+    "large",
+    false,
+    "",
+  )
+  add(
+    "fr-large-8mb",
+    "8mb-params",
+    [
+      fstep(
+        @lsp.frame_message(
+          @lsp.encode_request(
+            @lsp.raw_request(
+              2,
+              "probe/no-such-method",
+              "{\"s\":\"" + "x".repeat(8 * 1024 * 1024) + "\"}",
+            ),
+          ),
+        ),
+        0,
+      ),
+    ],
+    [2],
+    "large",
+    false,
+    "",
+  )
+  // 10. Request after a clean shutdown.
+  let shutdown2 = @lsp.encode_request(@lsp.shutdown(2, Some("{}")))
+  let shutdown3 = @lsp.encode_request(@lsp.shutdown(3, Some("{}")))
+  add(
+    "fr-shutdown-then-request",
+    "shutdown-then-frame",
+    [fstep(@lsp.frame_message(shutdown2), 0), fstep(f3, 80)],
+    [2, 3],
+    "lifecycle",
+    false,
+    "",
+  )
+  add(
+    "fr-request-then-shutdown",
+    "request-then-shutdown-one-write",
+    [fstep(f2 + @lsp.frame_message(shutdown3), 0)],
+    [2, 3],
+    "lifecycle",
+    false,
+    "",
+  )
+  // Previously covered malformed shapes, now with a complete follow-up.
+  add(
+    "fr-bad-json-then-valid",
+    "malformed-json+next",
+    [fstep("Content-Length: 9\r\n\r\n{not json", 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "known_prior_silence",
+  )
+  add(
+    "fr-no-header-then-valid",
+    "headerless-json+next",
+    [fstep(req2, 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "known_prior_silence",
+  )
+  add(
+    "fr-bad-length-then-valid",
+    "content-length-xyz+next",
+    [fstep("Content-Length: xyz\r\n\r\n{}", 0), fstep(f3, 60)],
+    [2, 3],
+    "desync",
+    false,
+    "known_prior_silence",
+  )
+}
+
+///|
+/// Family B: only methods this binary advertises, plus two explicit
+/// unadvertised checks.  Each advertised method gets (a) empty params,
+/// (b) plausible params with a `didOpen` control, (c) plausible params for a
+/// document that was never opened.
+fn add_method_cases(cs : Array[Case]) -> Unit {
+  let text = "fn f() -> Unit {\n  ()\n}\n"
+  let pos = "\"position\":{\"line\":0,\"character\":3}"
+  let range = "{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":0,\"character\":5}}"
+  let item = "{\"name\":\"f\",\"kind\":12,\"uri\":\"{{URI}}\",\"range\":" +
+    range +
+    ",\"selectionRange\":" +
+    range +
+    "}"
+  let methods : Array[(String, String, String)] = [
+    (
+      "textDocument/definition",
+      "definition",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"}," + pos + "}",
+    ),
+    (
+      "textDocument/references",
+      "references",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"}," +
+      pos +
+      ",\"context\":{\"includeDeclaration\":true}}",
+    ),
+    (
+      "textDocument/rename",
+      "rename",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"}," + pos + ",\"newName\":\"g\"}",
+    ),
+    (
+      "textDocument/prepareRename",
+      "prepare-rename",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"}," + pos + "}",
+    ),
+    (
+      "textDocument/codeAction",
+      "code-action",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"},\"range\":" +
+      range +
+      ",\"context\":{\"diagnostics\":[]}}",
+    ),
+    (
+      "textDocument/codeLens", "code-lens", "{\"textDocument\":{\"uri\":\"{{URI}}\"}}",
+    ),
+    (
+      "textDocument/inlayHint",
+      "inlay-hint",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"},\"range\":" + range + "}",
+    ),
+    (
+      "textDocument/foldingRange", "folding-range", "{\"textDocument\":{\"uri\":\"{{URI}}\"}}",
+    ),
+    (
+      "textDocument/semanticTokens/full", "semantic-tokens-full", "{\"textDocument\":{\"uri\":\"{{URI}}\"}}",
+    ),
+    (
+      "textDocument/signatureHelp",
+      "signature-help",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"}," + pos + "}",
+    ),
+    ("workspace/symbol", "workspace-symbol", "{\"query\":\"f\"}"),
+    ("callHierarchy/incomingCalls", "incoming-calls", "{\"item\":" + item + "}"),
+    ("callHierarchy/outgoingCalls", "outgoing-calls", "{\"item\":" + item + "}"),
+  ]
+  for entry in methods {
+    let (name, short, params) = entry
+    cs.push(
+      probe_case(
+        "method-" + short + "-empty",
+        "methods",
+        name,
+        Rpc(name, "{}", false),
+        "method",
+        [2],
+        None,
+        false,
+        "",
+      ),
+    )
+    cs.push(
+      probe_case(
+        "method-" + short + "-control",
+        "methods",
+        name,
+        Rpc(name, params, true),
+        "control",
+        [2],
+        Some(text),
+        false,
+        "",
+      ),
+    )
+    cs.push(
+      probe_case(
+        "method-" + short + "-unopened",
+        "methods",
+        name,
+        Rpc(name, params, false),
+        "method",
+        [2],
+        None,
+        false,
+        "",
+      ),
+    )
+  }
+  // Names the task suggested but this binary does not advertise.  They are
+  // kept so the -32601/-32603 verdict is recorded rather than assumed.
+  let unadvertised : Array[(String, String, String)] = [
+    (
+      "textDocument/documentHighlight",
+      "document-highlight",
+      "{\"textDocument\":{\"uri\":\"{{URI}}\"}," + pos + "}",
+    ),
+    (
+      "completionItem/resolve", "completion-resolve", "{\"label\":\"f\",\"kind\":3}",
+    ),
+  ]
+  for entry in unadvertised {
+    let (name, short, params) = entry
+    cs.push(
+      probe_case(
+        "method-" + short + "-unadvertised",
+        "methods",
+        name,
+        Rpc(name, params, true),
+        "unsupported",
+        [2],
+        Some(text),
+        false,
+        "",
+      ),
+    )
+  }
 }
 
 ///|
@@ -581,6 +1221,22 @@ fn payload_of(a : Action) -> String {
     ShutdownThenExit => "shutdown params=<omitted> then exit"
     UnknownMethod => "moonbit-lsp/definitely-not-a-method params={}"
     Raw(b) => "raw=" + b
+    Steps(steps) => {
+      let mut total = 0
+      for st in steps {
+        total += st.data.length()
+      }
+      "frame steps=" +
+      steps.length().to_string() +
+      " chars=" +
+      total.to_string()
+    }
+    Rpc(name, params, open) =>
+      name +
+      " params=" +
+      params +
+      " didOpen=" +
+      (if open { "yes" } else { "no" })
   }
 }
 
@@ -706,6 +1362,146 @@ fn cleanup_project(dir : String, keep : Bool) -> Unit {
 }
 
 ///|
+/// One response observed while collecting ids.  The body is kept so the
+/// summary can quote the answer (for example the -32601 text of a probe).
+struct Seen {
+  id : Int32?
+  has_error : Bool
+  error_code : Int32?
+  body : String
+}
+
+///|
+struct Collect {
+  seen : Array[Seen]
+  eof : Bool
+  bad_header : String
+  ms : Int64
+}
+
+///|
+fn clip240(s : String) -> String {
+  if s.length() > 240 {
+    s[0:240].to_owned() + "..."
+  } else {
+    s
+  }
+}
+
+///|
+fn count_expected(seen : Array[Seen], id : Int32) -> Int32 {
+  let mut n = 0
+  for x in seen {
+    if x.id == Some(id) {
+      n += 1
+    }
+  }
+  n
+}
+
+///|
+fn count_wanted(expected : Array[Int32], id : Int32) -> Int32 {
+  let mut n = 0
+  for x in expected {
+    if x == id {
+      n += 1
+    }
+  }
+  n
+}
+
+///|
+fn expected_satisfied(seen : Array[Seen], expected : Array[Int32]) -> Bool {
+  for id in expected {
+    if count_expected(seen, id) < count_wanted(expected, id) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+/// Read responses until every expected id has arrived (duplicates counted) or
+/// the timeout expires.  One bounded wait serves both single requests and
+/// pipeline cases, and it cannot over-read: `read_message` consumes exactly
+/// one frame.
+async fn collect_responses(
+  p : @process.OrphanProcess,
+  expected : Array[Int32],
+  timeout_ms : Int32,
+) -> Collect {
+  let t0 = now_ms()
+  let deadline = t0 + timeout_ms.to_int64()
+  let seen : Array[Seen] = []
+  let mut eof = false
+  let mut bad = ""
+  while now_ms() < deadline {
+    let left = (deadline - now_ms()).to_int()
+    if left <= 0 {
+      break
+    }
+    match read_message(p, left) {
+      Msg(body) => {
+        let info = @lsp.inspect_response(body)
+        seen.push({
+          id: info.id,
+          has_error: info.has_error,
+          error_code: info.error_code,
+          body,
+        })
+        if expected_satisfied(seen, expected) {
+          break
+        }
+      }
+      Eof => {
+        eof = true
+        break
+      }
+      TimedOut => break
+      BadHeader(h) => {
+        bad = h
+        break
+      }
+    }
+  }
+  { seen, eof, bad_header: bad, ms: now_ms() - t0, }
+}
+
+///|
+fn classify_collect(c : Case, col : Collect, alive : Bool) -> @lsp.Outcome {
+  if col.eof || col.bad_header != "" {
+    return @lsp.Crash
+  }
+  if expected_satisfied(col.seen, c.expect_ids) {
+    if c.kind == "unsupported" {
+      for x in col.seen {
+        if x.error_code == Some(-32601) || x.error_code == Some(-32603) {
+          return @lsp.Unsupported
+        }
+      }
+      return @lsp.ErrorResponse
+    }
+    let mut err = false
+    for x in col.seen {
+      if x.has_error {
+        err = true
+      }
+    }
+    return if err { @lsp.ErrorResponse } else { @lsp.Ok }
+  }
+  if !alive {
+    return @lsp.Crash
+  }
+  if c.expected_wait {
+    return @lsp.Stall
+  }
+  if c.kind == "method" {
+    return @lsp.Hang
+  }
+  @lsp.Desync
+}
+
+///|
 async fn run_once(
   server : String,
   case : Case,
@@ -775,12 +1571,16 @@ async fn run_once(
   } else {
     stage = "request"
     send(p, @lsp.initialized())
-    match case.action {
-      Doc(_, _, Some(t), _, _) => {
+    let open_text = match case.action {
+      Doc(_, _, Some(t), _, _) => Some(t)
+      _ => case.open_text
+    }
+    match open_text {
+      Some(t) => {
         send(p, @lsp.did_open(use_uri, t))
         @async.sleep(120)
       }
-      _ => ()
+      None => ()
     }
     let req = match case.action {
       FormatNth(content, n, is_markdown) =>
@@ -800,6 +1600,9 @@ async fn run_once(
       UnknownMethod =>
         Some(@lsp.unknown(2, "moonbit-lsp/definitely-not-a-method"))
       Raw(_) => None
+      Steps(_) => None
+      Rpc(name, params, _) =>
+        Some(@lsp.raw_request(2, name, replace_all(params, "{{URI}}", use_uri)))
     }
     match req {
       Some(r) => {
@@ -818,7 +1621,11 @@ async fn run_once(
           Msg(body) => {
             let info = @lsp.inspect_response(body)
             if info.has_error {
-              @lsp.ErrorResponse
+              if case.kind == "unsupported" {
+                @lsp.Unsupported
+              } else {
+                @lsp.ErrorResponse
+              }
             } else {
               @lsp.Ok
             }
@@ -905,6 +1712,33 @@ async fn run_once(
                 }
             }
           }
+          Steps(steps) => {
+            let c2 = cpu_ticks(p.pid)
+            for st in steps {
+              send_bytes(p, st.data)
+              if st.delay_ms > 0 {
+                @async.sleep(st.delay_ms)
+              }
+            }
+            let col = collect_responses(p, case.expect_ids, timeout_ms)
+            elapsed = col.ms
+            excerpt = if col.seen.length() > 0 {
+              clip240(col.seen[col.seen.length() - 1].body)
+            } else {
+              ""
+            }
+            let c3 = cpu_ticks(p.pid)
+            let ticks = match (c2, c3) {
+              (Some(a), Some(b)) => b - a
+              _ => 0
+            }
+            cpu_pct = if col.ms > 0 {
+              ticks * 1000 / col.ms.to_int()
+            } else {
+              0
+            }
+            outcome = classify_collect(case, col, proc_alive(p.pid))
+          }
           _ => ()
         }
     }
@@ -934,9 +1768,20 @@ async fn run_once(
     rc = main_rc
   }
   cleanup_project(dir, keep)
-  let known = if case.cid == "fmt-f10-exact-no-final-newline" &&
-    outcome == @lsp.Hang {
+  let known = if outcome == @lsp.Hang && case.family == "format-nth" {
+    // Every format-nth hang is the F10 shape: the last block has no trailing
+    // newline and the formatter spins at ~100% CPU.
     "known_f10"
+  } else if outcome == @lsp.Hang &&
+    (case.cid == "life-shutdown-null" || case.cid == "life-shutdown-number") {
+    // F11: any request whose params is a JSON scalar deadlocks at 0% CPU.
+    "known_f11"
+  } else if outcome == @lsp.Stall {
+    "expected_wait"
+  } else if outcome == @lsp.Desync {
+    case.known_kind
+  } else if outcome == @lsp.Hang && case.family == "lifecycle" {
+    "known_prior_silence"
   } else {
     ""
   }
@@ -970,6 +1815,7 @@ async fn run_confirmed(
   let candidate = first.outcome
   let interesting = candidate == @lsp.Hang ||
     candidate == @lsp.Crash ||
+    candidate == @lsp.Desync ||
     candidate == @lsp.InitHang
   if !interesting {
     return first
@@ -1029,7 +1875,7 @@ fn has_arg(args : Array[String], name : String) -> Bool {
 ///|
 fn usage() -> Unit {
   println(
-    "usage: lspfuzz --out ABS_DIR [--timeout-ms N] [--cases all|format-nth|documents|all-methods] [--limit N] [--keep]",
+    "usage: lspfuzz --out ABS_DIR [--timeout-ms N] [--family all|framing|methods] [--cases all|format-nth|documents|all-methods] [--limit N] [--keep]",
   )
 }
 
@@ -1047,9 +1893,13 @@ async fn main {
     Some(s) => @string.parse_int(s) catch { _ => 1200 }
     None => 1200
   }
-  let selection = match arg_value(args, "--cases") {
+  let selection = match arg_value(args, "--family") {
     Some(s) => s
-    None => "all"
+    None =>
+      match arg_value(args, "--cases") {
+        Some(s) => s
+        None => "all"
+      }
   }
   let limit = match arg_value(args, "--limit") {
     Some(s) => @string.parse_int(s) catch { _ => 0 }
@@ -1074,6 +1924,8 @@ async fn main {
   let selected : Array[Case] = []
   for c in all {
     let family_ok = selection == "all" ||
+      (selection == "framing" && c.family == "framing") ||
+      (selection == "methods" && c.family == "methods") ||
       (selection == "format-nth" && c.family == "format-nth") ||
       (selection == "documents" && c.family == "documents") ||
       (selection == "all-methods" && c.family != "format-nth")
@@ -1118,6 +1970,8 @@ async fn main {
   let counts : Map[String, Int32] = Map([])
   let hangs : Array[Row] = []
   let crashes : Array[Row] = []
+  let desyncs : Array[Row] = []
+  let stalls : Array[Row] = []
   for r in rows {
     let k = r.outcome.to_string()
     counts[k] = counts.get(k).unwrap_or(0) + 1
@@ -1128,6 +1982,12 @@ async fn main {
     }
     if r.outcome == @lsp.Crash || r.outcome == @lsp.FlakyCrash {
       crashes.push(r)
+    }
+    if r.outcome == @lsp.Desync || r.outcome == @lsp.FlakyDesync {
+      desyncs.push(r)
+    }
+    if r.outcome == @lsp.Stall {
+      stalls.push(r)
     }
   }
   let b = StringBuilder()
@@ -1201,6 +2061,47 @@ async fn main {
     b.write_string(@lsp.json_quote(r.outcome.to_string()))
     b.write_string(", \"exit_code\": ")
     b.write_string(r.rc.to_string())
+    b.write_string("}")
+  }
+  b.write_string("\n  ],\n  \"desyncs\": [")
+  let mut first_d = true
+  for r in desyncs {
+    if !first_d {
+      b.write_string(",")
+    }
+    first_d = false
+    b.write_string("\n    {")
+    b.write_string("\"case\": ")
+    b.write_string(@lsp.json_quote(r.cid))
+    b.write_string(", \"method\": ")
+    b.write_string(@lsp.json_quote(r.rpc_method))
+    b.write_string(", \"outcome\": ")
+    b.write_string(@lsp.json_quote(r.outcome.to_string()))
+    b.write_string(", \"known\": ")
+    b.write_string(@lsp.json_quote(r.known))
+    b.write_string(", \"repeats\": ")
+    b.write_string(r.repeats.to_string())
+    b.write_string(", \"hits\": ")
+    b.write_string(r.hits.to_string())
+    b.write_string(", \"elapsed_ms\": ")
+    b.write_string(r.elapsed_ms.to_string())
+    b.write_string(", \"server_cpu_pct\": ")
+    b.write_string(r.cpu_pct.to_string())
+    b.write_string("}")
+  }
+  b.write_string("\n  ],\n  \"stalls\": [")
+  let mut first_s = true
+  for r in stalls {
+    if !first_s {
+      b.write_string(",")
+    }
+    first_s = false
+    b.write_string("\n    {\"case\": ")
+    b.write_string(@lsp.json_quote(r.cid))
+    b.write_string(", \"known\": ")
+    b.write_string(@lsp.json_quote(r.known))
+    b.write_string(", \"elapsed_ms\": ")
+    b.write_string(r.elapsed_ms.to_string())
     b.write_string("}")
   }
   b.write_string("\n  ]\n}\n")
