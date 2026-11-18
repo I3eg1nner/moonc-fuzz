@@ -27,7 +27,7 @@ Set `MOONC`/`MOON`/`MOONFMT` or use `$HOME/.moon/bin/...`.
 | F9 | [`f9_native_v128_stub_ice/`](f9_native_v128_stub_ice/) | `moon test --target native` | native debug stub-wrapper ICE for `V128` |
 | F10 | [`f10_lsp_format_nth_hang/`](f10_lsp_format_nth_hang/) | `python3 replay.py hang.json` | LSP `format-nth` never returns, 100% CPU |
 | F11 | [`f11_lsp_scalar_params_deadlock/`](f11_lsp_scalar_params_deadlock/) | `python3 replay.py hang_null.json 3` | LSP deadlocks on any request with scalar `params` (`null`/number/string/bool) |
-| F12 | [`f12_lsp_frame_wedge/`](f12_lsp_frame_wedge/) | `python3 replay.py bom` | One unparsable frame wedges the stdio loop: no response, process alive at 0% CPU, later complete request unanswered |
+| F12 | [`f12_lsp_frame_wedge/`](f12_lsp_frame_wedge/) | `python3 replay.py array` | one unparsable frame wedges the LSP stdio loop permanently (also `bom`) |
 | P1 | [`p1_fmt_interp/`](p1_fmt_interp/) | `./generate.sh 2048` then 5x `moonfmt` | ~10x per doubling |
 
 Run all local PoCs:
@@ -53,13 +53,18 @@ upstream reports on the pinned toolchain and are kept as regression evidence:
 - F9 matches [#1344](https://github.com/moonbitlang/moonbit-docs/issues/1344)
   (`finish_stub_wrapper_shell` for an `extern "C"` taking `V128`).
 
-F7/F8/F9 are compiler/link-time crashes, not claims of miscompilation. F10 and
-F11 are LSP-level response failures whose oracle is a timeout, not a crash
-signature:
+F7/F8/F9 are compiler/link-time crashes, not claims of miscompilation. F10,
+F11 and F12 are LSP-level failures whose oracle is a timeout or a missing
+response, not a crash signature:
 
 - F10 matches [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372)
   (`moon-lsp` `format-nth` hangs at 100% CPU when the last block has no
   trailing newline).
+- F12 has **no matching upstream report**: a single frame that the decoder
+  rejects (UTF-8 BOM before the header, or a valid-JSON-but-not-object body like
+  `[1,2]`) raises out of `Lsp__Io.Make.read` and the whole stdio loop stops, so
+  later complete requests are never read while the process stays alive at 0%
+  CPU with stdout still open. The captured backtrace is in the PoC README.
 - F11 has **no matching upstream report**: `moon-lsp` never answers a request
   whose `params` is a JSON scalar, while `{}`, `[]` and omitted `params` return
   a normal `-32602`/`-32601`/`result`. Method-independent (reproduced with

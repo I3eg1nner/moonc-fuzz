@@ -85,13 +85,41 @@ as new. It adds:
 F10 (`format-nth` spin at 100% CPU) and F11 (scalar `params` deadlock) are
 unrelated and are excluded from this PoC.
 
-## Not root-caused
+## What the server itself reports
 
-The PoC does not debug `moon-lsp`. The observations are consistent with an
-uncaught JSON-decoder exception unwinding out of the stdio read/request loop
-(hence the stderr block and the still-live process), but no source-level claim
-is made. The fix may be as simple as catching the decode error, answering
-`-32600`/`-32700` and continuing to read.
+`moon-lsp` prints an uncaught-exception block to stderr, and the toolchain
+ships that binary with OCaml symbols, so the escaping exception is identifiable
+without debugging. Captured verbatim for the `array` trigger
+(`Content-Length: 5\r\n\r\n[1,2]`):
+
+```
+/-----------------------------------------------------------------------
+| Internal error: Uncaught exception.
+| Jsonrpc: json conversion failed: invalid packet
+| Raised at Jsonrpc__Import.Json.error in file "ocaml-lsp/jsonrpc/src/import.ml", line 22, characters 23-50
+| Called from Jsonrpc.Packet.t_of_yojson in file "ocaml-lsp/jsonrpc/src/jsonrpc.ml", line 291, characters 15-47
+| Called from Lsp__Io.Make.read in file "ocaml-lsp/lsp/src/io.ml", line 103, characters 25-58
+| Called from Fiber__Scheduler.exec in file "fiber/src/scheduler.ml", line 73, characters 8-11
+```
+
+The frame that raises is `Lsp__Io.Make.read` — the stdio read loop — so the
+exception unwinds out of request processing entirely. That matches the observed
+behaviour: stdout stays **open but silent** (a non-blocking read returns no
+bytes rather than EOF, verified separately), the process stays alive at ~0%
+CPU, and later complete requests are never read.
+
+The `bom` trigger raises the same class one layer earlier, in Yojson
+(`Yojson.Json_error(...)`) instead of `Jsonrpc` conversion.
+
+## Root cause
+
+Not established by inspection of the binary, and this repository does not claim
+one. What is established is the escaping exception's own backtrace (above),
+which points at the read loop rather than at any request handler: decoding a
+frame whose top-level JSON value is not an object raises, and nothing between
+`Lsp__Io.Make.read` and the scheduler catches it. A defensive fix would be to
+answer `-32700`/`-32600` and continue reading; the PoC does not verify that such
+a fix exists or works.
 
 ## Limitations
 
