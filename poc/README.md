@@ -25,6 +25,7 @@ Set `MOONC`/`MOON`/`MOONFMT` or use `$HOME/.moon/bin/...`.
 | F7 | [`f7_valtype_array_ice/`](f7_valtype_array_ice/) | `moon run repro.mbt --target native` | native debug link ICE, `lower_array_make` |
 | F8 | [`f8_async_raise_ice/`](f8_async_raise_ice/) | `moon test --target js` (also wasm/native) | `link-core` assertion after async suspension |
 | F9 | [`f9_native_v128_stub_ice/`](f9_native_v128_stub_ice/) | `moon test --target native` | native debug stub-wrapper ICE for `V128` |
+| F10 | [`f10_lsp_format_nth_hang/`](f10_lsp_format_nth_hang/) | `python3 replay.py hang.json` | LSP `format-nth` never returns, 100% CPU |
 | P1 | [`p1_fmt_interp/`](p1_fmt_interp/) | `./generate.sh 2048` then 5x `moonfmt` | ~10x per doubling |
 
 Run all local PoCs:
@@ -39,7 +40,7 @@ with `scripts/fetch_assets.sh` (uses `moon add WeiR-h/moonldif@0.7.6`).
 
 ## Open upstream defects reproduced here
 
-F7, F8, and F9 are **not** part of the fixed F1–F6 set.  They reproduce open
+F7, F8, F9 and F10 are **not** part of the fixed F1–F6 set.  They reproduce open
 upstream reports on the pinned toolchain and are kept as regression evidence:
 
 - F7 matches [#1322](https://github.com/moonbitlang/moonbit-docs/issues/1322)
@@ -50,10 +51,17 @@ upstream reports on the pinned toolchain and are kept as regression evidence:
 - F9 matches [#1344](https://github.com/moonbitlang/moonbit-docs/issues/1344)
   (`finish_stub_wrapper_shell` for an `extern "C"` taking `V128`).
 
-All three are compiler/link-time crashes, not claims of miscompilation.  An
-independent Codex run (three repeats each, with negative controls) is archived
-in `findings/codex_open_ice_review.md`; it also corrected the F9 README claim
-about `moon test --build-only`.
+F7/F8/F9 are compiler/link-time crashes, not claims of miscompilation. F10 is
+an LSP-level hang whose oracle is a timeout, not a crash signature:
+
+- F10 matches [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372)
+  (`moon-lsp` `format-nth` hangs at 100% CPU when the last block has no
+  trailing newline).
+
+An independent Codex run (three repeats each, with negative controls) is
+archived in `findings/codex_open_ice_review.md`; it covered F7–F9 and also
+corrected the F9 README claim about `moon test --build-only`. F10 was found
+later and has not been through that review.
 
 They are excluded from `scripts/reproduce_all.sh` because that script asserts the
 F1–F6 fixed behavior; run the commands in each PoC README directly.
