@@ -2713,10 +2713,7 @@ async fn main {
     tasks.push(() => trace_worker(cfg, w, q, feed, cov, covctx, prog))
   }
   tasks.push(() => monitor(cfg, prog, out))
-  let results = @async.all(
-    tasks,
-    max_concurrent=cfg.workers + cfg.trace_workers + 1,
-  )
+  let results = @conc.all_limited(tasks, cfg.workers + cfg.trace_workers + 1)
   let total = stats_new()
   for r in results {
     total.it += r.it

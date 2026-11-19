@@ -1,0 +1,16 @@
+// Concurrency helpers shared by the drivers.
+//
+// WHY: `@async.all(tasks, max_concurrent=n)` was the natural way to cap
+// parallelism, and it is exactly the API that changed between
+// `moonc v0.10.20+65efd5b93` (the evidence pin) and `v0.10.21`, which broke CI.
+// The gate here is a semaphore, so the call site is stable across both.
+
+import {
+  "moonbitlang/core/async",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+warnings = "-test_unqualified_package"

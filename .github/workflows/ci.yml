@@ -1,3 +1,8 @@
+# CI tracks the *latest* MoonBit toolchain on purpose: it is the forward-compat
+# canary. The evidence gates (`cmd/accept`) run against the pinned
+# `moon 0.1.20261104 / moonc v0.10.20+65efd5b93`, which CI cannot download -
+# cli.moonbitlang.com only serves `latest`. When the two disagree, the code is
+# made compatible with both rather than pinning CI to an unavailable build.
 name: CI
 
 on:
@@ -20,6 +25,9 @@ jobs:
 
       - name: Show toolchain
         run: moon version --all
+
+      - name: Verify the interpreter binary is present
+        run: moonc -v
 
       - name: Update registry
         run: moon update

@@ -682,7 +682,7 @@ async fn main {
   let raw : Array[CaseRecord] = if tasks.length() == 0 {
     []
   } else {
-    @async.all(tasks, max_concurrent=cfg.jobs)
+    @conc.all_limited(tasks, cfg.jobs)
   }
   let records = sort_by_index(raw)
   let mut lines = ""

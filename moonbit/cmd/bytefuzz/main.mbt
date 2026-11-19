@@ -378,7 +378,7 @@ async fn main {
     let w = id
     tasks.push(() => worker(cfg, w, seeds, seeds, moonc, home))
   }
-  let rs = @async.all(tasks, max_concurrent=cfg.workers)
+  let rs = @conc.all_limited(tasks, cfg.workers)
   let total = { it: 0, ok: 0, crashes: 0, timeouts: 0, }
   for r in rs {
     total.it += r.it
