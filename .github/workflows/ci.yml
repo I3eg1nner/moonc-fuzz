@@ -1,8 +1,17 @@
-# CI tracks the *latest* MoonBit toolchain on purpose: it is the forward-compat
-# canary. The evidence gates (`cmd/accept`) run against the pinned
-# `moon 0.1.20261104 / moonc v0.10.20+65efd5b93`, which CI cannot download -
-# cli.moonbitlang.com only serves `latest`. When the two disagree, the code is
-# made compatible with both rather than pinning CI to an unavailable build.
+# Two jobs, two questions.
+#
+# `latest-canary` installs whatever upstream serves and asks "does the harness
+# still build on the newest toolchain?" - it is the forward-compat tripwire.
+#
+# `pinned-evidence` restores the frozen toolchain from the v0.1.0 release asset
+# and asks "do the acceptance gates still pass on the version every claim in
+# `findings/` is stated against?".  It cannot use the upstream installer:
+# cli.moonbitlang.com serves only `latest`, and every versioned path answers
+# 403.  That is why the toolchain is archived (findings/toolchain_archive.md).
+#
+# The pinned job runs `--profile core` (14 of 17 gates).  The three trace gates
+# need `afl-qemu-trace` and a symbol table of the pinned `moonc`; they run
+# locally, and the JSON names them under `skipped` instead of dropping them.
 name: CI
 
 on:
@@ -13,12 +22,12 @@ permissions:
   contents: read
 
 jobs:
-  build-and-test:
+  latest-canary:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install MoonBit
+      - name: Install MoonBit (latest)
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
@@ -50,3 +59,48 @@ jobs:
 
       - name: Minimal example
         run: ./examples/trace2funcs.sh
+
+  pinned-evidence:
+    runs-on: ubuntu-latest
+    env:
+      MOON_HOME: ${{ runner.temp }}/moonbit-pin
+      TOOLCHAIN_SHA256: 4b1aee737cb004df8a220ae6d8fab69646a8a153d72ab969e56735cbae4bee4f
+      TOOLCHAIN_ASSET: moonbit-0.1.20261104-linux-x86_64.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore the frozen toolchain
+        run: |
+          set -euo pipefail
+          url="https://github.com/I3eg1nner/moonc-fuzz/releases/download/v0.1.0/$TOOLCHAIN_ASSET"
+          curl -fsSL -o "$RUNNER_TEMP/toolchain.tar.gz" "$url"
+          echo "$TOOLCHAIN_SHA256  $RUNNER_TEMP/toolchain.tar.gz" | sha256sum -c -
+          mkdir -p "$MOON_HOME"
+          tar -xzf "$RUNNER_TEMP/toolchain.tar.gz" -C "$MOON_HOME" --strip-components=1
+          echo "$MOON_HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Show toolchain
+        run: moon version --all
+
+      - name: Build (pinned)
+        working-directory: moonbit
+        run: moon build --target native
+
+      - name: Acceptance gates (core profile)
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          ./moonbit/_build/native/debug/build/cmd/accept/accept.exe "$GITHUB_WORKSPACE" \
+            --profile core > out/accept.json
+          python3 - <<'PY'
+          import json
+
+          d = json.load(open("out/accept.json"))
+          failed = [c["check"] for c in d["checks"] if not c["ok"]]
+          print(f"profile={d['profile']} gates={len(d['checks'])} ok={d['ok']}")
+          print("skipped:", ", ".join(d["skipped"]) or "(none)")
+          for c in d["checks"]:
+              print(f"  {'PASS' if c['ok'] else 'FAIL'}  {c['check']:20} {c['detail'][:70]}")
+          if not d["ok"] or failed:
+              raise SystemExit(f"failed gates: {failed}")
+          PY

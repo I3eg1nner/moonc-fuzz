@@ -113,15 +113,30 @@ pub fn copy_tree(src : String, dst : String) -> Bool {
 ///|
 pub fn moon_path() -> String {
   match @env.get_env_var("MOON") {
-    Some(p) => p
-    None => {
-      let home = match @env.get_env_var("HOME") {
-        Some(h) => h
-        None => "/home/user"
-      }
-      home + "/.moon/bin/moon"
-    }
+    Some(p) => if p == "" { moon_home_bin() } else { p }
+    None => moon_home_bin()
   }
+}
+
+///|
+/// `MOON_HOME` first, `~/.moon` second.  A restored toolchain archive sets
+/// `MOON_HOME`; ignoring it made every driver rebuild against whatever happened
+/// to be in the user's home directory.
+fn moon_home_bin() -> String {
+  let home = match @env.get_env_var("MOON_HOME") {
+    Some(h) => if h == "" { default_moon_home() } else { h }
+    None => default_moon_home()
+  }
+  join(join(home, "bin"), "moon")
+}
+
+///|
+fn default_moon_home() -> String {
+  let home = match @env.get_env_var("HOME") {
+    Some(h) => h
+    None => "/home/user"
+  }
+  join(home, ".moon")
 }
 
 ///|

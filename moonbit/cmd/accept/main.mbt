@@ -49,20 +49,55 @@ fn count_lines(text : String) -> Int32 {
 }
 
 ///|
-async fn main {
-  let args = @env.args()
+/// `MOON_HOME` is the toolchain's own variable and is what a restored archive
+/// sets; `~/.moon` is only the fallback.  Hard-coding `$HOME/.moon` made the
+/// gate untestable against a frozen toolchain.
+fn toolchain_bin(name : String) -> String {
+  let home = match @env.get_env_var("MOON_HOME") {
+    Some(h) => if h == "" { default_home() } else { h }
+    None => default_home()
+  }
+  join(join(home, "bin"), name)
+}
+
+///|
+fn default_home() -> String {
   let home = match @env.get_env_var("HOME") {
     Some(h) => h
     None => "/home/user"
   }
-  let root = if args.length() >= 2 { args[1] } else { "/data/audit/mbtfuzz" }
+  join(home, ".moon")
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  let pos : Array[String] = []
+  let mut profile = "full"
+  let mut pi = 1
+  while pi < args.length() {
+    let a = args[pi]
+    if a == "--profile" && pi + 1 < args.length() {
+      profile = args[pi + 1]
+      pi += 2
+    } else {
+      pos.push(a)
+      pi += 1
+    }
+  }
+  // `core` skips the gates that need host tracing tools (afl-qemu-trace, a
+  // pinned `moonc` symbol table).  It is meant for public CI, which can
+  // restore the frozen toolchain but has no QEMU build; the skipped names are
+  // printed in the JSON rather than silently dropped.
+  let host_trace = profile != "core"
+  let root = if pos.length() >= 1 { pos[0] } else { "/data/audit/mbtfuzz" }
   let moonbit = join(root, "moonbit")
-  let bin = if args.length() >= 3 {
-    args[2]
+  let bin = if pos.length() >= 2 {
+    pos[1]
   } else {
     join(moonbit, "_build/native/debug/build")
   }
-  let moonc = join(join(home, ".moon/bin"), "moonc")
+  let moonc = toolchain_bin("moonc")
   let tag = @env.now().to_string()
   let results : Array[String] = []
 
@@ -74,7 +109,7 @@ async fn main {
   results.push(check("toolchain_pinned", vtext.contains(pinned), vtext))
 
   // 1b. Unit tests and typecheck must pass before the heavier gates.
-  let moon = join(join(home, ".moon/bin"), "moon")
+  let moon = toolchain_bin("moon")
   // `moon test` does not build every cmd binary; the gate invokes
   // regress/diffprobe/trace2funcs/cov by path, so build the module first.
   let mb = @exec.run(moon, ["build", "--target", "native"], moonbit, 240000)
@@ -118,7 +153,7 @@ async fn main {
   // rather than quietly changing `regressions_12`.  Six serial cases with one
   // fresh `moon-lsp` each; the detail records how long the whole check took.
   // A missing binary is a failure with a fixed reason, never a silent skip.
-  let lsp_bin = join(join(home, ".moon/bin"), "moon-lsp")
+  let lsp_bin = toolchain_bin("moon-lsp")
   let lsp_present = @fs.path_exists(lsp_bin)
   let lsp_start = @env.now()
   let lsp = @exec.run(
@@ -282,77 +317,92 @@ async fn main {
     sem.stdout.contains("\"all_equal\":")
   results.push(check("semantic_diff", sem_ok, sem.stdout.trim().to_owned()))
 
-  // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
-  let tr = @exec.run(
-    join(bin, "cmd/trace2funcs/trace2funcs.exe"),
-    [
-      join(moonbit, "accept_fixtures/nm.txt"),
-      join(moonbit, "accept_fixtures/trace.log"),
-    ],
-    moonbit,
-    5000,
-  )
+  // 3. Trace gates: exact JSON on a frozen trace, then real end-to-end QEMU
+  // parity against a Python-golden function set.  These two need host tools
+  // (`afl-qemu-trace`, a `moonc` symbol table) and are the only gates skipped
+  // by `--profile core`.
   let expected = read_text(join(moonbit, "accept_fixtures/expected_trace.json"))
     .trim()
     .to_owned()
-  let got = tr.stdout.trim().to_owned()
-  results.push(check("trace_exact", tr.rc == 0 && got == expected, got))
+  if host_trace {
+    // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
+    let tr = @exec.run(
+      join(bin, "cmd/trace2funcs/trace2funcs.exe"),
+      [
+        join(moonbit, "accept_fixtures/nm.txt"),
+        join(moonbit, "accept_fixtures/trace.log"),
+      ],
+      moonbit,
+      5000,
+    )
+    let got = tr.stdout.trim().to_owned()
+    results.push(check("trace_exact", tr.rc == 0 && got == expected, got))
 
-  // 3b. Real end-to-end trace parity: QEMU on the 22 B invalid-UTF8 input,
-  // then trace2funcs, compared to a Python-golden function set frozen at 599.
-  let nm = @exec.run("nm", ["-n", moonc], root, 10000)
-  @fs.write_string_to_file("/tmp/mbtfuzz_accept_nm_" + tag + ".txt", nm.stdout) catch {
-    _ => ()
-  }
-  let q = @exec.run(
-    "/tmp/AFLplusplus/afl-qemu-trace",
-    [
-      "-d",
-      "exec",
-      "-D",
-      "/tmp/mbtfuzz_accept_f4_" + tag + ".log",
-      "--",
-      moonc,
-      "syncheck",
-      "doc.mbt.md",
-    ],
-    join(root, "poc/f4_invalid_utf8"),
-    30000,
-  )
-  let tr2 = @exec.run(
-    join(bin, "cmd/trace2funcs/trace2funcs.exe"),
-    [
+    // 3b. Real end-to-end trace parity: QEMU on the 22 B invalid-UTF8 input,
+    // then trace2funcs, compared to a Python-golden function set frozen at 599.
+    let nm = @exec.run("nm", ["-n", moonc], root, 10000)
+    @fs.write_string_to_file(
       "/tmp/mbtfuzz_accept_nm_" + tag + ".txt",
-      "/tmp/mbtfuzz_accept_f4_" + tag + ".log",
-      "/tmp/mbtfuzz_accept_f4_actual_" + tag + ".json",
-    ],
-    moonbit,
-    30000,
-  )
-  let exp_json = @cov.parse_json(
-    read_text(join(moonbit, "accept_fixtures/trace_f4.expected.json")),
-  ) catch {
-    _ => @cov.FuncSet::new([])
+      nm.stdout,
+    ) catch {
+      _ => ()
+    }
+    let q = @exec.run(
+      "/tmp/AFLplusplus/afl-qemu-trace",
+      [
+        "-d",
+        "exec",
+        "-D",
+        "/tmp/mbtfuzz_accept_f4_" + tag + ".log",
+        "--",
+        moonc,
+        "syncheck",
+        "doc.mbt.md",
+      ],
+      join(root, "poc/f4_invalid_utf8"),
+      30000,
+    )
+    let tr2 = @exec.run(
+      join(bin, "cmd/trace2funcs/trace2funcs.exe"),
+      [
+        "/tmp/mbtfuzz_accept_nm_" + tag + ".txt",
+        "/tmp/mbtfuzz_accept_f4_" + tag + ".log",
+        "/tmp/mbtfuzz_accept_f4_actual_" + tag + ".json",
+      ],
+      moonbit,
+      30000,
+    )
+    let exp_json = @cov.parse_json(
+      read_text(join(moonbit, "accept_fixtures/trace_f4.expected.json")),
+    ) catch {
+      _ => @cov.FuncSet::new([])
+    }
+    let act_json = @cov.parse_json(
+      read_text("/tmp/mbtfuzz_accept_f4_actual_" + tag + ".json"),
+    ) catch {
+      _ => @cov.FuncSet::new([])
+    }
+    let exp_funcs = exp_json.sorted()
+    let act_funcs = act_json.sorted()
+    results.push(
+      check(
+        "trace_real_f4",
+        q.rc == 199 && tr2.rc == 0 && act_funcs == exp_funcs,
+        "qemu_rc=" +
+        q.rc.to_string() +
+        " expected=" +
+        exp_funcs.length().to_string() +
+        " actual=" +
+        act_funcs.length().to_string(),
+      ),
+    )
+    // 6. The gate itself must be able to fail: a deliberately wrong expected
+    // trace must not compare equal.
+    let bad = expected + "x"
+    results.push(
+      check("negative_control", got != bad, "tampered expected differs"),
+    )
   }
-  let act_json = @cov.parse_json(
-    read_text("/tmp/mbtfuzz_accept_f4_actual_" + tag + ".json"),
-  ) catch {
-    _ => @cov.FuncSet::new([])
-  }
-  let exp_funcs = exp_json.sorted()
-  let act_funcs = act_json.sorted()
-  results.push(
-    check(
-      "trace_real_f4",
-      q.rc == 199 && tr2.rc == 0 && act_funcs == exp_funcs,
-      "qemu_rc=" +
-      q.rc.to_string() +
-      " expected=" +
-      exp_funcs.length().to_string() +
-      " actual=" +
-      act_funcs.length().to_string(),
-    ),
-  )
 
   // 4. Coverage set algebra on frozen fixtures.
   let cv = @exec.run(
@@ -410,13 +460,6 @@ async fn main {
     ),
   )
 
-  // 6. The gate itself must be able to fail: a deliberately wrong expected
-  // trace must not compare equal.
-  let bad = expected + "x"
-  results.push(
-    check("negative_control", got != bad, "tampered expected differs"),
-  )
-
   let mut all_ok = true
   let b = StringBuilder()
   b.write_string("{\"ok\":")
@@ -427,6 +470,12 @@ async fn main {
     }
   }
   b.write_string(if all_ok { "true" } else { "false" })
+  b.write_string(",\"profile\":\"" + profile + "\"")
+  b.write_string(",\"skipped\":[")
+  if !host_trace {
+    b.write_string("\"trace_exact\",\"trace_real_f4\",\"negative_control\"")
+  }
+  b.write_string("]")
   b.write_string(",\"checks\":[")
   for r in results {
     if !first {
