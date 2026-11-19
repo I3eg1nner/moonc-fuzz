@@ -95,8 +95,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
+          # `accept` exits 1 when a gate fails; capture that instead of letting
+          # `set -e` abort before the report is printed.
+          set +e
           ./moonbit/_build/native/debug/build/cmd/accept/accept.exe "$GITHUB_WORKSPACE" \
             --profile core > out/accept.json
+          accept_rc=$?
+          set -e
+          echo "accept rc=$accept_rc"
           python3 - <<'PY'
           import json
 
@@ -109,3 +115,11 @@ jobs:
           if not d["ok"] or failed:
               raise SystemExit(f"failed gates: {failed}")
           PY
+
+      - name: Upload gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accept-core
+          path: out/accept.json
+          if-no-files-found: warn
