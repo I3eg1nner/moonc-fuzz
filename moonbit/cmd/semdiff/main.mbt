@@ -144,15 +144,17 @@ fn write_pkg(dir : String, src : String) -> Bool {
   if !created {
     return false
   }
-  @stager.write_text(
+  // `Float::from_double` lives on the builtin Float type, so the generated
+  // package needs no imports at all - importing `moonbitlang/core/float` only
+  // produces an unused-package warning.
+  let pkg = "pkgtype(kind: \"executable\")\n"
+  let a = @stager.write_text(
     @stager.join(dir, "moon.mod"),
     "name = \"repro/semdiff\"\nversion = \"0.1.0\"\n",
-  ) &&
-  @stager.write_text(
-    @stager.join(dir, "moon.pkg"),
-    "pkgtype(kind: \"executable\")\n",
-  ) &&
-  @stager.write_text(@stager.join(dir, "main.mbt"), src)
+  )
+  let b = @stager.write_text(@stager.join(dir, "moon.pkg"), pkg)
+  let c = @stager.write_text(@stager.join(dir, "main.mbt"), src)
+  a && b && c
 }
 
 ///|

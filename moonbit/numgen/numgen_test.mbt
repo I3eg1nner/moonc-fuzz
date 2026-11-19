@@ -4,6 +4,17 @@
 /// template would break.
 
 ///|
+fn count_occur(hay : String, needle : String) -> Int32 {
+  let mut n = 0
+  let mut rest = hay
+  while rest.find(needle) is Some(i) {
+    n += 1
+    rest = rest[i + needle.length():].to_owned()
+  }
+  n
+}
+
+///|
 fn braces_balanced(s : String) -> Bool {
   let mut d = 0
   for c in s {
@@ -22,7 +33,7 @@ fn braces_balanced(s : String) -> Bool {
 ///|
 test "cases: unique ids, every program has a main, braces balance" {
   let cs = cases()
-  assert_true(cs.length() >= 20)
+  assert_true(cs.length() >= 27)
   let seen : Map[String, Unit] = Map([])
   for c in cs {
     assert_false(seen.contains(c.id))
@@ -87,6 +98,42 @@ test "grid cases: iterate arrays rather than repeating literals" {
     if c.id == "str-rep" {
       assert_true(c.src.contains("for i, x in ss"))
       assert_true(c.src.contains("for j, y in ss"))
+    }
+  }
+}
+
+///|
+test "bits grids: 48 values each, NaN pairs skipped in the float grid" {
+  let f = f64_bits_grid()
+  assert_true(f.contains("fn bits() -> Array[UInt64]"))
+  assert_eq(count_occur(f, "UL,"), 48)
+  assert_true(f.contains("if x.is_nan() || y.is_nan()"))
+  let i = int_bits_grid()
+  // 8 special ints + 36 random, unlike the double grid's 12 + 36.
+  assert_eq(count_occur(i, "UL,"), 44)
+  // Division is guarded: the two trapping cases must not be generated.
+  assert_true(i.contains("y != 0"))
+  assert_true(i.contains("-2147483647 - 1"))
+}
+
+///|
+test "bits grids: the special values are present" {
+  let f = f64_bits_grid()
+  for
+    v in [
+      "0x8000000000000000UL", "0x7ff0000000000000UL", "0xfff0000000000000UL", "0x7ff0000000000001UL",
+      "0x1UL", "0x4340000000000000UL",
+    ] {
+    assert_true(f.contains(v))
+  }
+}
+
+///|
+test "f32 cases: call the builtin associated function, not a package value" {
+  for c in cases() {
+    if c.family == "f32" {
+      assert_true(c.src.contains("Float::from_double("))
+      assert_false(c.src.contains("@float."))
     }
   }
 }

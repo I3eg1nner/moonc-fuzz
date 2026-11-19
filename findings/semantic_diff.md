@@ -18,7 +18,7 @@ it is exactly where a silent wrong answer would live.
 
 ## Design
 
-- 21 programs, each printing labelled lines (`name=value`), so a divergence
+- 27 programs, each printing labelled lines (`name=value`), so a divergence
   names the operation instead of just "stdout differs".
 - Floats are printed as **bit patterns** (`reinterpret_as_uint64`). A
   formatting difference would otherwise masquerade as a semantic one; number
@@ -32,10 +32,12 @@ it is exactly where a silent wrong answer would live.
   - `str`: UTF-16 units vs codepoints for ASCII/CJK/emoji/combining marks,
     `get_view` boundaries, `find` offsets, `offset_of_nth_char`, split,
     make/pad_end, compare/prefix/suffix.
-- The grids do the heavy lifting: `f64-opgrid` crosses 12×12 values over
-  `+ - * /`, `compare`, `min`, `max`; `int-opgrid` crosses 9×9 over
-  `+ - * & | ^`, guarded division/modulo, and five shift counts; `str-rep`
-  crosses 9×9 strings over `compare`, `==`, `contains`, `has_prefix`.
+- The grids do the heavy lifting. Two hand-written grids (`f64-opgrid` 12×12
+  over `+ - * / compare min max`, `int-opgrid` 9×9 over `+ - * & | ^` plus
+  guarded division/modulo, `str-rep` 9×9 strings) and two generated ones
+  (`f64-bits-grid` 48×48, `int-bits-grid` 44×44) whose values are 12/8
+  hand-picked specials plus 36 deterministic LCG patterns, embedded as
+  `0x…UL` literals. The generated grids carry ~8k of the compared lines.
 - Cases are total programs (no traps) so an abort cannot truncate buffered
   output and fake a difference — see the false start below.
 - Default targets: `wasm-gc,native`. `js` is available and is run separately.
@@ -46,20 +48,20 @@ it is exactly where a silent wrong answer would live.
 
 | metric | value |
 |---|---|
-| cases | 21 |
-| compared output lines | **687** |
-| all equal | 21 |
+| cases | 27 |
+| compared output lines | **8,774** |
+| all equal | 27 |
 | mismatches | 0 |
 | skipped (did not build) | 0 |
-| wall | 13.4 s |
+| wall | 16.1 s |
 
 Inputs are deterministic and `--family` / `--only` select a subset, so this
 runs as the `semantic_diff` gate in `cmd/accept`.
 
 ## The one divergence found — and why it is not a defect
 
-Adding `js` to the comparison (`--targets wasm-gc,js,native`) produces two
-mismatches, both from one cause:
+Adding `js` to the comparison (`--targets wasm-gc,js,native`) produces four
+mismatches, all from one cause:
 
 ```
 folded_div00=18444492273895866368   # wasm-gc, native: 0xFFF8... (negative quiet NaN)
@@ -68,8 +70,14 @@ folded_div00=9221120237041090560    # js:              0x7FF8... (positive quiet
 
 The constant expression `0.0 / 0.0` is folded at compile time, and the js
 folder produces JS's canonical NaN while the other backends produce the
-hardware/libm result. Two cases catch it (`nan-array-bits` directly,
-`f64-opgrid` through `ys_values()`).
+hardware/libm result. Four cases catch it: `nan-array-bits` and `f64-opgrid`
+through `ys_values()`, plus `f32-bits` and `f32-nan` where the folded NaN is
+converted to f32 (`0xFFC00000` vs `0x7FC00000`).
+
+To make sure nothing else hides behind the NaN noise, `f64-bits-grid` skips
+pairs where either operand is NaN. With that guard the random 48×48 grid is
+**byte-identical across all three backends**, and the only remaining
+divergences are the four NaN cases.
 
 This is **not** a miscompile claim:
 
@@ -105,7 +113,7 @@ flushed. Two lessons, both applied:
 
 ## Claim limits
 
-- 687 compared lines is a bounded sample. It says these operations agree on
+- 8,774 compared lines is a bounded sample. It says these operations agree on
   these values; it does not bound the miscompile rate.
 - Values are hand-picked (plus the two grids). Random *input* generation would
   be the next step; the generator can already take an array, so this is a
@@ -113,6 +121,8 @@ flushed. Two lessons, both applied:
 - Two targets. `js` differs on NaN sign; `wasm` (wasi) was not exercised.
 - Compares only stdout and exit status. A difference that cancels before
   printing, or that only shows in timing/memory, is out of scope.
-- The `f64` cases do not exercise `Float` (f32): the f32 API lives in a
-  separate package and needs its own import in every generated program. That
-  is the most obvious next expansion.
+- `Float` (f32) is covered at the operation level, not with a value grid: the
+  f32 grid is the obvious next expansion.
+- Random *values* are deterministic (LCG seeded by a constant), not sampled
+  per run. Re-seeding would widen the corpus, at the cost of reproducibility
+  from the source alone.

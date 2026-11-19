@@ -4,7 +4,11 @@ package "I3eg1nner/mbtfuzz/numgen"
 // Values
 pub fn cases() -> Array[Case]
 
+pub fn f64_bits_grid() -> String
+
 pub fn ids() -> Array[String]
+
+pub fn int_bits_grid() -> String
 
 pub fn select(String) -> Array[Case]
 

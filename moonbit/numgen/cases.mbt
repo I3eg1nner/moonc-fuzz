@@ -482,6 +482,61 @@ pub fn cases() -> Array[Case] {
     #|  println("runtime_div00=" + runtime.reinterpret_as_uint64().to_string())
     #|}
 
+  let f32_bits =
+    #|fn main {
+    #|  let ds : Array[Double] = [
+    #|    0.1, -0.0, 0.0, 1.0 / 3.0, 1.0e-45, 3.4028234663852886e38,
+    #|    0.0 / 0.0, 1.0 / 0.0,
+    #|  ]
+    #|  for i, d in ds {
+    #|    let f = Float::from_double(d)
+    #|    println(
+    #|      "f" + i.to_string() + "=" +
+    #|      f.reinterpret_as_int().to_string() + "/" +
+    #|      u(f.to_double().reinterpret_as_uint64()),
+    #|    )
+    #|  }
+    #|}
+
+  let f32_arith =
+    #|fn main {
+    #|  let a = Float::from_double(1.0 / 3.0)
+    #|  let b = Float::from_double(3.0)
+    #|  println("add=" + a.add(b).reinterpret_as_int().to_string())
+    #|  println("sub=" + a.sub(b).reinterpret_as_int().to_string())
+    #|  println("mul=" + a.mul(b).reinterpret_as_int().to_string())
+    #|  println("div=" + a.div(b).reinterpret_as_int().to_string())
+    #|  println("cmp=" + a.compare(b).to_string())
+    #|  println("min=" + a.min(b).reinterpret_as_int().to_string())
+    #|  println("max=" + a.max(b).reinterpret_as_int().to_string())
+    #|  println("total=" + a.total_compare(b).to_string())
+    #|}
+
+  let f32_nan =
+    #|fn main {
+    #|  let n = Float::from_double(0.0 / 0.0)
+    #|  let one = Float::from_double(1.0)
+    #|  println("bits=" + n.reinterpret_as_int().to_string())
+    #|  println("isnan=" + b(n.is_nan()))
+    #|  println("eq_self=" + b(n.equal(n)))
+    #|  println("cmp_self=" + n.compare(n).to_string())
+    #|  println("total_self=" + n.total_compare(n).to_string())
+    #|  println("min_one=" + n.min(one).reinterpret_as_int().to_string())
+    #|  println("max_one=" + n.max(one).reinterpret_as_int().to_string())
+    #|  println("add_one=" + n.add(one).reinterpret_as_int().to_string())
+    #|}
+
+  let f32_conv =
+    #|fn main {
+    #|  let a = Float::from_double(1.9)
+    #|  let b = Float::from_double(-1.9)
+    #|  let big = Float::from_double(3.5e9)
+    #|  println("to_int=" + a.to_int().to_string())
+    #|  println("to_int_neg=" + b.to_int().to_string())
+    #|  println("to_int_big=" + big.to_int().to_string())
+    #|  println("rt_0.1=" + Float::from_double(a.to_double()).reinterpret_as_int().to_string())
+    #|}
+
   [
     { id: "f64-nan-bits", family: "f64", src: p + f64_nan_bits, },
     { id: "f64-zero-inf", family: "f64", src: p + f64_zero_inf, },
@@ -504,6 +559,12 @@ pub fn cases() -> Array[Case] {
     { id: "str-rep", family: "str", src: p + str_rep, },
     { id: "num-fmt", family: "fmt", src: p + num_fmt, },
     { id: "nan-array-bits", family: "nan", src: p + nan_array_bits, },
+    { id: "f32-bits", family: "f32", src: p + f32_bits, },
+    { id: "f32-arith", family: "f32", src: p + f32_arith, },
+    { id: "f32-nan", family: "f32", src: p + f32_nan, },
+    { id: "f32-conv", family: "f32", src: p + f32_conv, },
+    { id: "f64-bits-grid", family: "f64", src: p + f64_bits_grid(), },
+    { id: "int-bits-grid", family: "int", src: p + int_bits_grid(), },
   ]
 }
 
