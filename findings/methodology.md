@@ -146,10 +146,13 @@ Three caveats, in decreasing order of importance:
    an unsupported-but-routed method, an unknown method, and `hover` with `{}`).
    140/140 requests were answered, 0 findings, so the bound is `3/140 = 2.1%`
    at 95%. The probe also runs the F11 trigger as a self-test and fails if it
-   sees nothing, so the zero is not a blind zero. Two limits: the sessions are
-   serial and share one `moon-lsp` binary, so the 140 observations are not 140
-   independent servers; and the three hang oracles still get no *timeout*
-   negatives, because a healthy session never times out.
+   sees nothing, so the zero is not a blind zero. The probe sends an uncounted
+   warm-up request first: a cold analysis of the opened file took more than
+   15 s on a 2-core CI runner, and counting that as a stall would report a
+   false alarm caused by the machine, not the server. Two limits remain: the
+   sessions are serial and share one `moon-lsp` binary, so the 140 observations
+   are not 140 independent servers; and the three hang oracles still get no
+   *timeout* negatives, because a healthy session never times out.
 
 ## 5. Negative results and what they bound
 
