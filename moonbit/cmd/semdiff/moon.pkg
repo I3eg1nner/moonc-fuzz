@@ -1,0 +1,27 @@
+// Cross-backend semantic differential for numeric and string behaviour.
+//
+// Every other driver in this repository asks "did it fail?".  This one asks
+// "did both backends print the same thing?" - the only question that catches a
+// miscompile with a clean exit.
+//
+// Usage:
+//   semdiff --out FILE [--family f64|int|str] [--targets wasm-gc,native]
+//           [--only ID[,ID]] [--timeout-ms N] [--keep]
+//
+// One JSON line per case plus a summary.  Exit 0 when every case that built on
+// at least two targets agrees, 1 on any mismatch, 2 on usage.
+
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/numgen",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

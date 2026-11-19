@@ -1,0 +1,15 @@
+// Semantic differential cases: programs whose observable output pins down
+// numeric and string behaviour that can silently differ between backends.
+//
+// WHY THIS EXISTS.  Every oracle in `judge/` detects a *loud* failure: crash,
+// hang, silence, contract violation.  A miscompile with a clean exit and a
+// plausible-looking output is invisible to all of them.  The only oracle for
+// that class is "the same program, two backends, byte-identical output", and
+// before this package the differential corpus contained no floating point, no
+// string/UTF-8, and no integer-edge cases at all.
+//
+// Programs are printed with bit patterns where possible
+// (`reinterpret_as_u64`) so a difference is a semantic difference, not a
+// formatting one.
+
+warnings = "-test_unqualified_package"

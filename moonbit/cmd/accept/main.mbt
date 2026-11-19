@@ -228,6 +228,23 @@ async fn main {
     f7.stdout.contains("\"cases\":12")
   results.push(check("f7_boundary", f7_ok, f7.stdout.trim().to_owned()))
 
+  // 2g. Semantic differential.  Every other gate asks "did it fail?"; this one
+  // asks "did two backends print the same thing", the only question that
+  // catches a miscompile with a clean exit.  wasm-gc and native only: the js
+  // backend's constant folder gives `0.0 / 0.0` the opposite NaN sign, which is
+  // a documented divergence, not a defect (see findings/semantic_diff.md).
+  let sem = @exec.run(
+    join(bin, "cmd/semdiff/semdiff.exe"),
+    ["--out", "/tmp/mbtfuzz_accept_sem.jsonl", "--targets", "wasm-gc,native"],
+    root,
+    300000,
+  )
+  let sem_ok = sem.rc == 0 &&
+    sem.stdout.contains("\"mismatch\":0") &&
+    sem.stdout.contains("\"skipped\":0") &&
+    sem.stdout.contains("\"all_equal\":")
+  results.push(check("semantic_diff", sem_ok, sem.stdout.trim().to_owned()))
+
   // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
   let tr = @exec.run(
     join(bin, "cmd/trace2funcs/trace2funcs.exe"),

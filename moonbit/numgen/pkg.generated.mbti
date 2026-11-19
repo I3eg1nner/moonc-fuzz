@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/numgen"
+
+// Values
+pub fn cases() -> Array[Case]
+
+pub fn ids() -> Array[String]
+
+pub fn select(String) -> Array[Case]
+
+// Errors
+
+// Types and methods
+pub(all) struct Case {
+  id : String
+  family : String
+  src : String
+}
+
+// Type aliases
+
+// Traits
