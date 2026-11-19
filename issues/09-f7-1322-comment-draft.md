@@ -23,19 +23,14 @@ sentence is marked as a guess.
 
 ---
 
-Still reproduces on the current toolchain, so this is not fixed by
-`moonc v0.10.20+65efd5b93` (2026-11-05, `moon 0.1.20261104`), Linux x86_64.
+Still reproduces on `moonc v0.10.20+65efd5b93` (2026-11), Linux x86_64. Two
+additions: a smaller witness, and controls that place the condition in the
+element's representation rather than the payload type.
 
-Two things that may help scope the fix: a smaller witness, and a control set
-that shows the condition is about the element's representation rather than the
-payload type.
-
-Minimal (7 lines; the payload is `Int`, not a GC reference):
+Minimal — the payload is `Int`, not a GC reference:
 
 ```moonbit
-enum K {
-  A(Int)
-}
+enum K { A(Int) }
 
 #valtype
 struct E {
@@ -46,45 +41,30 @@ struct E {
 fn main {
   let xs : Array[E] = []
   xs.push({ id: 0, k: K::A(0) })
-  println(xs.length())
 }
 ```
 
-`moon run minimal.mbt --target native` fails with the same
-`lower_array_make` error. Controls on the same pin (all native, debug):
+Same `lower_array_make` error. Controls (native, debug):
 
-| variant | result |
+| shape | result |
 | --- | --- |
-| `#valtype` struct with one field (scalar, `String`, or the enum) | passes |
-| `id : Int` + `b : Bool` | passes |
-| `id : Int` + `s : String` | passes |
-| `id : Int` + nullary-only enum (`enum K { A }`) | passes |
-| `id : Int` + two-variant enum (`A \| B(String)` or `A \| B(Int)`) | passes |
-| `id : Int` + single-constructor enum with payload (`A(Int)`, `A(String)`, `A(Array[Int])`) | **fails** |
-| two payload enums, no `Int` field | **fails** |
-| `id : Int` + `kind : K` nested in another struct, then `wrapper.items.push(...)` | **fails** |
-| same shape, non-empty literal `[{ ... }]` | passes |
-| `push`, `Array::makei`, `map`, `filter`, `slice` | **fail** |
+| one-field `#valtype` (scalar, `String`, or enum) | passes |
+| `Int` + `Bool`, `Int` + `String` | passes |
+| `Int` + nullary enum, or two-variant enum (`A \| B(Int)`) | passes |
+| `Int` + single-constructor payload enum (`A(Int)`, `A(String)`, `A(Array[Int])`) | **fails** |
+| two payload enums, no `Int` field; or the record nested in a struct | **fails** |
+| non-empty literal `[{ ... }]` | passes |
 
-What that pins down:
+Payload type is irrelevant: `A(Int)` fails like `A(String)`. A
+single-constructor payload enum behaves as a non-null reference, while
+two-variant enums and bare `String` fields are nullable and pass. One-field
+structs pass, so two fields are needed. Only empty array creation fails:
+literals pass, `push`/`makei`/`map`/`filter`/`slice` fail. It also fails in
+package mode at plain `moon build --target native`, so a regression test needs
+no test target.
 
-- the payload type does not matter — `A(Int)` fails exactly like `A(String)`;
-- a single-constructor enum with a payload appears to be represented as a
-  non-null reference, while a two-variant enum is nullable and passes; a bare
-  `String` field is nullable too and passes;
-- a one-field `#valtype` struct passes, so the array layout needs at least two
-  fields;
-- only *empty* array creation fails; a non-empty literal is fine. This is
-  consistent with the `uninitialized ... arrays are not lowered` message and
-  with the `unsafe_make_uninit` variant you already reported.
-
-It also reproduces outside script mode: a package whose `lib.mbt` builds an
-empty `Array[Entry]` fails at plain `moon build --target native`, with no test
-target involved, if that is more convenient for a regression test.
-
-I have not read the compiler source; the representation sentence above is an
-inference that fits all 48 measured shapes, not a claim about the
-implementation.
+I have not read the compiler source; the representation sentence is an
+inference from 48 measured shapes.
 
 ---
 
