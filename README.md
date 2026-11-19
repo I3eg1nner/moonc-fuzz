@@ -364,6 +364,7 @@ moon test --target native
 
 | 文件 | 内容 |
 |---|---|
+| `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
 | `findings/methodology.md` | oracle 命中/误报率、决策边界、负结果置信上界、成本模型 |
 | `poc/README.md` | 缺陷 PoC 索引、命令、预期结果 |
