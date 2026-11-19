@@ -218,3 +218,39 @@ Follow this only after independently confirming the fix with the PoC and
 If a case fails for any other reason (control mismatch, `INIT_FAILED`,
 `MISSING_ID`), do not reclassify it. That is either a gate bug or a new
 server regression; investigate before touching the expectation.
+
+## The other direction: corpus of healthy sessions
+
+The gate above is a *reverse* oracle: it fails when a defect stops reproducing.
+That catches regressions in the defect, not false alarms in the classifier. The
+gap was named in `findings/methodology.md` §4: the stall oracles had no real
+negatives.
+
+`moonbit/cmd/lspneg` closes it from the other side. Each session spawns a fresh
+`moon-lsp --stdio`, initializes, opens a real file on disk, then issues seven
+benign requests:
+
+| probe | expected healthy answer |
+|---|---|
+| `textDocument/hover` | a hover result (or `null` for an unknown symbol) |
+| `textDocument/documentSymbol` | a symbol list |
+| `textDocument/completion` | a completion list |
+| `textDocument/formatting` | a text edit |
+| `textDocument/diagnostic` | `-32603` (not supported, but answered) |
+| unknown method | `-32601` |
+| `textDocument/hover` with `{}` | `-32602` |
+
+An answered request is one negative observation (`rc=0`, no timeout, one
+frame). A request that is not answered produces a finding and counts as a false
+alarm. The probe also sends the F11 trigger (`params: null`) once and fails the
+run if that produces no finding - a zero from a blind detector is not evidence.
+
+Measured 2026-11-19 on the pin: **20 sessions, 140/140 answered, 0 findings**
+(`3/140 = 2.1%` at 95%). Gate `lsp_negative` runs three sessions (21
+observations) on every `accept` invocation.
+
+Limits, stated because they bound the claim: the sessions are serial and share
+one binary, so 140 observations are not 140 independent servers; and a healthy
+session never times out, so the hang oracles still receive no *timeout*
+negatives. What this corpus rules out is the mundane false alarm - a healthy
+request being reported as a stall, a missing frame or a crash.

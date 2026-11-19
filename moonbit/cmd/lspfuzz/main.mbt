@@ -1945,7 +1945,7 @@ async fn main {
     Some(p) => p
     None =>
       match @env.get_env_var("HOME") {
-        Some(h) => h + "/.moon/bin/moon-lsp"
+        Some(h) => @stager.join(h, ".moon/bin/moon-lsp")
         None => "/usr/bin/moon-lsp"
       }
   }

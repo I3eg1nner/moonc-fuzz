@@ -23,6 +23,8 @@ pub fn join(String, String) -> String
 
 pub fn mbt_files(String) -> Array[String]
 
+pub fn moon_home() -> String
+
 pub fn moon_path() -> String
 
 pub fn normalize(String) -> String
@@ -40,6 +42,8 @@ pub async fn run_stage(String, String, String, Int32) -> @exec.RunResult
 pub fn signature(String, @exec.RunResult) -> String
 
 pub fn stage_args(String, String) -> Array[String]
+
+pub fn tool_path(String) -> String
 
 pub fn try_read_dir(String) -> Array[String]
 

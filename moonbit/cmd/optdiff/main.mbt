@@ -1126,7 +1126,7 @@ async fn build_arm(
   remove_o0 : Bool,
   home : String,
 ) -> (Array[String], Bool) {
-  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  let moon = @stager.tool_path("moon")
   @corpus.ensure_dir(build_root)
   // Generate all_pkgs.json, test drivers and a complete O0 build first.  A
   // bare dry-run cannot be replayed: it prints commands that depend on these
@@ -1464,7 +1464,7 @@ async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
     @env.exit(2)
   }
   cfg.module_dir = work
-  if !write_manifest_to(cfg, home, @corpus.join(base_dir, "manifest.json")) {
+  if !write_manifest_to(cfg, @corpus.join(base_dir, "manifest.json")) {
     println("[optdiff] cannot write four-cell manifest")
     @env.exit(2)
   }
@@ -1494,7 +1494,7 @@ async fn run_four_package(cfg : Config, pkg : String) -> (Int32, Int32, Int32) {
   }
   // Run the O0 build once to capture official runtime args. The artifacts are
   // already built; this is also the green baseline check.
-  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  let moon = @stager.tool_path("moon")
   let actual = @exec.run(
     moon,
     [
@@ -2291,11 +2291,11 @@ async fn run_candidate_check(cfg : Config) -> Unit {
     @env.exit(2)
   }
   cfg.module_dir = root
-  if !write_manifest(cfg, home) {
+  if !write_manifest(cfg) {
     println("[optdiff] cannot write candidate manifest")
     @env.exit(2)
   }
-  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  let moon = @stager.tool_path("moon")
   let base = @exec.run(
     moon,
     [
@@ -2485,10 +2485,6 @@ async fn run_candidate_check(cfg : Config) -> Unit {
 
 ///|
 async fn run_fault(cfg : Config) -> Unit {
-  let home = match @env.get_env_var("HOME") {
-    Some(h) => h
-    None => "/home/user"
-  }
   let pkg = if cfg.packages.length() == 1 {
     cfg.packages[0]
   } else {
@@ -2541,11 +2537,11 @@ async fn run_fault(cfg : Config) -> Unit {
     println("[optdiff] cannot clean fault build cache")
     @env.exit(2)
   }
-  if !write_manifest(cfg, home) {
+  if !write_manifest(cfg) {
     println("[optdiff] cannot write fault manifest")
     @env.exit(2)
   }
-  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  let moon = @stager.tool_path("moon")
   let baseline = @exec.run(
     moon,
     ["test", "-p", pkg, "--target", cfg.target, "--no-parallelize", "-v"],
@@ -2994,7 +2990,7 @@ async fn process_package(
   home : String,
 ) -> (Int32, Int32, Int32, Int32) {
   // (artifacts, candidates, changed, errors)
-  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
+  let moon = @stager.tool_path("moon")
   let pkg_tag = package_tag(pkg)
   let plan_dir = @corpus.join(@corpus.join(cfg.out, "plan"), pkg_tag)
   let evidence = @corpus.join(@corpus.join(cfg.out, "evidence"), pkg_tag)
@@ -3129,9 +3125,9 @@ async fn process_package(
 }
 
 ///|
-async fn write_manifest_to(cfg : Config, home : String, path : String) -> Bool {
-  let moon = @corpus.join(@corpus.join(home, ".moon/bin"), "moon")
-  let moonc = @corpus.join(@corpus.join(home, ".moon/bin"), "moonc")
+async fn write_manifest_to(cfg : Config, path : String) -> Bool {
+  let moon = @stager.tool_path("moon")
+  let moonc = @stager.tool_path("moonc")
   let moon_v = @exec.run(moon, ["version"], "/tmp", 10000)
   let moonc_v = @exec.run(moonc, ["-v"], "/tmp", 10000)
   let mod_text = read_text(@corpus.join(cfg.module_dir, "moon.mod"))
@@ -3162,8 +3158,8 @@ async fn write_manifest_to(cfg : Config, home : String, path : String) -> Bool {
 }
 
 ///|
-async fn write_manifest(cfg : Config, home : String) -> Bool {
-  write_manifest_to(cfg, home, @corpus.join(cfg.out, "manifest.json"))
+async fn write_manifest(cfg : Config) -> Bool {
+  write_manifest_to(cfg, @corpus.join(cfg.out, "manifest.json"))
 }
 
 ///|
@@ -3349,7 +3345,7 @@ async fn main {
     @env.exit(2)
   }
   cfg.module_dir = work
-  if !write_manifest(cfg, home) {
+  if !write_manifest(cfg) {
     println("[optdiff] cannot write manifest")
     @env.exit(2)
   }

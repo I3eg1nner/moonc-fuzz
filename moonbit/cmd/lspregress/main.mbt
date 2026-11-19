@@ -754,7 +754,7 @@ async fn main {
   }
   let server_raw = match arg_value(args, "--moon-lsp") {
     Some(s) => s
-    None => join(join(home, ".moon/bin"), "moon-lsp")
+    None => @stager.tool_path("moon-lsp")
   }
   let server = expand_home(server_raw, home)
   let timeout_ms = match arg_value(args, "--timeout-ms") {

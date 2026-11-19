@@ -133,15 +133,11 @@ fn p1_source(k : Int32) -> String {
 ///|
 async fn main {
   let args = @env.args()
-  let home = match @env.get_env_var("HOME") {
-    Some(h) => h
-    None => "/home/user"
-  }
   let root = if args.length() >= 2 { args[1] } else { "/data/audit/mbtfuzz" }
   let out_path = if args.length() >= 3 { Some(args[2]) } else { None }
-  let moonc = join(join(home, ".moon/bin"), "moonc")
-  let moonfmt = join(join(home, ".moon/bin"), "moonfmt")
-  let moon = join(join(home, ".moon/bin"), "moon")
+  let moonc = @stager.tool_path("moonc")
+  let moonfmt = @stager.tool_path("moonfmt")
+  let moon = @stager.tool_path("moon")
   let tmp = "/tmp/mbtfuzz_mb_regress_" + @env.now().to_string()
   rm_rf(tmp)
   @fs.create_dir(tmp) catch {
@@ -193,13 +189,13 @@ async fn main {
         "executable",
         "-i",
         join(
-          join(home, ".moon/lib/core/_build/wasm/release/bundle"),
+          join(@stager.moon_home(), "lib/core/_build/wasm/release/bundle"),
           "builtin/builtin.mi",
         ) +
         ":moonbitlang/core/builtin",
         "-i",
         join(
-          join(home, ".moon/lib/core/_build/wasm/release/bundle"),
+          join(@stager.moon_home(), "lib/core/_build/wasm/release/bundle"),
           "prelude/prelude.mi",
         ) +
         ":prelude",
@@ -260,7 +256,7 @@ async fn main {
         "f5/p",
         "-i",
         join(
-          join(home, ".moon/lib/core/_build/wasm-gc/release/bundle"),
+          join(@stager.moon_home(), "lib/core/_build/wasm-gc/release/bundle"),
           "prelude/prelude.mi",
         ),
         "u.mbt",

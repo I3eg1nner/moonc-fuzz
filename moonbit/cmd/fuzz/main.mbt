@@ -1330,8 +1330,8 @@ fn file_sha1(path : String) -> String {
 }
 
 ///|
-fn moonc_path(home : String) -> String {
-  join(join(home, ".moon/bin"), "moonc")
+fn moonc_path() -> String {
+  @stager.tool_path("moonc")
 }
 
 ///|
@@ -1886,7 +1886,6 @@ async fn worker(
   pool : Array[String],
   dict : Array[String],
   moonc : String,
-  home : String,
   feed : Feedback,
   covctx : CovCtx,
   prog : Progress,
@@ -1906,7 +1905,10 @@ async fn worker(
   let local_sigs : Map[String, Unit] = Map([])
   let local_t2_sigs : Map[String, Unit] = Map([])
   let end = @async.now() + cfg.duration_s.to_int64() * 1000L
-  let bundle = join(join(home, ".moon/lib/core/_build/wasm/release/bundle"), "")
+  let bundle = join(
+    join(@stager.moon_home(), "lib/core/_build/wasm/release/bundle"),
+    "",
+  )
   let builtin = join(bundle, "builtin/builtin.mi")
   let prelude = join(bundle, "prelude/prelude.mi")
   let all_pkgs = join(join(cfg.root, "harness"), "all_pkgs.json")
@@ -2219,13 +2221,13 @@ async fn worker(
         let d = if cfg.native_diff {
           @oracle.diff_native(
             moonc,
-            join(join(home, ".moon/bin"), "moonrun"),
-            join(join(home, ".moon/bin"), "moon"),
+            @stager.tool_path("moonrun"),
+            @stager.tool_path("moon"),
             wd,
             src,
             pkg,
             bundle,
-            join(home, ".moon/lib/core"),
+            join(@stager.moon_home(), "lib/core"),
             join(join(cfg.root, "harness"), "moon.pkg"),
             all_pkgs,
             cfg.t2_timeout,
@@ -2233,14 +2235,17 @@ async fn worker(
         } else {
           @oracle.diff_program(
             moonc,
-            join(join(home, ".moon/bin"), "moonrun"),
+            @stager.tool_path("moonrun"),
             "node",
             wd,
             src,
             pkg,
             bundle,
-            join(join(home, ".moon/lib/core/_build/js/release/bundle"), ""),
-            join(home, ".moon/lib/core"),
+            join(
+              join(@stager.moon_home(), "lib/core/_build/js/release/bundle"),
+              "",
+            ),
+            join(@stager.moon_home(), "lib/core"),
             join(join(cfg.root, "harness"), "moon.pkg"),
             all_pkgs,
             cfg.t2_timeout,
@@ -2395,10 +2400,6 @@ fn main_usage() -> Unit {
 ///|
 async fn main {
   let args = @env.args()
-  let home = match @env.get_env_var("HOME") {
-    Some(h) => h
-    None => "/home/user"
-  }
   let cfg : Config = {
     root: "/data/audit/mbtfuzz",
     out: "/data/audit/mbtfuzz/out/mb_fuzz",
@@ -2554,13 +2555,16 @@ async fn main {
     _ => ""
   }
   let dict = @mutate.parse_dict(dict_text)
-  let moonc = moonc_path(home)
-  let bundle = join(join(home, ".moon/lib/core/_build/wasm/release/bundle"), "")
+  let moonc = moonc_path()
+  let bundle = join(
+    join(@stager.moon_home(), "lib/core/_build/wasm/release/bundle"),
+    "",
+  )
   let builtin = join(bundle, "builtin/builtin.mi")
   let prelude = join(bundle, "prelude/prelude.mi")
   let all_pkgs = join(join(cfg.root, "harness"), "all_pkgs.json")
   let pkg = "I3eg1nner/tpl/cmd/main"
-  let core_dir = join(home, ".moon/lib/core")
+  let core_dir = join(@stager.moon_home(), "lib/core")
   let pkg_config = join(join(cfg.root, "harness"), "moon.pkg")
   let nm = @exec.run("nm", ["-n", moonc], cfg.root, 30000)
   let sym = @trace.SymTab::parse(nm.stdout)
@@ -2705,7 +2709,7 @@ async fn main {
   for id in 0..<cfg.workers {
     let w = id
     tasks.push(() => {
-      worker(cfg, w, seeds, seeds, dict, moonc, home, feed, covctx, prog, q, pb)
+      worker(cfg, w, seeds, seeds, dict, moonc, feed, covctx, prog, q, pb)
     })
   }
   for id in 0..<cfg.trace_workers {

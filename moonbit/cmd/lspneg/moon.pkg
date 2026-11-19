@@ -1,0 +1,33 @@
+// Negative corpus for the LSP oracles: sessions where nothing is wrong.
+//
+// The F10/F11/F12 gates assert that known defects still reproduce.  They say
+// nothing about the other direction: on a healthy session, do the oracles stay
+// silent?  `findings/methodology.md` names this as the largest measurement gap,
+// because the three hang/stall oracles otherwise have no real negatives.
+//
+// One session = initialize, didOpen, then a fixed list of benign requests.
+// Every request that is answered contributes one negative observation (rc 0,
+// no timeout, one frame).  A request that is not answered produces a finding,
+// which is counted as a false alarm.
+//
+// Usage: lspneg [--sessions N] [--timeout-ms N] [--moon-lsp PATH] [--json PATH]
+
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/async/process",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/judge",
+  "I3eg1nner/mbtfuzz/lsp",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [
+    "moonbitlang/core/async",
+    "moonbitlang/core/async/process",
+  ],
+)
+
+pkgtype(kind: "executable")

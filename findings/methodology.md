@@ -140,11 +140,16 @@ Three caveats, in decreasing order of importance:
 2. **The 27 sources are reused across configurations**, so the 270 runs are
    correlated samples of 27 programs. The bound is a bound for this corpus, not
    for "MoonBit programs".
-3. **LSP has six real controls, not a corpus.** The three stall/hang defects
-   (F10/F11/F12) are asserted *to still reproduce* by gate `lsp_regress_6`;
-   the benign LSP runs in the PoC transcripts (empty `params`, `params: []`,
-   a normal `hover`) are hand-run controls. A large LSP negative corpus is the
-   main measurement gap in this document.
+3. **LSP negatives come from a separate instrument.** `cmd/lspneg` drives 20
+   fresh sessions through initialize, `didOpen` of a real file on disk, and
+   seven benign requests each (hover, documentSymbol, completion, formatting,
+   an unsupported-but-routed method, an unknown method, and `hover` with `{}`).
+   140/140 requests were answered, 0 findings, so the bound is `3/140 = 2.1%`
+   at 95%. The probe also runs the F11 trigger as a self-test and fails if it
+   sees nothing, so the zero is not a blind zero. Two limits: the sessions are
+   serial and share one `moon-lsp` binary, so the 140 observations are not 140
+   independent servers; and the three hang oracles still get no *timeout*
+   negatives, because a healthy session never times out.
 
 ## 5. Negative results and what they bound
 
@@ -162,6 +167,7 @@ Each row is a family of cases in which no *new* defect appeared. The bound is
 | Integer bit-pattern pairs | 23,920 | 0 mismatches | 0.013% | `findings/semantic_diff.md` |
 | IR/template programs, 12,096 executions | 12,096 | 0 new | 0.025% | `findings/ir_fourcell.md` |
 | Real packages, four-cell (8,849 test IDs) | 8,849 | 0 mismatches | 0.034% | `findings/improvement_evaluation.md` |
+| LSP benign requests (20 sessions × 7) | 140 | 0 findings | 2.1% | `cmd/lspneg`, this section |
 
 Reading rules that keep this table honest:
 
@@ -258,6 +264,8 @@ cd moonbit
 moon build --target native
 # decision matrix + boundaries + 8/8 false-positive gate
 ./_build/native/debug/build/cmd/oraclestat/oraclestat.exe --clean 8 --broken 8 --root /tmp/ostat
+# LSP negatives (§5): 20 sessions, 140 benign requests
+./_build/native/debug/build/cmd/lspneg/lspneg.exe --sessions 20 --json /tmp/lspneg.json
 # the full 270-run measurement of §4
 for cfg in "check wasm-gc" "build wasm-gc" "build js" "build native" "test native"; do
   set -- $cfg

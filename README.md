@@ -77,10 +77,16 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ./examples/trace2funcs.sh
 ```
 
-`cmd/accept` 依次检查：工具链 pin、`moon build`、`moon test`、`moon check`、
-12 例编译器缺陷回归、6 例 LSP 缺陷回归、合成 trace 精确输出、真实 QEMU
-trace 的 599 函数集合、覆盖并集、25 个模板的 wasm/js 差分、负控制。任一项
-失败即非零退出。
+`cmd/accept` 依次检查（18 项）：工具链 pin、`moon build`、`moon test`、
+`moon check`、12 例编译器缺陷回归、6 例 LSP 缺陷回归、LSP 负样本
+（3 会话 × 7 请求，且探针必须能看见 F11 触发）、oracle 灵敏度、真实编译
+语料上的误报回归、归约 witness、种子复现、F7 边界、语义差分、合成 trace
+精确输出、真实 QEMU trace 的 599 函数集合、覆盖并集、25 个模板的
+wasm/js 差分、负控制。任一项失败即非零退出。
+
+`--profile core` 跳过后三项依赖宿主机工具的检查（`afl-qemu-trace`、
+`moonc` 符号表），JSON 里以 `skipped` 列出而不是静默丢弃；公开 CI 用这个
+profile 在恢复出的 pin 工具链上跑 15 项。
 
 仓库不提交 `out/`、`seeds/`、`assets/`、`moonbit/_build/` 和 12 MB 的
 `WeiR-h/moonldif@0.7.6`。F6 另有 10 行最小复现，不依赖下载。

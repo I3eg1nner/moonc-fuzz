@@ -1,4 +1,5 @@
 import {
+  "I3eg1nner/mbtfuzz/stager",
   "moonbitlang/core/async",
   "moonbitlang/x/fs",
   "I3eg1nner/mbtfuzz/exec",

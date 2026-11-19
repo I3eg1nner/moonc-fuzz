@@ -59,7 +59,7 @@ async fn run_variant(root : String, v : Variant) -> String {
     _ => ()
   }
   let r = @exec.run(
-    "/home/user/.moon/bin/moon",
+    @stager.tool_path("moon"),
     ["build", "--target", "native"],
     d,
     120000,

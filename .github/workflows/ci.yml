@@ -9,7 +9,7 @@
 # cli.moonbitlang.com serves only `latest`, and every versioned path answers
 # 403.  That is why the toolchain is archived (findings/toolchain_archive.md).
 #
-# The pinned job runs `--profile core` (14 of 17 gates).  The three trace gates
+# The pinned job runs `--profile core` (15 of 18 gates).  The three trace gates
 # need `afl-qemu-trace` and a symbol table of the pinned `moonc`; they run
 # locally, and the JSON names them under `skipped` instead of dropping them.
 name: CI
@@ -63,11 +63,17 @@ jobs:
   pinned-evidence:
     runs-on: ubuntu-latest
     env:
-      MOON_HOME: ${{ runner.temp }}/moonbit-pin
       TOOLCHAIN_SHA256: 4b1aee737cb004df8a220ae6d8fab69646a8a153d72ab969e56735cbae4bee4f
       TOOLCHAIN_ASSET: moonbit-0.1.20261104-linux-x86_64.tar.gz
     steps:
       - uses: actions/checkout@v4
+
+      # `runner` is not an allowed context in job-level `env`, so the path is
+      # exported from a step instead.
+      - name: Point MOON_HOME at the archive
+        run: |
+          echo "MOON_HOME=$RUNNER_TEMP/moonbit-pin" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/moonbit-pin"
 
       - name: Restore the frozen toolchain
         run: |
@@ -75,7 +81,6 @@ jobs:
           url="https://github.com/I3eg1nner/moonc-fuzz/releases/download/v0.1.0/$TOOLCHAIN_ASSET"
           curl -fsSL -o "$RUNNER_TEMP/toolchain.tar.gz" "$url"
           echo "$TOOLCHAIN_SHA256  $RUNNER_TEMP/toolchain.tar.gz" | sha256sum -c -
-          mkdir -p "$MOON_HOME"
           tar -xzf "$RUNNER_TEMP/toolchain.tar.gz" -C "$MOON_HOME" --strip-components=1
           echo "$MOON_HOME/bin" >> "$GITHUB_PATH"
 

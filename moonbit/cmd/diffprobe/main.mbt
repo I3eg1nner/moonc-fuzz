@@ -93,10 +93,6 @@ async fn main {
     println("same=\{r == @oracle.Same}")
     return
   }
-  let home = match @env.get_env_var("HOME") {
-    Some(h) => h
-    None => "/home/user"
-  }
   let root = if args.length() >= 3 { args[2] } else { "/data/audit/mbtfuzz" }
   let src = @fs.read_file_to_string(args[1]) catch {
     _ => {
@@ -104,7 +100,7 @@ async fn main {
       return
     }
   }
-  let core = join(home, ".moon/lib/core")
+  let core = join(@stager.moon_home(), "lib/core")
   let wd = "/tmp/mbtfuzz_diffprobe_" + @env.now().to_string()
   @fs.create_dir(wd) catch {
     _ => ()
@@ -112,9 +108,9 @@ async fn main {
   let native = args.length() >= 4 && args[3] == "--native"
   let r = if native {
     @oracle.diff_native(
-      join(join(home, ".moon/bin"), "moonc"),
-      join(join(home, ".moon/bin"), "moonrun"),
-      join(join(home, ".moon/bin"), "moon"),
+      @stager.tool_path("moonc"),
+      @stager.tool_path("moonrun"),
+      @stager.tool_path("moon"),
       wd,
       src,
       "I3eg1nner/tpl/cmd/main",
@@ -126,8 +122,8 @@ async fn main {
     )
   } else {
     @oracle.diff_program(
-      join(join(home, ".moon/bin"), "moonc"),
-      join(join(home, ".moon/bin"), "moonrun"),
+      @stager.tool_path("moonc"),
+      @stager.tool_path("moonrun"),
       "node",
       wd,
       src,

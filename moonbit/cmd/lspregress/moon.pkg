@@ -6,6 +6,7 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/x/fs",
   "I3eg1nner/mbtfuzz/lsp",
+  "I3eg1nner/mbtfuzz/stager",
 }
 
 options(

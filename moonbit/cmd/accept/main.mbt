@@ -5,8 +5,8 @@
 /// reviewer would use to decide that MoonBit is the operational default:
 /// pinned toolchain, all known defects reproduced, real trace parity, coverage
 /// set algebra, differential oracle sensitivity on the runnable templates,
-/// false-positive regression on a real compile corpus, and a bounded campaign
-/// that never invokes Python.
+/// false-positive regression on a real compile corpus and on a healthy LSP
+/// session, and a bounded campaign that never invokes Python.
 ///
 /// Usage: accept <repo-root> [bin-dir]
 fn join(a : String, b : String) -> String {
@@ -70,8 +70,23 @@ fn default_home() -> String {
 }
 
 ///|
+fn usage() -> Unit {
+  println(
+    "usage: accept [ROOT] [BIN_DIR] [--profile full|core]\n" +
+    "  full  all gates, including the two that need afl-qemu-trace (default)\n" +
+    "  core  skip trace_exact/trace_real_f4/negative_control; names them in JSON",
+  )
+}
+
+///|
 async fn main {
   let args = @env.args()
+  for a in args {
+    if a == "--help" || a == "-h" {
+      usage()
+      return
+    }
+  }
   let pos : Array[String] = []
   let mut profile = "full"
   let mut pi = 1
@@ -182,6 +197,26 @@ async fn main {
     lsp_ms.to_string()
   }
   results.push(check("lsp_regress_6", lsp_ok, lsp_detail))
+
+  // 2b2. LSP negative corpus.  `lsp_regress_6` asserts that known defects still
+  // reproduce; this one asserts the opposite direction - on a healthy session
+  // the oracles stay silent - and fails if the probe cannot see the F11 trigger
+  // at all (`detector_proven`).  Three sessions x seven benign requests.
+  let lspneg = @exec.run(
+    join(bin, "cmd/lspneg/lspneg.exe"),
+    ["--sessions", "3"],
+    root,
+    180000,
+  )
+  let lspneg_ok = lspneg.rc == 0 &&
+    lspneg.stdout.contains("\"false_alarms\":0") &&
+    lspneg.stdout.contains("\"detector_proven\":true")
+  let lspneg_detail = if lspneg_ok {
+    "sessions=3 observations=21 false_alarms=0 detector_proven=true"
+  } else {
+    lspneg.stdout.trim().to_owned()
+  }
+  results.push(check("lsp_negative", lspneg_ok, lspneg_detail))
 
   // 2c. Oracle sensitivity.  This is the gate that keeps the *measurement*
   // honest: every registered oracle must fire on an injected defect shape and

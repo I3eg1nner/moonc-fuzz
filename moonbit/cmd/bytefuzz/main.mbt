@@ -369,7 +369,7 @@ async fn main {
     println("no seeds")
     return
   }
-  let moonc = join(home, ".moon/bin/moonc")
+  let moonc = @stager.tool_path("moonc")
   println(
     "[bytefuzz] mode=\{cfg.mode} workers=\{cfg.workers} seeds=\{seeds.length()} out=\{cfg.out}",
   )

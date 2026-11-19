@@ -113,21 +113,26 @@ pub fn copy_tree(src : String, dst : String) -> Bool {
 ///|
 pub fn moon_path() -> String {
   match @env.get_env_var("MOON") {
-    Some(p) => if p == "" { moon_home_bin() } else { p }
-    None => moon_home_bin()
+    Some(p) => if p == "" { tool_path("moon") } else { p }
+    None => tool_path("moon")
   }
 }
 
 ///|
 /// `MOON_HOME` first, `~/.moon` second.  A restored toolchain archive sets
 /// `MOON_HOME`; ignoring it made every driver rebuild against whatever happened
-/// to be in the user's home directory.
-fn moon_home_bin() -> String {
-  let home = match @env.get_env_var("MOON_HOME") {
+/// to be in the user's home directory - which is exactly what a frozen
+/// toolchain is supposed to stop depending on.
+pub fn moon_home() -> String {
+  match @env.get_env_var("MOON_HOME") {
     Some(h) => if h == "" { default_moon_home() } else { h }
     None => default_moon_home()
   }
-  join(join(home, "bin"), "moon")
+}
+
+///|
+pub fn tool_path(name : String) -> String {
+  join(join(moon_home(), "bin"), name)
 }
 
 ///|
