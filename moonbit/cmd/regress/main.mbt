@@ -226,7 +226,11 @@ async fn main {
       cmd: "/usr/bin/prlimit",
       args: ["--as=6442450944", "--", moonc, "syncheck", "cmd/main.mbt"],
       cwd: join(root, "poc/f3_parser_oom"),
-      timeout_ms: 25000,
+      // Allocating under a 6 GiB cap took ~15 s on the development host and
+      // over 25 s on a 2-core CI runner, where the old budget recorded a HANG
+      // instead of the OOM it was looking for.  The cap, not the clock, is
+      // what the case is about.
+      timeout_ms: 240000,
       expect: "OOM",
       needle: "",
       pre: "",
