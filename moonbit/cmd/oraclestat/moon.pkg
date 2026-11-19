@@ -1,0 +1,18 @@
+// Oracle statistics: decision matrix over labelled probes, decision-boundary
+// vectors for every numeric axis, end-to-end false-positive measurement on a
+// real compile corpus, and the per-observation cost model.
+
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/judge",
+  "I3eg1nner/mbtfuzz/numgen",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

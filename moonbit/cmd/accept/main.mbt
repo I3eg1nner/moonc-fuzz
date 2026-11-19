@@ -4,8 +4,9 @@
 /// This is deliberately not "did the tests pass".  It checks the properties a
 /// reviewer would use to decide that MoonBit is the operational default:
 /// pinned toolchain, all known defects reproduced, real trace parity, coverage
-/// set algebra, differential oracle sensitivity on the runnable templates, and
-/// a bounded campaign that never invokes Python.
+/// set algebra, differential oracle sensitivity on the runnable templates,
+/// false-positive regression on a real compile corpus, and a bounded campaign
+/// that never invokes Python.
 ///
 /// Usage: accept <repo-root> [bin-dir]
 fn join(a : String, b : String) -> String {
@@ -169,6 +170,42 @@ async fn main {
     "rc=" + oa.rc.to_string() + " " + oa.stdout
   }
   results.push(check("oracle_sensitivity", oa_ok, oa_detail))
+
+  // 2c2. False positives on a real compile corpus.  `oraclestat` builds eight
+  // known-good programs and eight deliberately broken ones; any finding there
+  // is a false alarm, and a mislabelled corpus shows up as `unexpected`.  The
+  // gate is deliberately small: it is a regression net for the classifiers,
+  // not the statistical measurement (that is `findings/methodology.md`).
+  let os_json = "/tmp/mbtfuzz_accept_oraclestat_" + tag + ".json"
+  let os = @exec.run(
+    join(bin, "cmd/oraclestat/oraclestat.exe"),
+    [
+      "--clean",
+      "8",
+      "--broken",
+      "8",
+      "--json",
+      os_json,
+      "--root",
+      "/tmp/mbtfuzz_accept_ostat_" + tag,
+    ],
+    root,
+    180000,
+  )
+  let os_text = read_text(os_json)
+  let os_ok = os.rc == 0 &&
+    os_text.contains(
+      "\"name\":\"clean\",\"n\":8,\"defects\":0,\"unexpected\":0",
+    ) &&
+    os_text.contains(
+      "\"name\":\"broken\",\"n\":8,\"defects\":0,\"unexpected\":0",
+    )
+  let os_detail = if os_ok {
+    "clean=8 broken=8 false_alarms=0 upper95=0.375"
+  } else {
+    "rc=" + os.rc.to_string() + " " + os_text
+  }
+  results.push(check("oracle_fpr", os_ok, os_detail))
 
   // 2d. Reduction witness.  Runs the minimizer end to end on the smallest
   // real link-time ICE we have (F9): the reduced witness must re-verify and
