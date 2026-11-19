@@ -1,0 +1,120 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/judge"
+
+// Values
+pub fn audit(Array[OracleSpec], Array[Probe], Array[Probe]) -> Audit
+
+pub fn check(OracleSpec, Observation) -> Array[Finding]
+
+pub fn check_all(Array[OracleSpec], Observation) -> Array[Finding]
+
+pub fn compare(String, String, Observation, Observation) -> Array[Finding]
+
+pub fn error_line(Observation) -> String
+
+pub fn global_negatives() -> Array[Probe]
+
+pub fn has_diagnostic(Observation) -> Bool
+
+pub fn kind_name(OracleKind) -> String
+
+pub fn kind_severity(OracleKind) -> Severity
+
+pub fn observation(String, Int32, Bool, Int64, Int64, Int32, Bool, Bool, String, String) -> Observation
+
+pub fn pair_name(PairKind) -> String
+
+pub fn probes() -> Array[Probe]
+
+pub fn registry() -> Array[OracleSpec]
+
+pub fn score(Array[OracleSpec], Array[Probe], Array[Probe]) -> Array[Score]
+
+pub fn severity_name(Severity) -> String
+
+pub fn spec(OracleKind, String) -> OracleSpec
+
+// Errors
+
+// Types and methods
+pub(all) struct Audit {
+  scores : Array[Score]
+  unproven : Array[String]
+  blind : Array[String]
+  noisy : Array[String]
+}
+pub fn Audit::ok(Self) -> Bool
+pub fn Audit::to_json(Self) -> String
+
+pub(all) struct Finding {
+  oracle : String
+  class : String
+  severity : Severity
+  signature : String
+  detail : String
+}
+pub fn Finding::to_json(Self) -> String
+
+pub(all) struct Observation {
+  stage : String
+  rc : Int32
+  timed_out : Bool
+  wall_ms : Int64
+  cpu_ms : Int64
+  stdout : String
+  stderr : String
+  frames : Int32
+  expects_frames : Bool
+  alive_after : Bool
+}
+
+pub(all) enum OracleKind {
+  Crash
+  BusyHang
+  BlockedStall
+  TimeoutPlain
+  MissingFrames
+  NonzeroSilent
+  OrphanLeak
+}
+
+pub(all) struct OracleSpec {
+  id : String
+  kind : OracleKind
+  note : String
+}
+
+pub(all) enum PairKind {
+  TimeoutAsymmetry
+  StatusAsymmetry
+  StdoutAsymmetry
+}
+
+pub(all) struct Probe {
+  label : String
+  spec : String
+  obs : Observation
+  want_hit : Bool
+}
+
+pub(all) struct Score {
+  spec : String
+  positives : Int32
+  caught : Int32
+  negatives : Int32
+  false_pos : Int32
+  missed : Array[String]
+  spurious : Array[String]
+}
+pub fn Score::sensitive(Self) -> Bool
+pub fn Score::to_json(Self) -> String
+
+pub(all) enum Severity {
+  Defect
+  Suspicious
+  Infra
+}
+
+// Type aliases
+
+// Traits

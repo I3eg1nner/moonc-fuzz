@@ -1,0 +1,12 @@
+// Oracle layer: a defect verdict is a *specification*, not an `if` buried in
+// a campaign driver.  Each oracle is a named, injectable predicate over one
+// `Observation`, and every oracle must pass a positive/negative injection
+// matrix before it is allowed to gate anything.
+//
+// Pure by design: no process spawning and no file IO, so the injection matrix
+// is deterministic and cheap.
+
+// Black-box tests intentionally call the public API unqualified, matching the
+// surrounding project's test style.
+
+warnings = "-test_unqualified_package"

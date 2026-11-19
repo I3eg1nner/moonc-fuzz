@@ -1,0 +1,10 @@
+// Oracle sensitivity audit.  Fails unless every registered oracle is proven
+// by at least one injected defect shape and stays silent on every control.
+
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/judge",
+}
+
+pkgtype(kind: "executable")

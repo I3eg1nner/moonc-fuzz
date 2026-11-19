@@ -147,6 +147,29 @@ async fn main {
   }
   results.push(check("lsp_regress_6", lsp_ok, lsp_detail))
 
+  // 2c. Oracle sensitivity.  This is the gate that keeps the *measurement*
+  // honest: every registered oracle must fire on an injected defect shape and
+  // stay silent on controls.  It is cheap and pure, so it runs before the
+  // expensive stages and blocks them if a classifier went blind.
+  let oa = @exec.run(
+    join(bin, "cmd/oracleaudit/oracleaudit.exe"),
+    [],
+    root,
+    30000,
+  )
+  let oa_sensitive = count_occur(oa.stdout, "\"sensitive\":true")
+  let oa_total = count_occur(oa.stdout, "\"oracle\":")
+  let oa_ok = oa.rc == 0 &&
+    oa.stdout.contains("\"ok\":true") &&
+    oa_total > 0 &&
+    oa_sensitive == oa_total
+  let oa_detail = if oa_ok {
+    "proven=" + oa_sensitive.to_string() + "/" + oa_total.to_string()
+  } else {
+    "rc=" + oa.rc.to_string() + " " + oa.stdout
+  }
+  results.push(check("oracle_sensitivity", oa_ok, oa_detail))
+
   // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
   let tr = @exec.run(
     join(bin, "cmd/trace2funcs/trace2funcs.exe"),
@@ -305,6 +328,17 @@ async fn main {
   if !all_ok {
     @env.exit(1)
   }
+}
+
+///|
+fn count_occur(hay : String, needle : String) -> Int32 {
+  let mut n = 0
+  let mut rest = hay
+  while rest.find(needle) is Some(i) {
+    n += 1
+    rest = rest[i + needle.length():].to_owned()
+  }
+  n
 }
 
 ///|
