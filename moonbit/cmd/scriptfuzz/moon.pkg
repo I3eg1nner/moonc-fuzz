@@ -1,0 +1,28 @@
+// Map the trigger surface of the F7 defect in script mode.
+//
+// WHY SCRIPT MODE.  The F7 ICE reproduces with `moon run file.mbt`, i.e. when
+// the file is compiled as a standalone script package.  Every existing
+// generator renders a *package*, so this carrier was never exercised by the
+// 160-case matrix - which is why the matrix reported "only F7" rather than
+// mapping it.
+//
+// The campaign is a fully specified 36-point cross product, not a random
+// search: payload kind (GC ref vs not), container depth, construction style,
+// and `#valtype` on/off.  The `plain` half is the negative control: if a
+// control case does not compile and run, the renderer is broken and the whole
+// table is meaningless.
+
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/scriptgen",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

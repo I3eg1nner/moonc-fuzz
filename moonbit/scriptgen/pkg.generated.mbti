@@ -1,0 +1,58 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/scriptgen"
+
+// Values
+pub fn boundary_cases() -> Array[BoundaryCase]
+
+pub fn build_tag(Build) -> String
+
+pub fn cases() -> Array[ScriptCase]
+
+pub fn container_tag(Container) -> String
+
+pub fn payload_tag(Payload) -> String
+
+pub fn payload_type(Payload) -> String
+
+pub fn payload_value(Payload) -> String
+
+pub fn render(ScriptCase) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct BoundaryCase {
+  id : String
+  src : String
+  expect_defect : Bool
+  why : String
+}
+
+pub(all) enum Build {
+  BLiteral
+  BPush
+}
+
+pub(all) enum Container {
+  CArray
+  CNested
+  CField
+}
+
+pub(all) enum Payload {
+  PString
+  PArrayInt
+  PInt
+}
+
+pub(all) struct ScriptCase {
+  id : String
+  valtype : Bool
+  payload : Payload
+  container : Container
+  build : Build
+}
+
+// Type aliases
+
+// Traits

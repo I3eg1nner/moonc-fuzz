@@ -210,6 +210,24 @@ async fn main {
     !sf.stdout.contains("copy-failed")
   results.push(check("seed_repro", sf_ok, sf.stdout.trim().to_owned()))
 
+  // 2f. F7 trigger surface.  Twelve script-mode probes pin the corrected
+  // characterisation (empty valtype array + non-null GC element): four must
+  // ICE and eight must pass.  INVERTED ORACLE: when upstream fixes the
+  // lowering, four rows flip to `matches:false`.  That is not a bug in the
+  // gate - update poc/f7_valtype_array_ice/README.md and the expectations in
+  // scriptgen, and record the fix, rather than flipping the values silently.
+  let f7 = @exec.run(
+    join(bin, "cmd/scriptfuzz/scriptfuzz.exe"),
+    ["--out", "/tmp/mbtfuzz_accept_f7.jsonl", "--family", "boundary"],
+    root,
+    180000,
+  )
+  let f7_ok = f7.rc == 0 &&
+    f7.stdout.contains("\"mismatches\":0") &&
+    f7.stdout.contains("\"control_failures\":0") &&
+    f7.stdout.contains("\"cases\":12")
+  results.push(check("f7_boundary", f7_ok, f7.stdout.trim().to_owned()))
+
   // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
   let tr = @exec.run(
     join(bin, "cmd/trace2funcs/trace2funcs.exe"),

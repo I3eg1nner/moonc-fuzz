@@ -1,0 +1,9 @@
+// Script-mode variants around a known-defect shape.
+//
+// The F7 ICE only reproduces when the file is compiled as a standalone script
+// (`moon run file.mbt`), not as a package, so the existing 160-case package
+// matrix never exercised this carrier.  This package renders one script per
+// point in a small, fully specified cross product so the trigger surface can
+// be mapped instead of guessed.
+
+warnings = "-test_unqualified_package"
