@@ -170,6 +170,28 @@ async fn main {
   }
   results.push(check("oracle_sensitivity", oa_ok, oa_detail))
 
+  // 2d. Reduction witness.  Runs the minimizer end to end on the smallest
+  // real link-time ICE we have (F9): the reduced witness must re-verify and
+  // must not grow.  This is the only gate that exercises the reducer against
+  // the actual compiler, so a broken signature comparison shows up here.
+  let rd = @exec.run(
+    join(bin, "cmd/minimize/minimize.exe"),
+    [
+      "--dir",
+      join(root, "poc/f9_native_v128_stub_ice"),
+      "--stage",
+      "test",
+      "--fuel",
+      "60",
+    ],
+    root,
+    180000,
+  )
+  let rd_ok = rd.rc == 0 &&
+    rd.stdout.contains("\"verified\":true") &&
+    rd.stdout.contains("\"baseline\":\"crash|ICE|")
+  results.push(check("reduce_witness", rd_ok, rd.stdout.trim().to_owned()))
+
   // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
   let tr = @exec.run(
     join(bin, "cmd/trace2funcs/trace2funcs.exe"),

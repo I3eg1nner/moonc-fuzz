@@ -1,0 +1,4 @@
+// Automatic reduction core.  Pure: no process spawning, no file IO.  The
+// compiler-driving loop lives in `cmd/reduce`.
+
+warnings = "-test_unqualified_package"

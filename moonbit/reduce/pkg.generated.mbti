@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/reduce"
+
+// Values
+pub fn done(Reducer) -> Bool
+
+pub fn next_text(Reducer) -> String?
+
+pub fn reduce_with(String, Int32, (String) -> Bool) -> String
+
+pub fn result(Reducer) -> String
+
+pub fn result_lines(Reducer) -> Int32
+
+pub fn start(String, Int32) -> Reducer
+
+pub fn test_calls(Reducer) -> Int32
+
+pub fn top_blocks(Array[String]) -> Array[(Int32, Int32)]
+
+pub fn verdict(Reducer, Bool) -> Unit
+
+pub fn was_exhausted(Reducer) -> Bool
+
+// Errors
+
+// Types and methods
+pub(all) struct Reducer {
+  mut lines : Array[String]
+  mut gran : Int32
+  mut idx : Int32
+  mut pending : Array[String]?
+  mut spans : Array[(Int32, Int32)]
+  mut blocks_done : Bool
+  mut calls : Int32
+  mut fuel : Int32
+  mut exhausted : Bool
+}
+
+// Type aliases
+
+// Traits

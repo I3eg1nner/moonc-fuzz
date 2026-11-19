@@ -1,0 +1,26 @@
+// Compiler-driven reduction driver.
+//
+// The pure engine lives in `reduce/`; this file only supplies the predicate
+// "this candidate still reproduces the same defect signature" and the IO.
+//
+// Usage:
+//   reduce --dir PATH [--file lib.mbt] [--stage build|check|test-build]
+//          [--timeout-ms N] [--fuel N] [--out PATH] [--moon PATH]
+//
+// Output: one JSON line. Exit 0 = reduced and re-verified, 1 = baseline is not
+// a failure (nothing to reduce) or verification failed, 2 = bad usage.
+
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/judge",
+  "I3eg1nner/mbtfuzz/reduce",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")
