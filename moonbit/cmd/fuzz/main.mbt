@@ -1911,7 +1911,7 @@ async fn worker(
   )
   let builtin = join(bundle, "builtin/builtin.mi")
   let prelude = join(bundle, "prelude/prelude.mi")
-  let all_pkgs = join(join(cfg.root, "harness"), "all_pkgs.json")
+  let all_pkgs = @stager.portable_all_pkgs(cfg.root)
   let pkg = "I3eg1nner/tpl/cmd/main"
   while @async.now() < end {
     s.it += 1
@@ -2566,7 +2566,7 @@ async fn main {
   )
   let builtin = join(bundle, "builtin/builtin.mi")
   let prelude = join(bundle, "prelude/prelude.mi")
-  let all_pkgs = join(join(cfg.root, "harness"), "all_pkgs.json")
+  let all_pkgs = @stager.portable_all_pkgs(cfg.root)
   let pkg = "I3eg1nner/tpl/cmd/main"
   let core_dir = join(@stager.moon_home(), "lib/core")
   let pkg_config = join(join(cfg.root, "harness"), "moon.pkg")

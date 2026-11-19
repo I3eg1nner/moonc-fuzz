@@ -213,7 +213,7 @@ async fn main {
         "-workspace-path",
         ".",
         "-all-pkgs",
-        join(join(root, "harness"), "all_pkgs.json"),
+        @stager.portable_all_pkgs(root),
       ],
       cwd: join(root, "poc/f2b_zwsp_escape_t2_ice"),
       timeout_ms: 15000,

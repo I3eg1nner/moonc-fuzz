@@ -171,6 +171,30 @@ pub async fn run_stage(
 }
 
 ///|
+///|
+/// `harness/all_pkgs.json` is generated on one machine and embeds absolute
+/// paths for both this repository and the toolchain's core bundle.  Rewriting
+/// them is what lets any driver run from another checkout or against a
+/// restored toolchain (`MOON_HOME`) without regenerating the file.
+pub fn portable_all_pkgs(root : String) -> String {
+  let path = join(join(root, "harness"), "all_pkgs.json")
+  let src = read_text(path)
+  if src == "" {
+    return path
+  }
+  let out = src.replace_all(old="/data/audit/mbtfuzz", new=root).replace_all(
+    old="/home/user/.moon",
+    new=moon_home(),
+  )
+  let tmp = "/tmp/mbtfuzz_all_pkgs_" + @env.now().to_string() + ".json"
+  if write_text(tmp, out) {
+    tmp
+  } else {
+    path
+  }
+}
+
+///|
 /// Collapse digit runs and whitespace.  Link-time ICE text embeds temp paths,
 /// hashes and byte counts; an exact compare would make every candidate look
 /// different and reduction would silently do nothing.

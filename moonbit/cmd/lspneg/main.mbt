@@ -236,7 +236,10 @@ async fn session(
   // counted, because a cold start is not a stall - on a 2-core CI runner the
   // first hover can take >5 s while the server is simply working.
   send(p, @lsp.text_document_request(100, @lsp.DocumentSymbol, uri, None))
-  let _ = await_id(p, 100, timeout_ms * 4)
+  // A cold analysis on a 2-core runner took >8 s in CI even after this warm-up
+  // started, so the warm-up gets its own, much larger budget.  It is not
+  // counted: slow is not stalled.
+  let _ = await_id(p, 100, 60000)
   for pr in probes(uri) {
     let t0 = now_ms()
     send(p, pr.req)
@@ -370,8 +373,8 @@ async fn main {
     None => 6
   }
   let timeout_ms = match arg_value(args, "--timeout-ms") {
-    Some(s) => @stager.parse_int(s, 8000)
-    None => 8000
+    Some(s) => @stager.parse_int(s, 15000)
+    None => 15000
   }
   let server = match arg_value(args, "--moon-lsp") {
     Some(s) => s

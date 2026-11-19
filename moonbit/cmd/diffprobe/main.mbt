@@ -42,29 +42,6 @@ fn bt(kind : String, rc : Int32, digest : String) -> @oracle.BackendResult {
 
 ///|
 ///|
-/// `harness/all_pkgs.json` is generated on one machine and embeds absolute
-/// paths for both this repository and the toolchain's core bundle.  Rewriting
-/// them here is what lets the gate run from any checkout and against a
-/// restored toolchain (`MOON_HOME`) without regenerating the file.
-fn portable_all_pkgs(root : String) -> String {
-  let path = join(join(root, "harness"), "all_pkgs.json")
-  let src = @fs.read_file_to_string(path) catch {
-    _ => return path
-  }
-  let out = src
-    .replace_all(old="/data/audit/mbtfuzz", new=root)
-    .replace_all(old="/home/user/.moon", new=@stager.moon_home())
-  let tmp = "/tmp/mbtfuzz_all_pkgs_" + @env.now().to_string() + ".json"
-  let _ = try {
-    @fs.write_string_to_file(tmp, out)
-    true
-  } catch {
-    _ => false
-  }
-  tmp
-}
-
-///|
 async fn main {
   let args = @env.args()
   if args.length() < 2 {
@@ -146,7 +123,7 @@ async fn main {
       join(core, "_build/wasm/release/bundle"),
       core,
       join(join(root, "harness"), "moon.pkg"),
-      portable_all_pkgs(root),
+      @stager.portable_all_pkgs(root),
       25000,
     )
   } else {
@@ -161,7 +138,7 @@ async fn main {
       join(core, "_build/js/release/bundle"),
       core,
       join(join(root, "harness"), "moon.pkg"),
-      portable_all_pkgs(root),
+      @stager.portable_all_pkgs(root),
       25000,
     )
   }
