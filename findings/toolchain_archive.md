@@ -97,7 +97,7 @@ right place for a binary artifact.
 
 - "Reproducible on the pin" is now an executable statement, not a version
   string: the archive restores a compiler that reproduces the 12 defect
-  regressions and the 17 acceptance gates.
+  regressions and the 18 acceptance gates (15 of them in `--profile core`).
 - The forward-compatibility canary (CI on `latest`) stays separate: the archive
   is how the evidence is re-derived, CI is how we learn that a future toolchain
   breaks the harness.

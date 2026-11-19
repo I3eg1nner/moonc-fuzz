@@ -320,6 +320,31 @@ moon run cmd/lspregress
 
 ## 7. 复现
 
+### 干净机器：用冻结的工具链
+
+上游 CDN 只提供 `latest`，装在别处的 pin 装不回来，所以 pin 以 release 附件
+形式存档（原因与验证见 `findings/toolchain_archive.md`）：
+
+```bash
+curl -fL -o tc.tar.gz \
+  https://github.com/I3eg1nner/moonc-fuzz/releases/download/v0.1.0/moonbit-0.1.20261104-linux-x86_64.tar.gz
+echo "4b1aee737cb004df8a220ae6d8fab69646a8a153d72ab969e56735cbae4bee4f  tc.tar.gz" | sha256sum -c -
+mkdir -p /opt/moonbit && tar -xzf tc.tar.gz -C /opt/moonbit --strip-components=1
+export MOON_HOME=/opt/moonbit
+export PATH="$MOON_HOME/bin:$PATH"
+
+./scripts/verify_toolchain_archive.sh tc.tar.gz   # 版本、无依赖小包、本仓库构建
+cd moonbit && moon build --target native
+
+./_build/native/debug/build/cmd/accept/accept.exe "$PWD/.." --profile core
+```
+
+`--profile core` 跑 18 项中的 15 项，跳过需要 `afl-qemu-trace` 与 `moonc`
+符号表的三项 trace 检查；JSON 的 `skipped` 会列出它们。公开 CI 的
+`pinned-evidence` job 走的就是这条路径，`latest-canary` job 继续盯前向兼容。
+
+### 本机：已在 pin 上的复现脚本
+
 ```bash
 ./scripts/reproduce_all.sh
 ```
