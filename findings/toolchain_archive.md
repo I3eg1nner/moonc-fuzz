@@ -89,7 +89,10 @@ defects remain checkable against the same binary they were found on.
 ## Where it lives
 
 Attached to the `v0.1.0` release of
-`I3eg1nner/moonc-fuzz` on GitHub. The repository does not track the tarball:
+`I3eg1nner/moonc-fuzz` on GitHub. The `pinned-evidence` CI job downloads it,
+verifies the sha256 and runs `accept --profile core` (15 of 18 gates); run
+[44570253756](https://github.com/I3eg1nner/moonc-fuzz/actions/runs/44570253756)
+is the first green one (2026-11-19, 3m23s). The repository does not track the tarball:
 222 MB in git would be paid for on every clone, and release assets are the
 right place for a binary artifact.
 
