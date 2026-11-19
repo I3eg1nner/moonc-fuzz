@@ -232,6 +232,11 @@ async fn session(
   send(p, @lsp.initialized())
   send(p, @lsp.did_open(uri, "fn main {\n  println(\"hello\")\n}\n"))
   @async.sleep(150)
+  // Warm-up: the first analysis request pays for loading the file.  It is not
+  // counted, because a cold start is not a stall - on a 2-core CI runner the
+  // first hover can take >5 s while the server is simply working.
+  send(p, @lsp.text_document_request(100, @lsp.DocumentSymbol, uri, None))
+  let _ = await_id(p, 100, timeout_ms * 4)
   for pr in probes(uri) {
     let t0 = now_ms()
     send(p, pr.req)
@@ -365,8 +370,8 @@ async fn main {
     None => 6
   }
   let timeout_ms = match arg_value(args, "--timeout-ms") {
-    Some(s) => @stager.parse_int(s, 5000)
-    None => 5000
+    Some(s) => @stager.parse_int(s, 8000)
+    None => 8000
   }
   let server = match arg_value(args, "--moon-lsp") {
     Some(s) => s

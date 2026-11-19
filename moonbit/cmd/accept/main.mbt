@@ -162,13 +162,25 @@ async fn main {
       reg_ok = false
     }
   }
-  results.push(
-    check(
-      "regressions_12",
-      reg_ok,
-      "rc=" + reg.rc.to_string() + " rows=" + count_lines(reg_lines).to_string(),
-    ),
-  )
+  // When a row fails, name it: "rc=1 rows=12" alone is not actionable.
+  let mut reg_bad = ""
+  for line in reg_lines.split("\n") {
+    if line.trim().char_length() > 0 && !line.contains("\"ok\":true") {
+      reg_bad = if line.char_length() > 200 {
+        line[0:200].to_owned()
+      } else {
+        line.to_owned()
+      }
+      break
+    }
+  }
+  let reg_detail = if reg_ok {
+    "rc=" + reg.rc.to_string() + " rows=" + count_lines(reg_lines).to_string()
+  } else {
+    "rc=" + reg.rc.to_string() + " rows=" + count_lines(reg_lines).to_string() +
+    " first_bad=" + reg_bad
+  }
+  results.push(check("regressions_12", reg_ok, reg_detail))
 
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
