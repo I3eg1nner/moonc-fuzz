@@ -99,7 +99,10 @@ control set that says which neighbouring shapes are *not* affected. That is
 what a maintainer needs to decide whether the fix is "handle this
 representation" or "handle zero-initialisation generally".
 
-No comment was posted: upstream contact requires explicit approval.
+Posted 2026-11-19 after explicit approval:
+[#1322 comment](https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-6996920436).
+The comment carries the 7-line witness and the six-row control table, not the
+full 48-point map; the map stays here.
 
 ## Claim limits
 

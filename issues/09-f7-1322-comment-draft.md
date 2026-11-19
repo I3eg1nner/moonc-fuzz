@@ -1,9 +1,12 @@
-# Comment draft for upstream #1322 — NOT SUBMITTED
+# Comment on upstream #1322 — POSTED
 
 Target: <https://github.com/moonbitlang/moonbit-docs/issues/1322>
 Kind: supplementary comment, not a new issue
 Language: English (issue is English)
-Approval: **required before posting** — nothing has been posted.
+Status: **posted 2026-11-19**, approved by the maintainer of this repo.
+Live: <https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-6996920436>
+The text below is what was posted, with one render fix: `A \| B(Int)` inside a
+code span became `A` / `B(Int)` to avoid a pipe-in-table artefact.
 
 ## Why we are commenting
 
@@ -68,11 +71,10 @@ inference from 48 measured shapes.
 
 ---
 
-## Before posting
+## Pre-post checks (done 2026-11-19T01:32Z)
 
-- [ ] re-run `poc/f7_valtype_array_ice/minimal.mbt` and
-      `cmd/scriptfuzz --family boundary` on the pin of the day; if any row
-      flipped, update the table instead of posting it stale
-- [ ] confirm the target issue is still open and has no comment covering this
-- [ ] keep the comment as a comment on #1322; do not open a new issue
-- [ ] post only after explicit approval
+- [x] `minimal.mbt` still fails with `lower_array_make` on
+      `moonc v0.10.20+65efd5b93`
+- [x] `cmd/scriptfuzz --family boundary`: 12/12 match, 0 mismatches
+- [x] #1322 open, 0 comments, unchanged since 2026-10-08
+- [x] posted as a comment, not a new issue

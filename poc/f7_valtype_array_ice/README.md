@@ -78,3 +78,7 @@ Matches open upstream report
 `uninitialized non-null GC ref arrays are not lowered`). It is reproduced here
 against the repository's pinned toolchain, not claimed as a new upstream root
 cause.
+
+A supplementary comment with the minimal witness and the corrected trigger
+surface is posted there:
+<https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-6996920436>.
