@@ -271,12 +271,17 @@ moon run cmd/lspregress
 - `oracle/`：wasm/js 与 wasm/native 差分；
 - `cmd/`：`trace2funcs`、`cov`、`fuzz`、`bytefuzz`、`diffprobe`、
   `regress`、`f6matrix`、`accept`、`optdiff`、`irprobe`、`featfuzz`、
-  `asyncfuzz`、`verify`、`xdiff`、`lspfuzz`、`lspregress`；
+  `asyncfuzz`、`verify`、`xdiff`、`lspfuzz`、`lspregress`、`lspneg`、
+  `seedfuzz`、`scriptfuzz`、`scalefuzz`、`semdiff`、`minimize`、
+  `oracleaudit`、`oraclestat`；
 - `featuregen/`、`asyncgen/`：特性定向源生成器（native 布局矩阵、async 状态机矩阵）；
 - `lsp/`：LSP 帧/请求模型与结果分类（纯函数，29 个测试）。
 
-当前 271 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
-上跑 `moon check`、`moon build`、`moon test`、`moon fmt --check` 和最小示例。`cmd/regress` 覆盖 12 例缺陷；
+当前 340 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+上跑两个 job：`latest-canary` 用上游最新的工具链跑
+`moon check`/`build`/`test`/`fmt --check` 和最小示例；`pinned-evidence`
+下载 v0.1.0 的冻结工具链、校验 sha256，然后跑 `accept --profile core`
+的 15 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 12 例缺陷；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。

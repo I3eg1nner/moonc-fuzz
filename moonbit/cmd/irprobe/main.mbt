@@ -446,11 +446,15 @@ async fn main {
     Some(h) => h
     None => "/home/user"
   }
-  let root = if args.length() >= 2 { args[1] } else {
-    match @env.current_dir() {
-      Some(d) => d
-      None => "/data/audit/mbtfuzz"
-    }
+  // Bind the argument first and the fallback second: the two formatters in
+  // use (pinned and latest) disagree on how to wrap an `if` used as an
+  // expression, and a statement form has no such ambiguity.
+  let mut root = match @env.current_dir() {
+    Some(d) => d
+    None => "/data/audit/mbtfuzz"
+  }
+  if args.length() >= 2 {
+    root = args[1]
   }
   let out = if args.length() >= 3 { args[2] } else { "/tmp/mbtfuzz_irprobe" }
   let mut random_n = 0

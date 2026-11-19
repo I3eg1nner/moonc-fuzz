@@ -133,11 +133,15 @@ fn p1_source(k : Int32) -> String {
 ///|
 async fn main {
   let args = @env.args()
-  let root = if args.length() >= 2 { args[1] } else {
-    match @env.current_dir() {
-      Some(d) => d
-      None => "/data/audit/mbtfuzz"
-    }
+  // Bind the argument first and the fallback second: the two formatters in
+  // use (pinned and latest) disagree on how to wrap an `if` used as an
+  // expression, and a statement form has no such ambiguity.
+  let mut root = match @env.current_dir() {
+    Some(d) => d
+    None => "/data/audit/mbtfuzz"
+  }
+  if args.length() >= 2 {
+    root = args[1]
   }
   let out_path = if args.length() >= 3 { Some(args[2]) } else { None }
   let moonc = @stager.tool_path("moonc")

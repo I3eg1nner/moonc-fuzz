@@ -174,11 +174,14 @@ async fn main {
       break
     }
   }
+  let reg_head = "rc=" +
+    reg.rc.to_string() +
+    " rows=" +
+    count_lines(reg_lines).to_string()
   let reg_detail = if reg_ok {
-    "rc=" + reg.rc.to_string() + " rows=" + count_lines(reg_lines).to_string()
+    reg_head
   } else {
-    "rc=" + reg.rc.to_string() + " rows=" + count_lines(reg_lines).to_string() +
-    " first_bad=" + reg_bad
+    reg_head + " first_bad=" + reg_bad
   }
   results.push(check("regressions_12", reg_ok, reg_detail))
 

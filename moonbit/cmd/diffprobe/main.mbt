@@ -41,6 +41,7 @@ fn bt(kind : String, rc : Int32, digest : String) -> @oracle.BackendResult {
 }
 
 ///|
+
 ///|
 async fn main {
   let args = @env.args()
@@ -94,11 +95,15 @@ async fn main {
     println("same=\{r == @oracle.Same}")
     return
   }
-  let root = if args.length() >= 3 { args[2] } else {
-    match @env.current_dir() {
-      Some(d) => d
-      None => "/data/audit/mbtfuzz"
-    }
+  // Bind the argument first and the fallback second: the two formatters in
+  // use (pinned and latest) disagree on how to wrap an `if` used as an
+  // expression, and a statement form has no such ambiguity.
+  let mut root = match @env.current_dir() {
+    Some(d) => d
+    None => "/data/audit/mbtfuzz"
+  }
+  if args.length() >= 3 {
+    root = args[2]
   }
   let src = @fs.read_file_to_string(args[1]) catch {
     _ => {

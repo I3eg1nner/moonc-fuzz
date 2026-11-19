@@ -171,6 +171,7 @@ pub async fn run_stage(
 }
 
 ///|
+
 ///|
 /// `harness/all_pkgs.json` is generated on one machine and embeds absolute
 /// paths for both this repository and the toolchain's core bundle.  Rewriting
@@ -182,10 +183,10 @@ pub fn portable_all_pkgs(root : String) -> String {
   if src == "" {
     return path
   }
-  let out = src.replace_all(old="/data/audit/mbtfuzz", new=root).replace_all(
-    old="/home/user/.moon",
-    new=moon_home(),
-  )
+  // Two statements, not a chain: pinned and latest formatters wrap a chained
+  // call differently, and an unnecessary formatting difference turns CI red.
+  let rooted = src.replace_all(old="/data/audit/mbtfuzz", new=root)
+  let out = rooted.replace_all(old="/home/user/.moon", new=moon_home())
   let tmp = "/tmp/mbtfuzz_all_pkgs_" + @env.now().to_string() + ".json"
   if write_text(tmp, out) {
     tmp
