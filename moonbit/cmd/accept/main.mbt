@@ -105,7 +105,14 @@ async fn main {
   // restore the frozen toolchain but has no QEMU build; the skipped names are
   // printed in the JSON rather than silently dropped.
   let host_trace = profile != "core"
-  let root = if pos.length() >= 1 { pos[0] } else { "/data/audit/mbtfuzz" }
+  let root = if pos.length() >= 1 {
+    pos[0]
+  } else {
+    match @env.current_dir() {
+      Some(d) => d
+      None => "/data/audit/mbtfuzz"
+    }
+  }
   let moonbit = join(root, "moonbit")
   let bin = if pos.length() >= 2 {
     pos[1]

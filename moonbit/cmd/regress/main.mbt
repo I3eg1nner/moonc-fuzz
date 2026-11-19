@@ -133,7 +133,12 @@ fn p1_source(k : Int32) -> String {
 ///|
 async fn main {
   let args = @env.args()
-  let root = if args.length() >= 2 { args[1] } else { "/data/audit/mbtfuzz" }
+  let root = if args.length() >= 2 { args[1] } else {
+    match @env.current_dir() {
+      Some(d) => d
+      None => "/data/audit/mbtfuzz"
+    }
+  }
   let out_path = if args.length() >= 3 { Some(args[2]) } else { None }
   let moonc = @stager.tool_path("moonc")
   let moonfmt = @stager.tool_path("moonfmt")

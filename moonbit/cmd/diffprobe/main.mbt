@@ -93,7 +93,12 @@ async fn main {
     println("same=\{r == @oracle.Same}")
     return
   }
-  let root = if args.length() >= 3 { args[2] } else { "/data/audit/mbtfuzz" }
+  let root = if args.length() >= 3 { args[2] } else {
+    match @env.current_dir() {
+      Some(d) => d
+      None => "/data/audit/mbtfuzz"
+    }
+  }
   let src = @fs.read_file_to_string(args[1]) catch {
     _ => {
       println("cannot read input")

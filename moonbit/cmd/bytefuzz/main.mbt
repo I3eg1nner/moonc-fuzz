@@ -328,9 +328,13 @@ async fn main {
     Some(h) => h
     None => "/home/user"
   }
+  let cwd = match @env.current_dir() {
+    Some(d) => d
+    None => "/data/audit/mbtfuzz"
+  }
   let cfg : Config = {
-    root: "/data/audit/mbtfuzz",
-    out: "/data/audit/mbtfuzz/out/mb_bytefuzz",
+    root: cwd,
+    out: join(cwd, "out/mb_bytefuzz"),
     workers: 32,
     duration_s: 60,
     mode: "mbt",

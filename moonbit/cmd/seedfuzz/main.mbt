@@ -22,9 +22,16 @@ fn usage() -> Unit {
 
 ///|
 fn default_seeds() -> Array[String] {
+  // Resolved against the current directory, not an absolute path: the gate
+  // runs this from a checkout that is not at /data/audit/mbtfuzz.
+  let cwd = match @env.current_dir() {
+    Some(d) => d
+    None => "."
+  }
   [
-    "/data/audit/mbtfuzz/poc/f2_lex_escape_ice", "/data/audit/mbtfuzz/poc/f6_native_export_closure_min",
-    "/data/audit/mbtfuzz/poc/f9_native_v128_stub_ice",
+    @stager.join(cwd, "poc/f2_lex_escape_ice"),
+    @stager.join(cwd, "poc/f6_native_export_closure_min"),
+    @stager.join(cwd, "poc/f9_native_v128_stub_ice"),
   ]
 }
 

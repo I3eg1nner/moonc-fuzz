@@ -446,7 +446,12 @@ async fn main {
     Some(h) => h
     None => "/home/user"
   }
-  let root = if args.length() >= 2 { args[1] } else { "/data/audit/mbtfuzz" }
+  let root = if args.length() >= 2 { args[1] } else {
+    match @env.current_dir() {
+      Some(d) => d
+      None => "/data/audit/mbtfuzz"
+    }
+  }
   let out = if args.length() >= 3 { args[2] } else { "/tmp/mbtfuzz_irprobe" }
   let mut random_n = 0
   let mut seed = 1

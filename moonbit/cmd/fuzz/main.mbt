@@ -2400,9 +2400,13 @@ fn main_usage() -> Unit {
 ///|
 async fn main {
   let args = @env.args()
+  let cwd = match @env.current_dir() {
+    Some(d) => d
+    None => "/data/audit/mbtfuzz"
+  }
   let cfg : Config = {
-    root: "/data/audit/mbtfuzz",
-    out: "/data/audit/mbtfuzz/out/mb_fuzz",
+    root: cwd,
+    out: join(cwd, "out/mb_fuzz"),
     workers: 32,
     duration_s: 60,
     p_deep: 0.25,
