@@ -29,14 +29,8 @@ fn is_subsequence(small : Array[String], big : Array[String]) -> Bool {
 ///|
 test "reduces to the single line the predicate needs" {
   let src = src_of([
-    "// header comment",
-    "",
-    "fn helper() -> Int { 1 }",
-    "",
-    "fn boom() -> Int { 1 / 0 }",
-    "",
-    "fn main { println(boom()) }",
-    "",
+    "// header comment", "", "fn helper() -> Int { 1 }", "", "fn boom() -> Int { 1 / 0 }",
+    "", "fn main { println(boom()) }", "",
   ])
   let out = reduce_with(src, 2000, fn(t) { t.contains("boom") })
   // Either one-line form is a valid answer; the harness must not assume which.
@@ -47,26 +41,17 @@ test "reduces to the single line the predicate needs" {
 ///|
 test "keeps both lines when the predicate needs both" {
   let src = src_of(["alpha", "beta", "gamma", "delta", "epsilon"])
-  let out = reduce_with(
-    src,
-    2000,
-    fn(t) { t.contains("beta") && t.contains("delta") },
-  )
+  let out = reduce_with(src, 2000, fn(t) {
+    t.contains("beta") && t.contains("delta")
+  })
   assert_eq(out, "beta\ndelta")
 }
 
 ///|
 test "removes a whole unrelated block before touching lines" {
   let src = src_of([
-    "fn unrelated() -> Unit {",
-    "  let a = 1",
-    "  let b = 2",
-    "  println(a + b)",
-    "}",
-    "",
-    "fn boom() -> Unit {",
-    "  println(1)",
-    "}",
+    "fn unrelated() -> Unit {", "  let a = 1", "  let b = 2", "  println(a + b)",
+    "}", "", "fn boom() -> Unit {", "  println(1)", "}",
   ])
   let out = reduce_with(src, 2000, fn(t) { t.contains("boom") })
   assert_false(out.contains("unrelated"))
@@ -92,11 +77,9 @@ test "result is always a subsequence of the input" {
 ///|
 test "respects a predicate that also caps the size" {
   let src = src_of(["x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8"])
-  let out = reduce_with(
-    src,
-    2000,
-    fn(t) { t.contains("x4") && t.split("\n").count() <= 4 },
-  )
+  let out = reduce_with(src, 2000, fn(t) {
+    t.contains("x4") && t.split("\n").count() <= 4
+  })
   assert_true(out.contains("x4"))
   assert_true(out.split("\n").count() <= 4)
 }
@@ -150,12 +133,7 @@ test "trailing newlines do not become removable empty lines" {
 ///|
 test "top_blocks: only top-level spans, largest first" {
   let lines : Array[String] = [
-    "fn a() {",
-    "  if x {",
-    "    y()",
-    "  }",
-    "}",
-    "fn b() { z() }",
+    "fn a() {", "  if x {", "    y()", "  }", "}", "fn b() { z() }",
   ]
   let spans = top_blocks(lines)
   assert_eq(spans.length(), 2)

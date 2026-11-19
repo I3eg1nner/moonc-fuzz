@@ -25,22 +25,22 @@
 pub(all) struct Reducer {
   mut lines : Array[String]
   /// Number of partitions in the current line-level sweep.
-  mut gran : Int
+  mut gran : Int32
   /// Next partition to try at `gran`.
-  mut idx : Int
+  mut idx : Int32
   /// Candidate awaiting a verdict.  Storing the lines (not the text) keeps
   /// `result()` exact and avoids re-splitting.
   mut pending : Array[String]?
   /// Brace spans for the block phase, recomputed whenever `lines` changes.
-  mut spans : Array[(Int, Int)]
+  mut spans : Array[(Int32, Int32)]
   mut blocks_done : Bool
-  mut calls : Int
-  mut fuel : Int
+  mut calls : Int32
+  mut fuel : Int32
   mut exhausted : Bool
 }
 
 ///|
-pub fn start(src : String, fuel : Int) -> Reducer {
+pub fn start(src : String, fuel : Int32) -> Reducer {
   let r : Reducer = {
     lines: split_lines(src),
     gran: 2,
@@ -86,7 +86,7 @@ fn join_lines(lines : Array[String]) -> String {
 }
 
 ///|
-fn remove_span(lines : Array[String], lo : Int, hi : Int) -> Array[String] {
+fn remove_span(lines : Array[String], lo : Int32, hi : Int32) -> Array[String] {
   let out : Array[String] = []
   for i, line in lines {
     if i < lo || i >= hi {
@@ -101,8 +101,8 @@ fn remove_span(lines : Array[String], lo : Int, hi : Int) -> Array[String] {
 /// brace-blind on purpose: a `{` inside a string or comment can produce a
 /// wrong span, and the verdict gate simply rejects it.  A parser here would
 /// duplicate the compiler's grammar and rot.
-pub fn top_blocks(lines : Array[String]) -> Array[(Int, Int)] {
-  let raw : Array[(Int, Int)] = []
+pub fn top_blocks(lines : Array[String]) -> Array[(Int32, Int32)] {
+  let raw : Array[(Int32, Int32)] = []
   let mut depth = 0
   let mut start = 0
   for i, line in lines {
@@ -140,7 +140,7 @@ pub fn top_blocks(lines : Array[String]) -> Array[(Int, Int)] {
 }
 
 ///|
-fn span_len(s : (Int, Int)) -> Int {
+fn span_len(s : (Int32, Int32)) -> Int32 {
   let (lo, hi) = s
   hi - lo
 }
@@ -239,12 +239,12 @@ pub fn result(r : Reducer) -> String {
 }
 
 ///|
-pub fn result_lines(r : Reducer) -> Int {
+pub fn result_lines(r : Reducer) -> Int32 {
   r.lines.length()
 }
 
 ///|
-pub fn test_calls(r : Reducer) -> Int {
+pub fn test_calls(r : Reducer) -> Int32 {
   r.calls
 }
 
@@ -258,8 +258,8 @@ pub fn was_exhausted(r : Reducer) -> Bool {
 /// Process-spawning callers must use the state machine directly.
 pub fn reduce_with(
   src : String,
-  fuel : Int,
-  accept : (String) -> Bool
+  fuel : Int32,
+  accept : (String) -> Bool,
 ) -> String {
   let r = start(src, fuel)
   let mut go = true

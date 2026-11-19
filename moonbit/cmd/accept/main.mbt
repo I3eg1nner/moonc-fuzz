@@ -192,6 +192,24 @@ async fn main {
     rd.stdout.contains("\"baseline\":\"crash|ICE|")
   results.push(check("reduce_witness", rd_ok, rd.stdout.trim().to_owned()))
 
+  // 2e. Seed reproduction.  The mutation campaign is time-bounded and
+  // randomised, so it cannot gate a build; what can be checked cheaply is that
+  // the default seed packages still reproduce a defect at all (`--mutants 0`
+  // only runs the baselines).  If a seed silently stops reproducing, every
+  // mutated candidate from it becomes a type error and the campaign quietly
+  // measures nothing.
+  let sf = @exec.run(
+    join(bin, "cmd/seedfuzz/seedfuzz.exe"),
+    ["--out", "/tmp/mbtfuzz_accept_seed", "--mutants", "0"],
+    root,
+    60000,
+  )
+  let sf_ok = sf.rc == 0 &&
+    sf.stdout.contains("\"seed_defects\":") &&
+    !sf.stdout.contains("\"seed_defects\":0") &&
+    !sf.stdout.contains("copy-failed")
+  results.push(check("seed_repro", sf_ok, sf.stdout.trim().to_owned()))
+
   // 3. Trace2funcs on a frozen synthetic trace: exact JSON, not a count.
   let tr = @exec.run(
     join(bin, "cmd/trace2funcs/trace2funcs.exe"),

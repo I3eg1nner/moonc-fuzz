@@ -1,0 +1,54 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/stager"
+
+import {
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/judge",
+}
+
+// Values
+pub fn copy_pkg(String, String) -> Bool
+
+pub fn copy_tree(String, String) -> Bool
+
+pub fn count_lines(String) -> Int32
+
+pub fn escape(String) -> String
+
+pub fn findings(String, @exec.RunResult) -> Array[@judge.Finding]
+
+pub fn is_defect(String, @exec.RunResult) -> Bool
+
+pub fn join(String, String) -> String
+
+pub fn mbt_files(String) -> Array[String]
+
+pub fn moon_path() -> String
+
+pub fn normalize(String) -> String
+
+pub fn observation_of(String, @exec.RunResult) -> @judge.Observation
+
+pub fn parse_int(String, Int32) -> Int32
+
+pub fn read_text(String) -> String
+
+pub fn rm_rf(String) -> Unit
+
+pub async fn run_stage(String, String, String, Int32) -> @exec.RunResult
+
+pub fn signature(String, @exec.RunResult) -> String
+
+pub fn stage_args(String, String) -> Array[String]
+
+pub fn try_read_dir(String) -> Array[String]
+
+pub fn write_text(String, String) -> Bool
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

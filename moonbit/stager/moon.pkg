@@ -1,0 +1,19 @@
+// Shared staging layer: materialise a package, run one compiler stage, and
+// turn the result into the defect signature used by every driver.
+//
+// Split out so `cmd/minimize` and `cmd/seedfuzz` cannot drift apart on what
+// "the same defect" means.  Anything that spawns a process lives here and
+// nowhere else.
+
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/judge",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+warnings = "-test_unqualified_package"

@@ -1,0 +1,26 @@
+// Defect-seeded mutation campaign.
+//
+// WHY THIS EXISTS.  Hand-designed matrices saturate: once a dimension is
+// enumerated, more cases buy nothing, and the project's own record shows the
+// big campaigns found nothing while a new oracle found two defects.  The
+// complementary axis is *neighbourhood*: start from a minimal witness that is
+// already known to break the compiler and mutate it, so the search spends its
+// budget where the compiler is demonstrably fragile.
+//
+// The validity gate is the whole trick: only a `judge` Defect finding counts.
+// A mutation that merely fails to parse is an invalid experiment, not a
+// finding, so byte-level mutation cannot manufacture "new bugs".
+
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/mutate",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

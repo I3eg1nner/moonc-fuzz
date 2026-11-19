@@ -1,11 +1,13 @@
 // Compiler-driven reduction driver.
 //
-// The pure engine lives in `reduce/`; this file only supplies the predicate
-// "this candidate still reproduces the same defect signature" and the IO.
+// The pure engine lives in `reduce/`; the staging primitives live in
+// `stager/`.  This file is only the loop that connects them, which is why it
+// is short enough to audit in one sitting.
 //
 // Usage:
-//   reduce --dir PATH [--file lib.mbt] [--stage build|check|test-build]
-//          [--timeout-ms N] [--fuel N] [--out PATH] [--moon PATH]
+//   minimize --dir PATH [--file lib.mbt] [--stage build|check|test]
+//            [--timeout-ms N] [--fuel N] [--out PATH] [--target native]
+//            [--keep-workdir]
 //
 // Output: one JSON line. Exit 0 = reduced and re-verified, 1 = baseline is not
 // a failure (nothing to reduce) or verification failed, 2 = bad usage.
@@ -14,9 +16,8 @@ import {
   "moonbitlang/core/async",
   "moonbitlang/core/env",
   "moonbitlang/x/fs",
-  "I3eg1nner/mbtfuzz/exec",
-  "I3eg1nner/mbtfuzz/judge",
   "I3eg1nner/mbtfuzz/reduce",
+  "I3eg1nner/mbtfuzz/stager",
 }
 
 options(

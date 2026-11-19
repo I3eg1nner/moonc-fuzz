@@ -236,10 +236,25 @@ fn crash_class(obs : Observation) -> String? {
 /// "new signature" a usable novelty signal.
 pub fn error_line(obs : Observation) -> String {
   let t = obs.stderr + "\n" + obs.stdout
+  let mut wrapper = ""
   for line in t.split("\n") {
     let s = line.trim()
     if s.has_prefix("Error: ") {
       let v = s[7:]
+      // `Error: failed to build ...: <full command line>` is the build tool
+      // wrapping the compiler's message.  It embeds the temp directory and the
+      // whole argv, so using it as a signature makes the same defect look new
+      // on every run.  Keep it only as a fallback.
+      if v.has_prefix("failed to ") {
+        if wrapper == "" {
+          wrapper = if v.char_length() > 160 {
+            v[0:160].to_owned()
+          } else {
+            v.to_owned()
+          }
+        }
+        continue
+      }
       return if v.char_length() > 160 {
         v[0:160].to_owned()
       } else {
@@ -247,7 +262,7 @@ pub fn error_line(obs : Observation) -> String {
       }
     }
   }
-  ""
+  wrapper
 }
 
 ///|
