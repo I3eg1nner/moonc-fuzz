@@ -62,19 +62,30 @@ field} x push`. Two observations that changed the characterisation:
 | b08 | `Int` + `String` | pass | pass |
 | b09 | two payload enums, no `Int` | **ICE** | **ICE** |
 | b10 | three fields incl. enum | **ICE** | **ICE** |
-| b11 | `Int` + two-variant enum (`A \| B(String)`) | pass | pass |
-| b12 | `Int` + two-variant enum (`A \| B(Int)`) | pass | pass |
+| b11 | `Int` + `{ A; B(String) }` (nullary first) | pass | pass |
+| b12 | `Int` + `{ A; B(Int) }` (nullary first) | pass | pass |
+| b13 | `Int` + `{ A(Int); B }` (payload first) | **ICE** | **ICE** |
+| b14 | `Int` + `{ B(Int); A }` | **ICE** | **ICE** |
+| b15 | `Int` + `{ A(Int); B(Int) }` (no nullary) | **ICE** | **ICE** |
 
-12/12 match, 0 mismatches, 0 control failures, 5.7 s.
+15/15 match, 0 mismatches, 0 control failures, 7.1 s.
 
 ## Characterisation
 
 > In native debug, allocating an **empty** `Array[E]` is not lowered when `E`
-> is a `#valtype` type that contains a **non-null GC reference**. A
-> single-constructor enum with a payload has exactly that representation; a
-> two-variant enum is nullable (the tag covers a null case), and a bare
-> `String` field is nullable too. A one-field `#valtype` struct is represented
-> as the field itself, so it never needs an array-slot initialiser.
+> is a `#valtype` type that contains a **non-null GC reference**. Whether an
+> enum has that representation depends on **declaration order**: a
+> payload-carrying variant declared first (or no payload-free variant at all)
+> yields the non-null form; a payload-free variant declared first yields the
+> nullable form and the program compiles. A bare `String` field is nullable
+> too, and a one-field `#valtype` struct is represented as the field itself,
+> so neither needs an array-slot initialiser.
+
+The order dependence was found later, by the scale sweep in
+`findings/scale_sweep.md`: `enum { A; B(Int) }` compiles while
+`enum { A(Int); B }` ICEs, and the two have the same variants. It also
+corrects the #1322 comment, which said two-variant enums are nullable — true
+only for nullary-first declarations.
 
 The error text itself names the condition (`uninitialized non-null GC ref
 arrays are not lowered`); the table is the evidence that the condition is
@@ -99,7 +110,9 @@ control set that says which neighbouring shapes are *not* affected. That is
 what a maintainer needs to decide whether the fix is "handle this
 representation" or "handle zero-initialisation generally".
 
-Posted 2026-11-19 after explicit approval:
+Posted 2026-11-19 after explicit approval (superseded in part by the order
+finding; a correction is drafted in `issues/10-f7-order-correction.md` and not
+posted):
 [#1322 comment](https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-6996920436).
 The comment carries the 7-line witness and the six-row control table, not the
 full 48-point map; the map stays here.

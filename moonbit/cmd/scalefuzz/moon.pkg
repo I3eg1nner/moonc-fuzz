@@ -1,0 +1,25 @@
+// Scale sweep driver: how the aggregate-layout corner behaves as structs grow.
+//
+// Usage:
+//   scalefuzz --out FILE [--only PREFIX] [--timeout-ms N] [--keep]
+//
+// For each case: `moon build --target native`; if that passes, `moon test
+// --build-only` so the link stage is reached as well.  Signatures are deduped,
+// and every distinct signature is printed with the cases that produced it.
+//
+// Exit 0 when the controls (non-valtype cases) all build, 1 when one fails or
+// a new signature appears without being classified, 2 on usage.
+
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/scalegen",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

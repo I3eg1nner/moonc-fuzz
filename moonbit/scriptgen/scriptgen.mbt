@@ -230,11 +230,23 @@ pub fn boundary_cases() -> Array[BoundaryCase] {
     ),
     boundary(
       "b11-two-variant-enum-string", "enum K {\n  A\n  B(String)\n}\n\n#valtype\nstruct E {\n  id : Int\n  k : K\n}\n\nfn main {\n  let xs : Array[E] = []\n  xs.push({ id: 0, k: K::B(\"x\") })\n  println(xs.length())\n}\n",
-      false, "two variants make the enum nullable, so it is not a non-null ref",
+      false, "nullary variant declared first: the enum gets the nullable immediate form",
     ),
     boundary(
       "b12-two-variant-enum-int", "enum K {\n  A\n  B(Int)\n}\n\n#valtype\nstruct E {\n  id : Int\n  k : K\n}\n\nfn main {\n  let xs : Array[E] = []\n  xs.push({ id: 0, k: K::B(1) })\n  println(xs.length())\n}\n",
-      false, "same with a non-GC payload: the variant count is what matters",
+      false, "same order, non-GC payload: it is the order, not the payload, that decides",
+    ),
+    boundary(
+      "b13-payload-first-two-variant", "enum K {\n  A(Int)\n  B\n}\n\n#valtype\nstruct E {\n  id : Int\n  k : K\n}\n\nfn main {\n  let xs : Array[E] = []\n  xs.push({ id: 0, k: K::A(0) })\n  println(xs.length())\n}\n",
+      true, "same variants as b11, payload first: now it is a non-null ref",
+    ),
+    boundary(
+      "b14-payload-first-nullary-last", "enum K {\n  B(Int)\n  A\n}\n\n#valtype\nstruct E {\n  id : Int\n  k : K\n}\n\nfn main {\n  let xs : Array[E] = []\n  xs.push({ id: 0, k: K::B(0) })\n  println(xs.length())\n}\n",
+      true, "renaming the leading variant does not change it: position does",
+    ),
+    boundary(
+      "b15-two-payload-variants", "enum K {\n  A(Int)\n  B(Int)\n}\n\n#valtype\nstruct E {\n  id : Int\n  k : K\n}\n\nfn main {\n  let xs : Array[E] = []\n  xs.push({ id: 0, k: K::A(0) })\n  println(xs.length())\n}\n",
+      true, "no nullary variant at all: the enum stays non-null",
     ),
     boundary(
       "b10-three-fields", "enum K {\n  A(Int)\n}\n\n#valtype\nstruct E {\n  a : Int\n  b : Int\n  k : K\n}\n\nfn main {\n  let xs : Array[E] = []\n  xs.push({ a: 0, b: 1, k: K::A(0) })\n  println(xs.length())\n}\n",

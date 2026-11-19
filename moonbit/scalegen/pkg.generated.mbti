@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/scalegen"
+
+// Values
+pub fn cases() -> Array[Case]
+
+pub fn field_counts() -> Array[Int32]
+
+pub fn lib_source(Case) -> String
+
+pub fn main_source() -> String
+
+pub fn mod_source() -> String
+
+pub fn pkg_source() -> String
+
+pub fn shape_tag(Shape) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct Case {
+  id : String
+  shape : Shape
+  fields : Int32
+  valtype : Bool
+}
+
+pub(all) enum Shape {
+  Record
+  Nested
+  Arr2
+  ManyVar
+}
+
+// Type aliases
+
+// Traits

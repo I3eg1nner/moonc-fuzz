@@ -210,7 +210,7 @@ async fn main {
     !sf.stdout.contains("copy-failed")
   results.push(check("seed_repro", sf_ok, sf.stdout.trim().to_owned()))
 
-  // 2f. F7 trigger surface.  Twelve script-mode probes pin the corrected
+  // 2f. F7 trigger surface.  Fifteen script-mode probes pin the corrected
   // characterisation (empty valtype array + non-null GC element): four must
   // ICE and eight must pass.  INVERTED ORACLE: when upstream fixes the
   // lowering, four rows flip to `matches:false`.  That is not a bug in the
@@ -225,7 +225,7 @@ async fn main {
   let f7_ok = f7.rc == 0 &&
     f7.stdout.contains("\"mismatches\":0") &&
     f7.stdout.contains("\"control_failures\":0") &&
-    f7.stdout.contains("\"cases\":12")
+    f7.stdout.contains("\"cases\":15")
   results.push(check("f7_boundary", f7_ok, f7.stdout.trim().to_owned()))
 
   // 2g. Semantic differential.  Every other gate asks "did it fail?"; this one

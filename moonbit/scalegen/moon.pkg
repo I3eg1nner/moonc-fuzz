@@ -1,0 +1,9 @@
+// Scale sweep around the aggregate-layout corner where three upstream ICEs
+// live (F7 / #1322, F8 / #1340, F9 / #1344).
+//
+// The existing 160-case feature matrix held field counts at zero to four.  The
+// open defects are threshold-shaped ("uninitialized non-null GC ref arrays",
+// 22-bit layout offsets, link-core stack depth), so the axis that was never
+// varied is size, not feature combination.
+
+warnings = "-test_unqualified_package"

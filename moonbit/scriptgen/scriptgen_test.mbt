@@ -73,9 +73,9 @@ test "render: payload spelling reaches the source" {
 }
 
 ///|
-test "boundary: 12 unique probes, four expected to fail" {
+test "boundary: 15 unique probes, seven expected to fail" {
   let bs = boundary_cases()
-  assert_eq(bs.length(), 12)
+  assert_eq(bs.length(), 15)
   let ids : Map[String, Unit] = Map([])
   let mut failing = 0
   for b in bs {
@@ -88,7 +88,7 @@ test "boundary: 12 unique probes, four expected to fail" {
     assert_true(b.src.contains("fn main {"))
     assert_true(b.why.char_length() > 10)
   }
-  assert_eq(failing, 4)
+  assert_eq(failing, 7)
 }
 
 ///|

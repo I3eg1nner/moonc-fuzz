@@ -37,9 +37,10 @@ The trigger needs all of:
 1. target `native` in **debug** (`-g -O0`);
 2. a `#valtype` struct with **at least two fields** (a one-field struct is
    represented as the field itself and does not reach the array layout);
-3. at least one field whose type is a **single-constructor enum with a
-   payload** — that representation is a non-null GC reference, which is the
-   condition named in the error message;
+3. at least one field whose type is an enum **represented as a non-null GC
+   reference**. That happens when a payload-carrying variant is declared
+   first, or when no variant is payload-free. Declaring the nullary variant
+   first gives the nullable form and the program compiles;
 4. the value reaches an `Array[Entry]` through the growable path (`[]` then
    `push`, or `makei`/`map`/`filter`/`slice`), not through a non-empty
    literal.
@@ -48,7 +49,7 @@ The payload **type is irrelevant**: `Ref(Int)` triggers just like
 `Ref(String)`. An earlier revision of this file said the payload had to be a
 GC reference, and that an `Int` field plus an enum was required. Both claims
 were too narrow; the boundary table below is the corrected version, and
-`cmd/scriptfuzz --family boundary` reproduces all twelve rows.
+`cmd/scriptfuzz --family boundary` reproduces all fifteen rows.
 
 | variant | native debug | why |
 |---|---|---|
@@ -57,7 +58,10 @@ were too narrow; the boundary table below is the corrected version, and
 | `id : Int` + `b : Bool` | pass | nothing to leave uninitialised |
 | `id : Int` + `s : String` | pass | `String` is a *nullable* ref |
 | `id : Int` + nullary-only enum | pass | payload-free enum is an immediate |
-| `id : Int` + two-variant enum (`A \| B(String)`) | pass | the tag makes it nullable |
+| enum `{ A; B(String) }` (nullary first) | pass | nullable form |
+| enum `{ A(Int); B }` (payload first) | **ICE** | same variants, different order |
+| enum `{ B(Int); A }` | **ICE** | renaming does not matter, position does |
+| enum `{ A(Int); B(Int) }` | **ICE** | no nullary variant at all |
 | `k : K` + `j : K` (two payload enums, no `Int`) | **ICE** | two fields, non-null refs |
 | `id : Int` + `k : K` (payload `Int`) | **ICE** | payload type does not matter |
 | `id : Int` + `k : K` (payload `String`, `Array[Int]`) | **ICE** | original shape |
