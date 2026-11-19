@@ -110,9 +110,9 @@ control set that says which neighbouring shapes are *not* affected. That is
 what a maintainer needs to decide whether the fix is "handle this
 representation" or "handle zero-initialisation generally".
 
-Posted 2026-11-19 after explicit approval (superseded in part by the order
-finding; a correction is drafted in `issues/10-f7-order-correction.md` and not
-posted):
+Posted 2026-11-19 after explicit approval, then corrected the same day when the
+scale sweep found the order dependence
+([correction](https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-7012785277)):
 [#1322 comment](https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-6996920436).
 The comment carries the 7-line witness and the six-row control table, not the
 full 48-point map; the map stays here.

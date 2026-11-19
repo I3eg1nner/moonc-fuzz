@@ -1,9 +1,12 @@
-# Correction draft for #1322 — NOT SUBMITTED
+# Correction for #1322 — POSTED
 
 Target: <https://github.com/moonbitlang/moonbit-docs/issues/1322>
 Kind: correction to our own comment of 2026-11-19
 (<https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-6996920436>)
-Approval: **required before posting** — nothing has been posted.
+Status: **posted 2026-11-19**, approved by the maintainer of this repo.
+Live: <https://github.com/moonbitlang/moonbit-docs/issues/1322#issuecomment-7012785277>
+One wording fix before posting: "all fifteen probes in my table" became "all
+fifteen probes I ran" (the posted table only shows six rows).
 
 ## Why
 
@@ -55,9 +58,10 @@ Two more data points, in case they help scope the fix:
 
 ---
 
-## Before posting
+## Pre-post checks (done 2026-11-19T14:56Z)
 
-- [ ] re-run `cmd/scriptfuzz --family boundary` (15 probes) and
-      `cmd/scalefuzz` on the pin of the day
-- [ ] confirm #1322 is still open and our earlier comment is still the last one
-- [ ] post as a comment, not a new issue
+- [x] `cmd/scriptfuzz --family boundary`: 15/15 match, 7 defects, 0 mismatches
+- [x] ordered probes re-run directly: `{A; B(Int)}` passes,
+      `{A(Int); B}` and `{B(Int); A}` ICE
+- [x] #1322 open, 1 comment (ours), unchanged since 01:33Z
+- [x] posted as a comment, not a new issue
