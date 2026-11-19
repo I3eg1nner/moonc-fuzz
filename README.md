@@ -364,6 +364,8 @@ moon test --target native
 
 | 文件 | 内容 |
 |---|---|
+| `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
+| `findings/methodology.md` | oracle 命中/误报率、决策边界、负结果置信上界、成本模型 |
 | `poc/README.md` | 缺陷 PoC 索引、命令、预期结果 |
 | `issues/README.md` | 上游 issue 草稿、已提交链接（#1364–#1370）、去重和顺序 |
 | `findings/validation.md` | F1–F6/P1 多次复现表 |
