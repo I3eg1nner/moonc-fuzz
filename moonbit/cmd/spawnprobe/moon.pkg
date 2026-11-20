@@ -1,0 +1,12 @@
+// Diagnostic: does the async process runtime retain memory per spawn?
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "I3eg1nner/mbtfuzz/exec",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

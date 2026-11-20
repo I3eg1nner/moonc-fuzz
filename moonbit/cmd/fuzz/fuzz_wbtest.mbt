@@ -120,6 +120,7 @@ fn trace_test_cfg() -> Config {
     edge_reward: true,
     rss_limit_mb: 0,
     baseline_trace_max_mb: 256,
+    deep_p: 0.0,
     t1_timeout: 1000,
     t2_timeout: 1000,
   }

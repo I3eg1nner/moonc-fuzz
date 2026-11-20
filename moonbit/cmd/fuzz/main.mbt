@@ -106,6 +106,9 @@ struct Config {
   /// built from real seed inputs, and a 64 MiB cap silently truncated them,
   /// leaving U0 incomplete and coverage learning off for the whole campaign.
   mut baseline_trace_max_mb : Int32
+  /// Percentage of iterations seeded from a type-valid IR program instead of
+  /// a byte mutation.  This is the "deep queue" wired into the main campaign.
+  mut deep_p : Double
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -2161,7 +2164,15 @@ async fn worker(
       Some(v) => v
       None => rng.choice(seeds)
     }
-    let src = @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
+    // Deep queue: with probability --deep-p the iteration starts from a
+    // type-valid IR program (the same generator cmd/deepfuzz measured) instead
+    // of a byte mutation.  Everything downstream is the normal T1/T2/T3 path.
+    let deep_seed = rng.int(1000000).to_uint64()
+    let src = if cfg.deep_p > 0.0 && rng.chance(cfg.deep_p) {
+      @ir.emit_program(@ir.generate(deep_seed, 12))
+    } else {
+      @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
+    }
     let src_hash = @corpus.sha1_hex(src)
     if stats_admit(cfg, s.inputs) {
       s.inputs.set(src_hash, ())
@@ -2583,7 +2594,11 @@ async fn worker(
       s.sigs.set(sig, ())
     }
     if novel {
-      local_sigs.set(sig, ())
+      // Per-worker novelty memory: without a cap this map grows with every
+      // distinct behaviour the campaign ever sees, which is unbounded.
+      if stats_admit(cfg, local_sigs) {
+        local_sigs.set(sig, ())
+      }
       // Only inputs that produced a new compiler behaviour enter the dynamic
       // corpus.  Coverage samples can also admit an input with a higher energy.
       ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
@@ -2802,6 +2817,7 @@ async fn main {
     edge_reward: true,
     rss_limit_mb: 0,
     baseline_trace_max_mb: 256,
+    deep_p: 0.0,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2903,6 +2919,9 @@ async fn main {
         args[i + 1],
         cfg.baseline_trace_max_mb,
       )
+      i += 2
+    } else if a == "--deep-p" && i + 1 < args.length() {
+      cfg.deep_p = percent_arg(args, i, "--deep-p").to_double() / 100.0
       i += 2
     } else {
       main_usage()
