@@ -413,6 +413,7 @@ moon test --target native
 | `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
 | `findings/deep_funnel.md` | 类型有效 IR 的 T2/T3 专用队列；30 分钟 11,451 例全部与解释器一致 |
+| `findings/soak_2h.md` | 2 小时有界 soak：磁盘 17.7 MB 封顶、RSS 9.9 GB、内存顶未触发 |
 | `findings/p1_feedback.md` | 三臂反馈 A/B（10 分钟）、trace 丢失率、T1 饱和退让 |
 | `scripts/bench_campaigns.sh` | behavior / function / function+edge 三臂同预算 A/B |
 | `scripts/soak_capped.sh` | 带 prlimit + 自我内存上限的长跑 soak |

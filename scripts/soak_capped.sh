@@ -14,12 +14,12 @@ BIN="$ROOT/moonbit/_build/native/debug/build/cmd/fuzz/fuzz.exe"
 OUT=${1:-/tmp/soak2h}
 DUR=${2:-7200}
 RSS_MB=${RSS_MB:-3000}
-AS_MB=${AS_MB:-4500}
+AS_MB=${AS_MB:-6144}
 WORKERS=${WORKERS:-4}
 SEED=${SEED:-7}
 QEMU=${QEMU:-/tmp/AFLplusplus/afl-qemu-trace}
-TRACE_T1=${TRACE_T1:-0.02}
-TRACE_T2=${TRACE_T2:-0.05}
+TRACE_T1=${TRACE_T1:-2}
+TRACE_T2=${TRACE_T2:-5}
 
 [ -x "$BIN" ] || { echo "build first: cd moonbit && moon build --target native" >&2; exit 2; }
 mkdir -p "$OUT"
@@ -36,19 +36,23 @@ prlimit --as=$((AS_MB * 1024 * 1024)) -- "$BIN" \
   --rss-limit-mb "$RSS_MB" --qemu "$QEMU" > "$OUT/run.log" 2>&1 &
 pid=$!
 start=$(date +%s)
+# Monitoring must never kill the soak: a missing stats file on the first tick
+# used to abort the whole script through `set -e` + pipefail.
+set +e
 while kill -0 "$pid" 2>/dev/null; do
   ts=$(date +%s)
-  rss=$(awk '/VmRSS/{print $2}' /proc/$pid/status 2>/dev/null || echo 0)
-  cpu=$(awk '{print $14+$15}' /proc/$pid/stat 2>/dev/null || echo 0)
-  files=$(find "$OUT" -type f 2>/dev/null | wc -l | tr -d ' ')
-  bytes=$(du -sb "$OUT" 2>/dev/null | cut -f1 | tr -d ' ')
-  sl=$(cat "$OUT"/*/stats.jsonl 2>/dev/null | wc -l | tr -d ' ')
+  rss=$(awk '/VmRSS/{print $2}' "/proc/$pid/status" 2>/dev/null)
+  cpu=$(awk '{print $14+$15}' "/proc/$pid/stat" 2>/dev/null)
+  files=$(find "$OUT" -type f 2>/dev/null | wc -l)
+  bytes=$(du -sb "$OUT" 2>/dev/null | cut -f1)
+  sl=$(cat "$OUT"/*/stats.jsonl 2>/dev/null | wc -l)
   drop=$(tail -1 "$OUT"/*/stats.jsonl 2>/dev/null | sed 's/.*"trace_dropped":\([0-9]*\).*/\1/')
   echo "$ts,$((ts-start)),${rss:-0},${cpu:-0},${files:-0},${bytes:-0},${sl:-0},${drop:-0}" >> "$CSV"
   sleep 60
 done
 rc=0
 wait "$pid" || rc=$?
+set -e
 echo "soak rc=$rc"
 python3 - "$OUT" <<'PY'
 import glob, json, sys

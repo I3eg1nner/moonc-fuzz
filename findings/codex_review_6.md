@@ -103,3 +103,19 @@ campaign、PoC 或长跑（本文件之后的工作会跑，见 `findings/p0_clo
   仍需要宿主机工具，这一缺口评审说对了。
 - 评审没有检查 `semdiff` 的 `--targets` 与 accept 的 `skipped:0` 之间的
   语义差（"目标没跑"与"跑了但没完成"是两件事），本次 P0-1 一并修。
+
+## 实施状态（2026-11-20 晚）
+
+| 项 | 状态 | 证据 |
+|---|---|---|
+| P0-1 假通过 / 判定分叉 | 完成 `44c3dab` | `findings/p0_correctness.md`；semdiff 五态、self-test 9 例、judge 接入、minimize 只发布 verified |
+| P0-2 覆盖证据不丢 | 完成 `3a049da` | `findings/p0_evidence.md`；独立 `--coverage-cap`、边 key sidecar、crash 回灌、mode 命名、owner 保护 |
+| P0-3 资源硬边界 | 部分完成 `ba3a39b` | `findings/p0_resources.md`；磁盘/日志/append/T3 路径已封顶，**内存仍未封顶**（30 分钟 RSS→2.67 GB） |
+| P1-2 深层漏斗 | 完成 `0dc9c25` | `findings/deep_funnel.md`；30 分钟 11,451 例 T3 全部与解释器一致 |
+| P1-1 反馈 A/B | 完成 `8f3c825` | `findings/p1_feedback.md`；三臂 10 分钟、trace 完成率 22–24%、新函数 0、中位新 feature 0 |
+| P1-4 内存硬顶 + 长跑 | 进行中 | `scripts/soak_capped.sh` + `--rss-limit-mb`；2 小时 soak 结果见 `findings/soak_2h.md` |
+| P1-3 triage 流水线 | 未做 | 本轮只做了 `cmd/verify` 与 minimize 的人工串联 |
+| P1-5 真实包 capsule / P1-6 反馈进 CI | 未做 | 保持原状 |
+
+本轮还修了一个评审没发现的缺陷：`--persist-cap` 分支缺 `i += 2`，参数
+解析会 100% CPU 自旋（`ba3a39b`）。
