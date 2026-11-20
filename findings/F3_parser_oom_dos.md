@@ -83,3 +83,21 @@ fn r(){y(for in ]
 2. 诊断数量上限（如 200 条）与恢复深度上限。
 3. 解析器加"输入消费进度"断言（debug build），在 CI 里跑一遍语料，可提前拦住这类回归。
 4. 单元测试里加"病态 token 序列"用例（未闭合 `for`/`match` + 换行 `[`）。
+
+## 第二个 witness（2026-11-20，来自 30 分钟 soak）
+
+同症状类、不同形状：4 KiB 的 core 源被变异后，解析错误恢复不前进，内存在
+`moonc syncheck` 下随上限增长（2 GiB → 1.86 GB、4 GiB → 3.72 GB、8 GiB →
+7.47 GB、32 GiB → 30.2 GB，全部 abort，从不完成）。经行级 ddmin 与手工收缩
+得到 54 B：
+
+```moonbit
+fn f() {
+  [
+    for x in if c { [..a]
+[
+```
+
+它已作为 `poc/f3_parser_oom/wild.mbt` 与 regress 的 `F3b_parser_oom_wild`
+行固定下来。注意：**不作为新缺陷编号**——根因身份未证（闭源、无栈），只按
+"同症状类 witness" 处理；完整证据与负控见 `findings/f3_triage.md`。

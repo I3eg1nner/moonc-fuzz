@@ -57,7 +57,7 @@ cd moonbit && moon build --target native
 10/10 positives fire, 0/9 controls fire. The honest reading is narrow: five
 oracles have **one** positive each, so this table proves they *can* fire, not
 that they fire on most members of their class. The compensating evidence is
-different in kind: `accept` gate `regressions_12` replays twelve real defects
+different in kind: `accept` gate `regressions_13` replays thirteen real defects
 through the real toolchain, and gate `oracle_fpr` (below) checks the silent
 direction on real builds.
 

@@ -185,7 +185,7 @@ and adds `lsp_regress_6`. The check requires:
 The accept detail is `rc=… cases=6 rows=… ms=…`, so the LSP portion of the
 acceptance time is visible without re-running anything. If `moon-lsp` is
 absent, the detail is exactly `moon-lsp not found` and the check is
-`ok:false`; it is not skipped. `regressions_12` is untouched and still owns
+`ok:false`; it is not skipped. `regressions_13` is untouched and still owns
 the twelve compiler defect cases.
 
 ## Updating the gate when a defect is fixed

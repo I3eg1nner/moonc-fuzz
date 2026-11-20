@@ -78,7 +78,7 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ```
 
 `cmd/accept` 依次检查（19 项）：工具链 pin、`moon build`、`moon test`、
-`moon check`、12 例编译器缺陷回归、6 例 LSP 缺陷回归、LSP 负样本
+`moon check`、13 例编译器缺陷回归、6 例 LSP 缺陷回归、LSP 负样本
 （3 会话 × 7 请求，且探针必须能看见 F11 触发）、oracle 灵敏度、真实编译
 语料上的误报回归、归约 witness、种子复现、F7 边界、语义差分、语义差分反例自检、合成 trace
 精确输出、真实 QEMU trace 的 599 函数集合、覆盖并集、25 个模板的
@@ -281,7 +281,7 @@ moon run cmd/lspregress
 上跑两个 job：`latest-canary` 用上游最新的工具链跑
 `moon check`/`build`/`test`/`fmt --check` 和最小示例；`pinned-evidence`
 下载 v0.1.0 的冻结工具链、校验 sha256，然后跑 `accept --profile core`
-的 16 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 12 例缺陷；
+的 16 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 例缺陷（含 F3 的第二 witness）；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。

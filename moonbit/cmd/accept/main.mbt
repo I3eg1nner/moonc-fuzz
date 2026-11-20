@@ -156,7 +156,7 @@ async fn main {
     240000,
   )
   let reg_lines = read_text("/tmp/mbtfuzz_accept_regress_" + tag + ".jsonl")
-  let mut reg_ok = reg.rc == 0 && count_lines(reg_lines) == 12
+  let mut reg_ok = reg.rc == 0 && count_lines(reg_lines) == 13
   for line in reg_lines.split("\n") {
     if line.trim().char_length() > 0 && !line.contains("\"ok\":true") {
       reg_ok = false
@@ -183,11 +183,11 @@ async fn main {
   } else {
     reg_head + " first_bad=" + reg_bad
   }
-  results.push(check("regressions_12", reg_ok, reg_detail))
+  results.push(check("regressions_13", reg_ok, reg_detail))
 
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
-  // rather than quietly changing `regressions_12`.  Six serial cases with one
+  // rather than quietly changing `regressions_13`.  Six serial cases with one
   // fresh `moon-lsp` each; the detail records how long the whole check took.
   // A missing binary is a failure with a fixed reason, never a silent skip.
   let lsp_bin = toolchain_bin("moon-lsp")

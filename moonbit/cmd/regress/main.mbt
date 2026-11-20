@@ -240,6 +240,21 @@ async fn main {
       pre: "",
     },
     {
+      // A second witness for the same symptom class (parser error recovery not
+      // advancing), found by the 30-minute soak rather than by the original
+      // probe: 54 B of otherwise plausible source.  It is not a new root cause
+      // - see findings/f3_triage.md - but it shows the class is not limited to
+      // the 19 B adversarial shape.
+      name: "F3b_parser_oom_wild",
+      cmd: "/usr/bin/prlimit",
+      args: ["--as=2147483648", "--", moonc, "syncheck", "wild.mbt"],
+      cwd: join(root, "poc/f3_parser_oom"),
+      timeout_ms: 120000,
+      expect: "OOM",
+      needle: "",
+      pre: "",
+    },
+    {
       name: "F4_invalid_utf8_ice",
       cmd: moonc,
       args: ["syncheck", "doc.mbt.md"],
