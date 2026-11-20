@@ -1,4 +1,18 @@
 ///|
+///|
+/// Where a reduction may be published.  Empty means "do not publish": the
+/// final verification did not match the baseline, so `--out` must stay
+/// untouched and the caller learns about it from the exit code and the
+/// `published` field.
+fn publish_path(out : String, verified : Bool) -> String {
+  if verified {
+    out
+  } else {
+    ""
+  }
+}
+
+///|
 /// Compiler-driven reducer.
 ///
 /// One rule shapes the whole file: never trust an unverified reduction.  The
@@ -114,11 +128,17 @@ async fn main {
     target_path, stage, target, workdir, timeout_ms, reduced,
   )
   let verified = final_sig == baseline
+  let published = publish_path(out, verified)
   if !verified {
     let _ = @stager.write_text(target_path, original)
-  }
-  if out != "" {
-    let _ = @stager.write_text(out, reduced)
+    // Keep the unverified candidate for inspection, but never at `--out`:
+    // a caller that ignores the exit code would otherwise ship a witness that
+    // does not reproduce.
+    if out != "" {
+      let _ = @stager.write_text(publish_path(out + ".rejected", true), reduced)
+    }
+  } else if published != "" {
+    let _ = @stager.write_text(published, reduced)
   }
   let after_lines = @stager.count_lines(reduced)
   let ms = @env.now() - start_ms
@@ -139,6 +159,8 @@ async fn main {
   b.write_string(if @reduce.was_exhausted(r) { "true" } else { "false" })
   b.write_string(",\"verified\":")
   b.write_string(if verified { "true" } else { "false" })
+  b.write_string(",\"published\":")
+  b.write_string(if published != "" { "true" } else { "false" })
   b.write_string(",\"ms\":")
   b.write_string(ms.to_string())
   b.write_string(",\"workdir\":\"")

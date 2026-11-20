@@ -1,8 +1,27 @@
 ///|
+/// Terminal states for one target.  `COMPLETE` means the program was built,
+/// linked and ran to a zero exit.  Every other state is a failed experiment
+/// and must never be compared as if it were output: two timeouts, two
+/// identical crashes or two identical compile errors are not agreement.
+const ST_COMPLETE : String = "COMPLETE"
+
+///|
+const ST_BUILD_FAIL : String = "BUILD_FAIL"
+
+///|
+const ST_LINK_FAIL : String = "LINK_FAIL"
+
+///|
+const ST_TIMEOUT : String = "TIMEOUT"
+
+///|
+const ST_RUN_FAIL : String = "RUN_FAIL"
+
+///|
 /// One target's observation for a case.
 struct Obs {
   target : String
-  built : Bool
+  status : String
   rc : Int32
   out : String
   err : String
@@ -34,26 +53,17 @@ fn error_excerpt(err : String) -> String {
 }
 
 ///|
-/// `moon run` reports a compile failure as a nonzero exit with diagnostics on
-/// stderr.  A program that legitimately exits nonzero (a panic) also does, but
-/// it still printed its earlier lines; the diagnostics are what separate them.
-fn looks_like_build_failure(err : String) -> Bool {
-  err.contains("failed to build") ||
-  err.contains("Failed to run build") ||
-  err.contains("failed when building project") ||
-  err.contains("Error: [")
-}
-
-///|
-/// Targets that actually produced a runnable program.
-fn live_of(obs : Array[Obs]) -> Array[Obs] {
-  let live : Array[Obs] = []
-  for o in obs {
-    if o.built {
-      live.push(o)
-    }
-  }
-  live
+/// A failed build is only classified as a link failure when the diagnostics
+/// name the link stage.  Everything else (parse, type, package resolution)
+/// is a build failure; the distinction matters because "link failed" is the
+/// class the native/target-specific defects live in.
+fn link_failure(err : String) -> Bool {
+  err.contains("failed to link") ||
+  err.contains("link-core") ||
+  err.contains("Machine_error") ||
+  err.contains("undefined symbol") ||
+  err.contains("ld: ") ||
+  err.contains("error: link")
 }
 
 ///|
@@ -62,12 +72,11 @@ fn live_of(obs : Array[Obs]) -> Array[Obs] {
 /// js-only difference printed "length N vs N" and looked like a formatting
 /// artefact.
 fn mismatch_hint(obs : Array[Obs]) -> String {
-  let live = live_of(obs)
-  if live.length() < 2 {
+  if obs.length() < 2 {
     return ""
   }
-  let first = live[0]
-  for k, o in live {
+  let first = obs[0]
+  for k, o in obs {
     if k > 0 {
       if o.rc != first.rc {
         return "rc " +
@@ -92,18 +101,26 @@ fn mismatch_hint(obs : Array[Obs]) -> String {
 }
 
 ///|
-/// Compare normalized stdout and exit status across targets that built.
+/// Compare normalized stdout across targets.
+///
+/// The rule the previous version got wrong: agreement requires that *every*
+/// requested target reached `COMPLETE`.  A target that timed out, crashed or
+/// failed to build contributes no output, so comparing the survivors can turn
+/// "both runs hung" into "both runs agree".  Anything not fully observed is
+/// `INCONCLUSIVE`, never `ALL_EQUAL`.
 fn compare(obs : Array[Obs]) -> String {
-  let live = live_of(obs)
-  if live.length() < 2 {
-    return "SKIP"
+  if obs.length() == 0 {
+    return "NO_CASES"
   }
-  let first = live[0]
-  for i, o in live {
-    if i > 0 {
-      if o.rc != first.rc || o.out != first.out {
-        return "MISMATCH"
-      }
+  for o in obs {
+    if o.status != ST_COMPLETE {
+      return "INCONCLUSIVE"
+    }
+  }
+  let first = obs[0]
+  for i, o in obs {
+    if i > 0 && (o.rc != first.rc || o.out != first.out) {
+      return "MISMATCH"
     }
   }
   "ALL_EQUAL"
@@ -160,26 +177,144 @@ fn write_pkg(dir : String, src : String) -> Bool {
 ///|
 async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
   let start = @env.now()
+  // Build first, so a compile/link failure is never mistaken for a run.  A
+  // single `moon run` conflates the two and leaves `timed_out` invisible,
+  // which is exactly how two hangs used to compare equal.
+  let b = @exec.run(
+    @stager.moon_path(),
+    ["build", "--target", target],
+    dir,
+    timeout_ms,
+  )
+  let elapsed = fn() {
+    if @env.now() > start {
+      (@env.now() - start).to_int().to_int64()
+    } else {
+      0L
+    }
+  }
+  if b.timed_out {
+    return {
+      target,
+      status: ST_TIMEOUT,
+      rc: -999,
+      out: "",
+      err: "build timed out",
+      ms: elapsed(),
+    }
+  }
+  if b.rc != 0 {
+    return {
+      target,
+      status: if link_failure(b.stderr) { ST_LINK_FAIL } else { ST_BUILD_FAIL },
+      rc: b.rc,
+      out: "",
+      err: error_excerpt(b.stderr),
+      ms: elapsed(),
+    }
+  }
   let r = @exec.run(
     @stager.moon_path(),
     ["run", "main.mbt", "--target", target],
     dir,
     timeout_ms,
   )
-  let ms = if @env.now() > start {
-    (@env.now() - start).to_int().to_int64()
+  let status = if r.timed_out {
+    ST_TIMEOUT
+  } else if r.rc != 0 {
+    ST_RUN_FAIL
   } else {
-    0L
+    ST_COMPLETE
   }
-  let built = !looks_like_build_failure(r.stderr)
   {
     target,
-    built,
+    status,
     rc: r.rc,
     out: r.stdout.trim_end().to_owned(),
     err: error_excerpt(r.stderr),
-    ms,
+    ms: elapsed(),
   }
+}
+
+///|
+/// Table-driven counterexamples for `compare`.  Runs without a compiler and
+/// is wired into `accept`, so a regression in the decision function fails the
+/// gate rather than silently restoring the false pass.
+fn self_test(verbose : Bool) -> Bool {
+  let mk = fn(target : String, status : String, rc : Int32, out : String) {
+    { target, status, rc, out, err: "", ms: 0L }
+  }
+  let checks : Array[(String, Array[Obs], String)] = [
+    (
+      "two-timeouts",
+      [mk("a", ST_TIMEOUT, -999, ""), mk("b", ST_TIMEOUT, -999, "")],
+      "INCONCLUSIVE",
+    ),
+    (
+      "two-signals",
+      [mk("a", ST_RUN_FAIL, -11, ""), mk("b", ST_RUN_FAIL, -11, "")],
+      "INCONCLUSIVE",
+    ),
+    (
+      "two-build-fails",
+      [mk("a", ST_BUILD_FAIL, 1, ""), mk("b", ST_BUILD_FAIL, 1, "")],
+      "INCONCLUSIVE",
+    ),
+    (
+      "two-link-fails",
+      [mk("a", ST_LINK_FAIL, 1, ""), mk("b", ST_LINK_FAIL, 1, "")],
+      "INCONCLUSIVE",
+    ),
+    (
+      "missing-target",
+      [mk("a", ST_COMPLETE, 0, "x"), mk("b", ST_BUILD_FAIL, 1, "")],
+      "INCONCLUSIVE",
+    ),
+    (
+      "equal",
+      [mk("a", ST_COMPLETE, 0, "x"), mk("b", ST_COMPLETE, 0, "x")],
+      "ALL_EQUAL",
+    ),
+    (
+      "three-equal",
+      [
+        mk("a", ST_COMPLETE, 0, "x"),
+        mk("b", ST_COMPLETE, 0, "x"),
+        mk("c", ST_COMPLETE, 0, "x"),
+      ],
+      "ALL_EQUAL",
+    ),
+    (
+      "differ",
+      [mk("a", ST_COMPLETE, 0, "x"), mk("b", ST_COMPLETE, 0, "y")],
+      "MISMATCH",
+    ),
+    ("no-cases", [], "NO_CASES"),
+  ]
+  let mut ok = true
+  for c in checks {
+    let (name, obs, want) = c
+    let got = compare(obs)
+    if got != want {
+      println("self-test failed: " + name + " got " + got + " want " + want)
+      ok = false
+    }
+  }
+  // link_failure must separate the two failure classes.
+  if !link_failure("Error: failed to link foo") || link_failure("Error: [4021] Value x not found") {
+    println("self-test failed: link_failure classification")
+    ok = false
+  }
+  if verbose {
+    println(
+      "{\"ok\":" +
+      (if ok { "true" } else { "false" }) +
+      ",\"checks\":" +
+      checks.length().to_string() +
+      "}",
+    )
+  }
+  ok
 }
 
 ///|
@@ -207,6 +342,9 @@ async fn main {
       timeout_ms = @stager.parse_int(args[i + 1], timeout_ms)
     } else if a == "--keep" {
       keep = true
+    } else if a == "--self-test" {
+      let ok = self_test(true)
+      @env.exit(if ok { 0 } else { 1 })
     }
   }
   if out == "" {
@@ -236,6 +374,10 @@ async fn main {
   let mut total = 0
   let mut all_equal = 0
   let mut mismatches = 0
+  let mut inconclusive = 0
+  // Cases that never reached a target because the work directory could not be
+  // written.  Kept separate from INCONCLUSIVE: one is the corpus lying, the
+  // other is the harness failing.
   let mut skipped = 0
   let rows : Array[String] = []
   for c in @numgen.select(family) {
@@ -266,7 +408,7 @@ async fn main {
     } else if verdict == "MISMATCH" {
       mismatches += 1
     } else {
-      skipped += 1
+      inconclusive += 1
     }
     let b = StringBuilder()
     b.write_string("{\"case\":\"")
@@ -282,15 +424,18 @@ async fn main {
       }
       b.write_string("{\"target\":\"")
       b.write_string(o.target)
-      b.write_string("\",\"built\":")
-      b.write_string(if o.built { "true" } else { "false" })
+      b.write_string("\",\"status\":\"")
+      b.write_string(o.status)
+      b.write_string("\"")
       b.write_string(",\"rc\":")
       b.write_string(o.rc.to_string())
       b.write_string(",\"lines\":")
-      b.write_string(o.out.split("\n").count().to_string())
+      b.write_string(
+        (if o.status == ST_COMPLETE { o.out.split("\n").count() } else { 0 }).to_string(),
+      )
       b.write_string(",\"ms\":")
       b.write_string(o.ms.to_string())
-      if !o.built {
+      if o.status != ST_COMPLETE {
         b.write_string(",\"err\":\"")
         b.write_string(@stager.escape(o.err))
         b.write_string("\"")
@@ -318,14 +463,18 @@ async fn main {
       b.to_string()
     },
   )
+  let proven = total > 0 && all_equal == total && mismatches == 0 &&
+    inconclusive == 0 && skipped == 0
   let summary = "{\"ok\":" +
-    (if mismatches == 0 { "true" } else { "false" }) +
+    (if proven { "true" } else { "false" }) +
     ",\"cases\":" +
     total.to_string() +
     ",\"all_equal\":" +
     all_equal.to_string() +
     ",\"mismatch\":" +
     mismatches.to_string() +
+    ",\"inconclusive\":" +
+    inconclusive.to_string() +
     ",\"skipped\":" +
     skipped.to_string() +
     ",\"targets\":\"" +
@@ -339,7 +488,10 @@ async fn main {
   if !keep {
     @stager.rm_rf(work)
   }
-  if mismatches != 0 {
+  // Success means every requested case was fully observed and agreed.  A
+  // mismatch, an unobserved case, an empty corpus or a materialisation failure
+  // all leave the semantic claim unproven.
+  if !proven {
     @env.exit(1)
   }
 }

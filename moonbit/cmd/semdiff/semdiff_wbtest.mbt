@@ -1,51 +1,92 @@
 ///|
-/// Tests for the two pieces of judgement inside the differential: what counts
-/// as "did not build", and which pair of targets a mismatch hint describes.
-/// Both are places where a wrong answer hides a real difference.
+/// Tests for the two pieces of judgement inside the differential: the terminal
+/// state of one target, and whether a set of states proves agreement.  Both
+/// are places where a wrong answer hides either a real difference or a failed
+/// experiment.
 
 ///|
-fn obs(t : String, built : Bool, rc : Int32, out : String) -> Obs {
-  { target: t, built, rc, out, err: "", ms: 0L, }
+fn obs(t : String, status : String, rc : Int32, out : String) -> Obs {
+  { target: t, status, rc, out, err: "", ms: 0L, }
 }
 
 ///|
-test "build-failure detection: compile diagnostics only" {
-  assert_true(looks_like_build_failure("Error: [4021]\n  Parse error"))
-  assert_true(looks_like_build_failure("failed to build x (native)"))
-  assert_false(looks_like_build_failure("panic: division by zero"))
-  assert_false(
-    looks_like_build_failure(
-      "Error: Machine_error(kind=unsupported; who=\"lower_array_make\")",
-    ),
+/// The false pass this suite exists for: two targets that both timed out used
+/// to look identical because neither produced output.
+test "compare: two timeouts are not agreement" {
+  assert_eq(
+    compare([obs("wasm-gc", ST_TIMEOUT, -999, ""), obs("native", ST_TIMEOUT, -999, "")]),
+    "INCONCLUSIVE",
   )
 }
 
 ///|
-test "compare: needs two live targets, then stdout and rc must agree" {
+test "compare: identical crashes are not agreement" {
   assert_eq(
-    compare([obs("wasm-gc", true, 0, "a\n"), obs("native", true, 0, "a\n")]),
+    compare([obs("wasm-gc", ST_RUN_FAIL, -11, ""), obs("native", ST_RUN_FAIL, -11, "")]),
+    "INCONCLUSIVE",
+  )
+  assert_eq(
+    compare([obs("wasm-gc", ST_BUILD_FAIL, 1, ""), obs("native", ST_BUILD_FAIL, 1, "")]),
+    "INCONCLUSIVE",
+  )
+  assert_eq(
+    compare([obs("wasm-gc", ST_LINK_FAIL, 1, ""), obs("native", ST_LINK_FAIL, 1, "")]),
+    "INCONCLUSIVE",
+  )
+}
+
+///|
+test "compare: one failed target voids the case" {
+  assert_eq(
+    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n"), obs("native", ST_BUILD_FAIL, 1, "")]),
+    "INCONCLUSIVE",
+  )
+  assert_eq(
+    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n")]),
+    "ALL_EQUAL",
+  )
+}
+
+///|
+test "compare: only all-complete equal output is ALL_EQUAL" {
+  assert_eq(
+    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n"), obs("native", ST_COMPLETE, 0, "a\n")]),
     "ALL_EQUAL",
   )
   assert_eq(
-    compare([obs("wasm-gc", true, 0, "a\n"), obs("native", true, 1, "a\n")]),
+    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n"), obs("native", ST_COMPLETE, 0, "b\n")]),
     "MISMATCH",
   )
   assert_eq(
-    compare([obs("wasm-gc", true, 0, "a\n"), obs("native", true, 0, "b\n")]),
-    "MISMATCH",
+    compare([
+      obs("wasm-gc", ST_COMPLETE, 0, "a\n"),
+      obs("js", ST_COMPLETE, 0, "a\n"),
+      obs("native", ST_COMPLETE, 0, "a\n"),
+    ]),
+    "ALL_EQUAL",
   )
-  assert_eq(
-    compare([obs("wasm-gc", true, 0, "a\n"), obs("native", false, 1, "")]),
-    "SKIP",
-  )
+  assert_eq(compare([]), "NO_CASES")
+}
+
+///|
+test "link failure is separated from a plain build failure" {
+  assert_true(link_failure("Error: failed to link repro/v128surface"))
+  assert_true(link_failure("Machine_error(kind=unsupported; who=\"x\")"))
+  assert_false(link_failure("Error: [4021] Value x not found in package y"))
+  assert_false(link_failure("Error: Parse error at line 3"))
+}
+
+///|
+test "self-test covers every counterexample" {
+  assert_true(self_test(false))
 }
 
 ///|
 test "hint: names the first differing pair and line" {
   let o = [
-    obs("wasm-gc", true, 0, "x=1\ny=2\n"),
-    obs("js", true, 0, "x=1\ny=3\n"),
-    obs("native", true, 0, "x=1\ny=2\n"),
+    obs("wasm-gc", ST_COMPLETE, 0, "x=1\ny=2\n"),
+    obs("js", ST_COMPLETE, 0, "x=1\ny=3\n"),
+    obs("native", ST_COMPLETE, 0, "x=1\ny=2\n"),
   ]
   let h = mismatch_hint(o)
   assert_true(h.has_prefix("wasm-gc vs js"))
@@ -57,16 +98,14 @@ test "hint: names the first differing pair and line" {
 ///|
 test "hint: reports an rc difference instead of an empty line diff" {
   let h = mismatch_hint([
-    obs("wasm-gc", true, 0, "same\n"),
-    obs("native", true, 134, "same\n"),
+    obs("wasm-gc", ST_COMPLETE, 0, "same\n"),
+    obs("native", ST_COMPLETE, 134, "same\n"),
   ])
   assert_true(h.contains("rc wasm-gc=0 vs native=134"))
 }
 
 ///|
 test "first_diff_line: a missing line shows up as an empty line" {
-  // "a\nb\n" splits to ["a","b",""], so the divergence is at line 2, not a
-  // length-only difference.
   assert_eq(first_diff_line("a\nb\n", "a\n"), "line 2: `b` vs ``")
   assert_eq(first_diff_line("a\nb", "a\nc"), "line 2: `b` vs `c`")
 }

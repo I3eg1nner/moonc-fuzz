@@ -312,12 +312,15 @@ async fn main {
       "test",
       "--fuel",
       "60",
+      "--out",
+      "/tmp/mbtfuzz_accept_reduced_" + tag + ".mbt",
     ],
     root,
     180000,
   )
   let rd_ok = rd.rc == 0 &&
     rd.stdout.contains("\"verified\":true") &&
+    rd.stdout.contains("\"published\":true") &&
     rd.stdout.contains("\"baseline\":\"crash|ICE|")
   results.push(check("reduce_witness", rd_ok, rd.stdout.trim().to_owned()))
 
@@ -368,11 +371,28 @@ async fn main {
     root,
     300000,
   )
+  // A differential only proves something when every requested target reached
+  // COMPLETE: a mismatch, an unobserved case and an empty corpus all fail the
+  // same way now, and the summary says `ok:false` for each of them.
   let sem_ok = sem.rc == 0 &&
+    sem.stdout.contains("\"ok\":true") &&
     sem.stdout.contains("\"mismatch\":0") &&
-    sem.stdout.contains("\"skipped\":0") &&
-    sem.stdout.contains("\"all_equal\":")
+    sem.stdout.contains("\"inconclusive\":0") &&
+    sem.stdout.contains("\"skipped\":0")
   results.push(check("semantic_diff", sem_ok, sem.stdout.trim().to_owned()))
+
+  // 2g2. The differential's decision function is a table of counterexamples
+  // that runs without a compiler: two timeouts, two signals, two build
+  // failures, a missing target, an empty corpus.  This is the gate for the
+  // class of false pass that used to make "both hung" look like agreement.
+  let sc = @exec.run(
+    join(bin, "cmd/semdiff/semdiff.exe"),
+    ["--self-test"],
+    root,
+    30000,
+  )
+  let sc_ok = sc.rc == 0 && sc.stdout.contains("\"ok\":true")
+  results.push(check("semdiff_selfcheck", sc_ok, sc.stdout.trim().to_owned()))
 
   // 3. Trace gates: exact JSON on a frozen trace, then real end-to-end QEMU
   // parity against a Python-golden function set.  These two need host tools

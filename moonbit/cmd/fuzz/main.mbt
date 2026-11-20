@@ -1084,6 +1084,9 @@ fn meta_json(
   b.write_string(@corpus.json_escape(detail))
   b.write_string("\",\"signature\":\"")
   b.write_string(sig)
+  // A saved finding is a candidate until `cmd/verify` re-runs it on a fresh
+  // copy.  Nothing in the campaign may call it confirmed.
+  b.write_string("\",\"status\":\"candidate\"")
   b.write_string("\",\"rc\":")
   b.write_string(r.rc.to_string())
   b.write_string(",\"ms\":")
@@ -1103,6 +1106,23 @@ fn meta_json(
 ///|
 /// Crash evidence is a candidate and is never budget-gated: the input is
 /// force-copied into the corpus, then the finding directory is written.
+///|
+/// Defect classification goes through the shared oracle layer (`@judge`), not
+/// only the legacy marker matcher.  The legacy name is still returned for the
+/// ordinary outcomes (`OK`, `ERR`, `HANG`) so the stage logic keeps working;
+/// for a real defect the judge's class wins, because that is the vocabulary the
+/// regression suite and the evidence documents use.
+fn judged_kind(stage : String, r : @exec.RunResult) -> String {
+  let obs = @stager.observation_of(stage, r)
+  for f in @judge.check_all(@judge.registry(), obs) {
+    if @judge.severity_name(f.severity) == "defect" {
+      return f.class
+    }
+  }
+  @exec.classify(r)
+}
+
+///|
 fn save_crash(
   cfg : Config,
   pb : PersistBudget,
@@ -1111,7 +1131,7 @@ fn save_crash(
   src : String,
   worker : Int32,
 ) -> Bool {
-  let kind = @exec.classify(r)
+  let kind = judged_kind(stage, r)
   let detail = @exec.ice_detail(r)
   let sig = @corpus.short_hash(
     stage + "|" + kind + "|" + detail + "|rc=" + r.rc.to_string(),
@@ -1839,6 +1859,9 @@ fn save_diff(
   b.write_string(@oracle.diff_class_name(r.verdict))
   b.write_string("\",\"signature\":\"")
   b.write_string(sig)
+  // A saved finding is a candidate until `cmd/verify` re-runs it on a fresh
+  // copy.  Nothing in the campaign may call it confirmed.
+  b.write_string("\",\"status\":\"candidate\"")
   b.write_string("\",\"wasm_stage\":\"")
   b.write_string(r.wasm_stage)
   b.write_string("\",\"js_stage\":\"")
@@ -1941,7 +1964,7 @@ async fn worker(
     if r1.timed_out {
       s.timeouts += 1
     }
-    let k1 = @exec.classify(r1)
+    let k1 = judged_kind("t1", r1)
     let sig = behavior_sig("t1", r1)
     s.diag_families.set(behavior_family("t1", r1), ())
     let novel = !local_sigs.contains(sig)
@@ -2138,7 +2161,7 @@ async fn worker(
       if r2.timed_out {
         s.timeouts += 1
       }
-      let k2 = @exec.classify(r2)
+      let k2 = judged_kind("t2", r2)
       if k2 == "OK" {
         s.t2_ok += 1
         prog.t2_ok += 1
@@ -2802,8 +2825,9 @@ async fn main {
     total.finding_duplicates.to_string() +
     ",\"crash_events\":" +
     total.crashes.to_string() +
-    ",\"unique_witnesses\":" +
+    ",\"candidate_witnesses\":" +
     total.witnesses.to_string() +
+    ",\"confirmed_witnesses\":0" +
     ",\"behavior_sigs\":" +
     total.sigs.length().to_string() +
     ",\"diagnostic_families\":" +
