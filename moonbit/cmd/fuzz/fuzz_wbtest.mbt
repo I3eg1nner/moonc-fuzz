@@ -119,6 +119,7 @@ fn trace_test_cfg() -> Config {
     stats_cap: 100000,
     edge_reward: true,
     rss_limit_mb: 0,
+    baseline_trace_max_mb: 256,
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
@@ -469,7 +470,7 @@ test "coverage evidence is keyed by stage and behavior cannot erase it" {
 }
 
 ///|
-test "a dropped baseline task makes U0 incomplete" {
+test "baseline bypasses the queue cap, but a lost baseline still blocks U0" {
   let cfg = trace_test_cfg()
   cfg.trace_queue = 1
   let f = feedback_new()
@@ -478,21 +479,14 @@ test "a dropped baseline task makes U0 incomplete" {
   assert_true(
     trace_submit(cfg, q, @trace.T2, "seed1", "seed1", "in.mbt", "", true, "cfg"),
   )
+  // Capacity used to refuse this one, which made every campaign's U0
+  // incomplete.  Baseline tasks are now allowed past the cap.
   assert_true(
-    !trace_submit(
-      cfg,
-      q,
-      @trace.T2,
-      "seed2",
-      "seed2",
-      "in.mbt",
-      "",
-      true,
-      "cfg",
-    ),
+    trace_submit(cfg, q, @trace.T2, "seed2", "seed2", "in.mbt", "", true, "cfg"),
   )
+  assert_eq(q.tasks.length(), 2)
   assert_eq(q.baseline_expected, 2)
-  assert_eq(q.baseline_failed, 1)
+  assert_eq(q.baseline_failed, 0)
   trace_apply(
     cfg,
     trace_test_task_stage("seed1", @trace.T2, true),
@@ -501,6 +495,10 @@ test "a dropped baseline task makes U0 incomplete" {
     f,
     q,
   )
+  assert_eq(q.baseline_done, 1)
+  // The second seed never returns: U0 must not be reported complete.
+  q.baseline_failed += 1
+  trace_maybe_settle_baseline(cov, f, q)
   assert_eq(trace_baseline_state(q), "incomplete")
   assert_eq(q.baseline_complete, false)
 }
@@ -983,4 +981,16 @@ test "finding metadata is valid JSON and marked candidate" {
       "{\"stage\":\"t1\",\"kind\":\"OOM\",\"detail\":\"\",\"signature\":\"abc\",\"status\":\"candidate\"\"",
     ),
   )
+}
+
+///|
+test "percent flags accept integers only" {
+  assert_eq(parse_percent("0"), Some(0))
+  assert_eq(parse_percent("20"), Some(20))
+  assert_eq(parse_percent("100"), Some(100))
+  assert_eq(parse_percent("0.02"), None)
+  assert_eq(parse_percent("101"), None)
+  assert_eq(parse_percent("-1"), None)
+  assert_eq(parse_percent(""), None)
+  assert_eq(parse_percent("2x"), None)
 }

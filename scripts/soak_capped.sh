@@ -6,8 +6,10 @@
 #                        accepting work, the campaign drains and writes summary
 #
 # Usage: scripts/soak_capped.sh [OUT] [SECONDS]
-# Env: RSS_MB (default 3000), AS_MB (default 4500), WORKERS (default 4),
-#      TRACE_T1 (0.02), TRACE_T2 (0.05), QEMU, SEED
+# Env: RSS_MB (default 3000), AS_MB (default 6144), WORKERS (default 4),
+#      TRACE_T1 (2), TRACE_T2 (5) -- these are integer percent (0..100), not
+#      fractions; a fractional value is rejected by the driver with exit 2,
+#      QEMU, SEED
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BIN="$ROOT/moonbit/_build/native/debug/build/cmd/fuzz/fuzz.exe"
@@ -30,6 +32,7 @@ echo "ts,elapsed_s,rss_kb,cpu_ticks,files,bytes,stats_lines,trace_dropped" > "$C
 prlimit --as=$((AS_MB * 1024 * 1024)) -- "$BIN" \
   --root "$ROOT" --out "$OUT" --workers "$WORKERS" --duration "$DUR" \
   --mode mbt --body-only --seed "$SEED" --trace-max-mb 64 \
+  --baseline-trace-max-mb "${BASELINE_MB:-256}" \
   --trace-t1 "$TRACE_T1" --trace-t2 "$TRACE_T2" --trace-t3 0 \
   --trace-workers 1 --trace-queue 8 \
   --coverage-cap 200 --persist-cap 400 --parent-cap 2000 --edge-cap 50000 \

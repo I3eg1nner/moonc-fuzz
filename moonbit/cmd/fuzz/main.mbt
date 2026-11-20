@@ -102,6 +102,10 @@ struct Config {
   /// cleanly when the limit is crossed; 0 disables it.  This is the in-process
   /// half of the resource top; the outer half is prlimit in the soak script.
   mut rss_limit_mb : Int32
+  /// Baseline traces may need a much larger log than mutation traces: U0 is
+  /// built from real seed inputs, and a 64 MiB cap silently truncated them,
+  /// leaving U0 incomplete and coverage learning off for the whole campaign.
+  mut baseline_trace_max_mb : Int32
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -810,15 +814,11 @@ fn trace_submit(
     // set and an incomplete U0 could look settled.
     q.baseline_expected += 1
   }
-  if q.tasks.length() >= cfg.trace_queue {
+  // Baseline tasks bypass the capacity check: U0 must cover every seed, and
+  // the queue is drained before the campaign starts anyway.  Dropping them
+  // here was what kept `baseline_state=incomplete` on every run.
+  if !baseline && q.tasks.length() >= cfg.trace_queue {
     q.dropped += 1
-    if baseline {
-      // A seed that never entered the queue cannot be part of a complete U0.
-      q.baseline_failed += 1
-      q.baseline_complete = false
-      q.baseline_settled = q.baseline_done + q.baseline_failed >=
-        q.baseline_expected
-    }
     return false
   }
   q.seen.set(key, ())
@@ -859,6 +859,10 @@ struct TraceUniverse {
   pending : Array[PendingTrace]
   rewarded : Map[String, Unit]
   mut baseline_total : @cov.FuncSet
+  /// Per (stage|outcome|config) union of baseline functions.  Seeded into
+  /// `by_key` when U0 settles, otherwise the first candidate trace per key
+  /// counts every baseline function as novel and every input gets rewarded.
+  baseline_by_key : Map[String, @cov.FuncSet]
   mut observed_total : @cov.FuncSet
   mut coverage_adds : Int32
   edge_seen : Map[String, Unit]
@@ -878,6 +882,7 @@ fn trace_universe_new() -> TraceUniverse {
     pending: [],
     rewarded: Map([]),
     baseline_total: @cov.FuncSet::new([]),
+    baseline_by_key: Map([]),
     observed_total: @cov.FuncSet::new([]),
     coverage_adds: 0,
     edge_seen: Map([]),
@@ -1751,6 +1756,15 @@ fn trace_maybe_settle_baseline(
   q.baseline_settled = true
   if q.baseline_failed == 0 {
     q.baseline_complete = true
+    // U0 becomes the initial value of every per-key universe; novelty is only
+    // what a later trace adds beyond the seeds.
+    for k, v in cov.baseline_by_key {
+      let old = match cov.by_key.get(k) {
+        Some(s) => s
+        None => @cov.FuncSet::new([])
+      }
+      cov.by_key.set(k, old.union(v))
+    }
     for p in cov.pending {
       trace_apply_delta(
         p.task,
@@ -1853,6 +1867,16 @@ fn trace_apply(
     }
     cov.by_key.set(key, old.union(covset))
     cov.baseline_total = cov.baseline_total.union(covset)
+    let bkey = @trace.trace_stage_name(tr.stage) +
+      "|" +
+      @trace.trace_outcome_name(tr.outcome) +
+      "|" +
+      tr.config_hash
+    let prev = match cov.baseline_by_key.get(bkey) {
+      Some(v) => v
+      None => @cov.FuncSet::new([])
+    }
+    cov.baseline_by_key.set(bkey, prev.union(covset))
     q.baseline_done += 1
     q.baseline_ms += tr.elapsed_ms
     trace_maybe_settle_baseline(cov, feed, q)
@@ -1927,7 +1951,6 @@ async fn trace_worker(
   let wd = join(join("/tmp/mbtfuzz_mb", tag), "tw" + id.to_string())
   rm_rf(wd)
   @corpus.ensure_dir(wd)
-  let max_bytes = cfg.trace_max_mb.to_int64() * 1048576L
   let start = @async.now()
   let budget = if cfg.trace_cpu_pct > 0 {
     let b = cfg.duration_s.to_int64() * cfg.trace_cpu_pct.to_int64() * 10L
@@ -1991,7 +2014,8 @@ async fn trace_worker(
       task.config_hash,
       task.stage,
       cfg.t2_timeout,
-      max_bytes,
+      (if task.baseline { cfg.baseline_trace_max_mb } else { cfg.trace_max_mb }).to_int64() *
+      1048576L,
     )
     let before = q.completed
     let failed_before = q.failed
@@ -2123,6 +2147,13 @@ async fn worker(
   let prelude = join(bundle, "prelude/prelude.mi")
   let all_pkgs = @stager.portable_all_pkgs(cfg.root)
   let pkg = "I3eg1nner/tpl/cmd/main"
+  // U0 must be frozen before mutations count as rewards, so fast workers wait
+  // for the baseline phase instead of racing it.  Without this, baseline tasks
+  // were still queued when the duration ended and the summary said
+  // "incomplete" even though every trace had succeeded.
+  while !q.baseline_settled && @async.now() < end && prog.stop_reason == "" {
+    @async.sleep(20)
+  }
   while @async.now() < end && prog.stop_reason == "" {
     s.it += 1
     prog.it += 1
@@ -2688,8 +2719,48 @@ fn parse_int(s : String, dflt : Int32) -> Int32 {
 fn main_usage() -> Unit {
   println("usage: fuzz [--root DIR] [--out DIR] [--workers N] [--duration S]")
   println(
-    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--qemu PATH] [--trace-t1 P] [--trace-t2 P] [--trace-t3 P] [--trace-workers N] [--trace-queue N] [--trace-max-mb M] [--trace-cpu P] [--baseline-seeds N] [--edge-cap N] [--parent-cap N] [--persist-cap N]",
+    "            [--p-deep X] [--p-run X] [--body-only] [--seed N] [--mode mbt|pkg|mod|mbtmd|mbti|mbtx] [--seed-dir DIR] [--fmt-check] [--native-diff] [--run-id ID] [--campaign NAME] [--qemu PATH] [--trace-t1 P] [--trace-t2 P] [--trace-t3 P] [--trace-workers N] [--trace-queue N] [--trace-max-mb M] [--trace-cpu P] [--baseline-seeds N] [--baseline-trace-max-mb M] [--edge-cap N] [--parent-cap N] [--persist-cap N] [--coverage-cap N] [--stats-cap N] [--no-edge-reward] [--rss-limit-mb N]",
   )
+}
+
+///|
+/// Percent-valued flags are integers in 0..100 and must not fall back to the
+/// default on garbage: `--trace-t1 0.02` used to become 20 silently, which
+/// made a "2%" campaign actually run at 20% (see findings/p1_feedback.md).
+fn parse_percent(s : String) -> Int32? {
+  if s.length() == 0 {
+    return None
+  }
+  let mut n = 0
+  for c in s {
+    if c >= '0' && c <= '9' {
+      n = n * 10 + (c.to_int() - '0'.to_int())
+    } else {
+      return None
+    }
+  }
+  if n > 100 {
+    None
+  } else {
+    Some(n)
+  }
+}
+
+///|
+fn percent_arg(args : Array[String], i : Int32, name : String) -> Int32 {
+  match parse_percent(args[i + 1]) {
+    Some(n) => n
+    None => {
+      println(
+        "invalid value for " +
+        name +
+        ": `" +
+        args[i + 1] +
+        "` (expected integer 0..100)",
+      )
+      @env.exit(2)
+    }
+  }
 }
 
 ///|
@@ -2730,6 +2801,7 @@ async fn main {
     stats_cap: 100000,
     edge_reward: true,
     rss_limit_mb: 0,
+    baseline_trace_max_mb: 256,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2749,10 +2821,10 @@ async fn main {
       cfg.duration_s = parse_int(args[i + 1], cfg.duration_s)
       i += 2
     } else if a == "--p-deep" && i + 1 < args.length() {
-      cfg.p_deep = parse_int(args[i + 1], 25).to_double() / 100.0
+      cfg.p_deep = percent_arg(args, i, "--p-deep").to_double() / 100.0
       i += 2
     } else if a == "--p-run" && i + 1 < args.length() {
-      cfg.p_run = parse_int(args[i + 1], 0).to_double() / 100.0
+      cfg.p_run = percent_arg(args, i, "--p-run").to_double() / 100.0
       i += 2
     } else if a == "--seed" && i + 1 < args.length() {
       cfg.seed = parse_int(args[i + 1], 1).to_uint64()
@@ -2782,13 +2854,13 @@ async fn main {
       cfg.qemu = args[i + 1]
       i += 2
     } else if a == "--trace-t1" && i + 1 < args.length() {
-      cfg.trace_t1 = parse_int(args[i + 1], 20).to_double() / 100.0
+      cfg.trace_t1 = percent_arg(args, i, "--trace-t1").to_double() / 100.0
       i += 2
     } else if a == "--trace-t2" && i + 1 < args.length() {
-      cfg.trace_t2 = parse_int(args[i + 1], 70).to_double() / 100.0
+      cfg.trace_t2 = percent_arg(args, i, "--trace-t2").to_double() / 100.0
       i += 2
     } else if a == "--trace-t3" && i + 1 < args.length() {
-      cfg.trace_t3 = parse_int(args[i + 1], 10).to_double() / 100.0
+      cfg.trace_t3 = percent_arg(args, i, "--trace-t3").to_double() / 100.0
       i += 2
     } else if a == "--trace-workers" && i + 1 < args.length() {
       cfg.trace_workers = parse_int(args[i + 1], cfg.trace_workers)
@@ -2800,7 +2872,7 @@ async fn main {
       cfg.trace_max_mb = parse_int(args[i + 1], cfg.trace_max_mb)
       i += 2
     } else if a == "--trace-cpu" && i + 1 < args.length() {
-      cfg.trace_cpu_pct = parse_int(args[i + 1], cfg.trace_cpu_pct)
+      cfg.trace_cpu_pct = percent_arg(args, i, "--trace-cpu")
       i += 2
     } else if a == "--baseline-seeds" && i + 1 < args.length() {
       cfg.baseline_seeds = parse_int(args[i + 1], cfg.baseline_seeds)
@@ -2825,6 +2897,12 @@ async fn main {
       i += 1
     } else if a == "--rss-limit-mb" && i + 1 < args.length() {
       cfg.rss_limit_mb = parse_int(args[i + 1], cfg.rss_limit_mb)
+      i += 2
+    } else if a == "--baseline-trace-max-mb" && i + 1 < args.length() {
+      cfg.baseline_trace_max_mb = parse_int(
+        args[i + 1],
+        cfg.baseline_trace_max_mb,
+      )
       i += 2
     } else {
       main_usage()
@@ -3088,6 +3166,13 @@ async fn main {
     total.t3_semantic_diff +
     total.t3_accept_diff +
     total.t3_compiler_abort
+  // Diagnostic: how much of RSS is explained by the retained parent pool?
+  // src bytes + one pointer-sized estimate per cov feature.
+  let mut parent_bytes = 0L
+  for e in feed.entries {
+    parent_bytes += e.src.length().to_int64() + e.hash.length().to_int64()
+    parent_bytes += e.cov.len().to_int64() * 32L
+  }
   let rss_now = rss_mb()
   let summary = "{\"run_id\":\"" +
     @corpus.json_escape(run_id) +
@@ -3199,6 +3284,10 @@ async fn main {
     "\"" +
     ",\"rss_mb\":" +
     rss_now.to_string() +
+    ",\"parent_bytes\":" +
+    parent_bytes.to_string() +
+    ",\"parents\":" +
+    feed.entries.length().to_string() +
     ",\"edge_cap\":" +
     cov.edge_cap.to_string() +
     ",\"edge_saturated\":" +
