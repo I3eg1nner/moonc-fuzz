@@ -95,6 +95,13 @@ struct Config {
   /// state; a 30-minute soak showed RSS still growing with iteration count, and
   /// these maps are part of that growth.
   mut stats_cap : Int32
+  /// When false, edge novelty still updates the universe but does not add the
+  /// +8 parent reward.  This is the "function-only" arm of the feedback A/B.
+  mut edge_reward : Bool
+  /// Soft self-limit on harness RSS (MiB).  The monitor stops the campaign
+  /// cleanly when the limit is crossed; 0 disables it.  This is the in-process
+  /// half of the resource top; the outer half is prlimit in the soak script.
+  mut rss_limit_mb : Int32
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -185,6 +192,9 @@ struct Progress {
   mut finding_duplicates : Int32
   mut crashes : Int32
   mut witnesses : Int32
+  /// Non-empty when the harness stopped itself before the duration expired.
+  /// "memory" means it hit --rss-limit-mb; the summary is still written.
+  mut stop_reason : String
   mut trace_completed : Int32
   mut trace_failed : Int32
   mut trace_dropped : Int32
@@ -208,6 +218,7 @@ fn progress_new() -> Progress {
     finding_duplicates: 0,
     crashes: 0,
     witnesses: 0,
+    stop_reason: "",
     trace_completed: 0,
     trace_failed: 0,
     trace_dropped: 0,
@@ -518,6 +529,11 @@ struct TraceQueue {
   mut t1_done : Int32
   mut t2_done : Int32
   mut t3_done : Int32
+  /// Consecutive T1 traces with no new function and no new edge.  When the
+  /// parser side is saturated, T1 keeps burning trace slots that T2/T3 could
+  /// use on behaviourally novel inputs.
+  mut t1_dry : Int32
+  mut t1_trace_off : Bool
   mut t1_reserved_ms : Int64
   mut t2_reserved_ms : Int64
   mut t3_reserved_ms : Int64
@@ -556,6 +572,8 @@ fn trace_queue_new() -> TraceQueue {
     t1_done: 0,
     t2_done: 0,
     t3_done: 0,
+    t1_dry: 0,
+    t1_trace_off: false,
     t1_reserved_ms: 0L,
     t2_reserved_ms: 0L,
     t3_reserved_ms: 0L,
@@ -1868,7 +1886,18 @@ fn trace_apply(
     q.baseline_unresolved += 1
     return
   }
-  trace_apply_delta(task, tr, covset, edge_new, cov, feed)
+  let reward_edges = if cfg.edge_reward { edge_new } else { 0 }
+  if task.stage == @trace.T1 && !task.baseline {
+    if covset.len() == 0 && edge_new == 0 {
+      q.t1_dry += 1
+      if q.t1_dry >= 40 {
+        q.t1_trace_off = true
+      }
+    } else {
+      q.t1_dry = 0
+    }
+  }
+  trace_apply_delta(task, tr, covset, reward_edges, cov, feed)
 }
 
 ///|
@@ -2094,7 +2123,7 @@ async fn worker(
   let prelude = join(bundle, "prelude/prelude.mi")
   let all_pkgs = @stager.portable_all_pkgs(cfg.root)
   let pkg = "I3eg1nner/tpl/cmd/main"
-  while @async.now() < end {
+  while @async.now() < end && prog.stop_reason == "" {
     s.it += 1
     prog.it += 1
     let base = match feedback_pick(feed, rng) {
@@ -2134,6 +2163,7 @@ async fn worker(
       !r1.timed_out &&
       (k1 == "OK" || k1 == "ERR") &&
       q.tasks.length() < cfg.trace_queue / 2 &&
+      !q.t1_trace_off &&
       (novel || rng.chance(cfg.trace_t1)) {
       ignore(
         trace_submit(
@@ -2376,7 +2406,16 @@ async fn worker(
         ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
         persist_behavior(cfg, pb, src, "behavior_t2")
       }
-      if covctx.enabled && (novel2 || rng.chance(cfg.trace_t2)) {
+      let t2_chance = if q.t1_trace_off {
+        if cfg.trace_t2 > 0.95 {
+          0.95
+        } else {
+          cfg.trace_t2 * 2.0
+        }
+      } else {
+        cfg.trace_t2
+      }
+      if covctx.enabled && (novel2 || rng.chance(t2_chance)) {
         ignore(
           trace_submit(
             cfg,
@@ -2535,9 +2574,42 @@ async fn worker(
 }
 
 ///|
+/// Harness RSS in MiB.  `x/fs` sizes the file with stat() and /proc files
+/// report size 0, so reading /proc/self/status through it returns ""; a child
+/// shell reads its parent's status instead ($PPID is the harness).
+async fn rss_mb() -> Int64 {
+  let r = @exec.run(
+    "/bin/sh",
+    ["-c", "grep VmRSS /proc/$PPID/status"],
+    "/tmp",
+    2000,
+  )
+  let text = r.stdout
+  let digits = match text.find(":") {
+    Some(i) => text[i + 1:].to_owned().trim()
+    None => ""
+  }
+  let mut n = 0L
+  for c in digits {
+    if c >= '0' && c <= '9' {
+      n = n * 10L + (c.to_int() - '0'.to_int()).to_int64()
+    } else {
+      break
+    }
+  }
+  n / 1024L
+}
+
+///|
 async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
   while prog.done < cfg.workers {
     @async.sleep(2000)
+    if cfg.rss_limit_mb > 0 && prog.stop_reason == "" {
+      let now = rss_mb()
+      if now > cfg.rss_limit_mb.to_int64() {
+        prog.stop_reason = "memory"
+      }
+    }
     let line = "{\"run_id\":\"" +
       @corpus.json_escape(cfg.run_id) +
       "\",\"it\":" +
@@ -2656,6 +2728,8 @@ async fn main {
     persist_cap: PERSIST_CAP_DEFAULT,
     coverage_cap: 4000,
     stats_cap: 100000,
+    edge_reward: true,
+    rss_limit_mb: 0,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2745,6 +2819,12 @@ async fn main {
       i += 2
     } else if a == "--stats-cap" && i + 1 < args.length() {
       cfg.stats_cap = parse_int(args[i + 1], cfg.stats_cap)
+      i += 2
+    } else if a == "--no-edge-reward" {
+      cfg.edge_reward = false
+      i += 1
+    } else if a == "--rss-limit-mb" && i + 1 < args.length() {
+      cfg.rss_limit_mb = parse_int(args[i + 1], cfg.rss_limit_mb)
       i += 2
     } else {
       main_usage()
@@ -3008,6 +3088,7 @@ async fn main {
     total.t3_semantic_diff +
     total.t3_accept_diff +
     total.t3_compiler_abort
+  let rss_now = rss_mb()
   let summary = "{\"run_id\":\"" +
     @corpus.json_escape(run_id) +
     "\",\"it\":" +
@@ -3107,6 +3188,17 @@ async fn main {
     cov.by_key.length().to_string() +
     ",\"edge_keys\":" +
     cov.edge_seen.length().to_string() +
+    ",\"t1_dry\":" +
+    q.t1_dry.to_string() +
+    ",\"t1_trace_off\":" +
+    (if q.t1_trace_off { "true" } else { "false" }) +
+    ",\"edge_reward\":" +
+    (if cfg.edge_reward { "true" } else { "false" }) +
+    ",\"stop_reason\":\"" +
+    @corpus.json_escape(prog.stop_reason) +
+    "\"" +
+    ",\"rss_mb\":" +
+    rss_now.to_string() +
     ",\"edge_cap\":" +
     cov.edge_cap.to_string() +
     ",\"edge_saturated\":" +

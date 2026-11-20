@@ -412,6 +412,10 @@ moon test --target native
 |---|---|
 | `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
+| `findings/deep_funnel.md` | 类型有效 IR 的 T2/T3 专用队列；30 分钟 11,451 例全部与解释器一致 |
+| `findings/p1_feedback.md` | 三臂反馈 A/B（10 分钟）、trace 丢失率、T1 饱和退让 |
+| `scripts/bench_campaigns.sh` | behavior / function / function+edge 三臂同预算 A/B |
+| `scripts/soak_capped.sh` | 带 prlimit + 自我内存上限的长跑 soak |
 | `findings/methodology.md` | oracle 命中/误报率、决策边界、负结果置信上界、成本模型 |
 | `poc/README.md` | 缺陷 PoC 索引、命令、预期结果 |
 | `issues/README.md` | 上游 issue 草稿、已提交链接（#1364–#1370）、去重和顺序 |

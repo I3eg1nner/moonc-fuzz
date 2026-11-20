@@ -1,0 +1,9 @@
+// Summarize the feedback A/B arms.  Kept in MoonBit because the repository
+// does not ship Python on the main branch.
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+pkgtype(kind: "executable")

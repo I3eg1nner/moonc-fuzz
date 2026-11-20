@@ -117,6 +117,8 @@ fn trace_test_cfg() -> Config {
     persist_cap: 2000,
     coverage_cap: 4000,
     stats_cap: 100000,
+    edge_reward: true,
+    rss_limit_mb: 0,
     t1_timeout: 1000,
     t2_timeout: 1000,
   }

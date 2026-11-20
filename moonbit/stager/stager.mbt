@@ -37,6 +37,11 @@ pub fn write_text(path : String, text : String) -> Bool {
 }
 
 ///|
+pub fn path_exists(path : String) -> Bool {
+  @fs.path_exists(path)
+}
+
+///|
 pub fn try_read_dir(path : String) -> Array[String] {
   let out : Array[String] = []
   let names = @fs.read_dir(path) catch { _ => return out }
