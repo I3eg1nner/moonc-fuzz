@@ -90,6 +90,11 @@ struct Config {
   /// meant that a full behaviour corpus silently stopped writing new coverage
   /// evidence (P0-2).
   mut coverage_cap : Int32
+  /// Cap on the per-campaign novelty bookkeeping maps (`inputs`, `sigs`,
+  /// `diag_families`, T2/T3 input sets).  They are statistics, not scheduling
+  /// state; a 30-minute soak showed RSS still growing with iteration count, and
+  /// these maps are part of that growth.
+  mut stats_cap : Int32
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -120,6 +125,16 @@ struct Stats {
   t2_inputs : Map[String, Unit]
   t2_ok_inputs : Map[String, Unit]
   diff_inputs : Map[String, Unit]
+}
+
+///|
+
+///|
+/// Admission for the novelty-statistics maps.  Refusing a new key after the
+/// cap keeps RSS bounded; the counters still increment, so `it`/`t1` stay
+/// exact and only the distinct-set sizes stop growing.
+fn stats_admit(cfg : Config, m : Map[String, Unit]) -> Bool {
+  m.length() < cfg.stats_cap
 }
 
 ///|
@@ -1156,7 +1171,7 @@ fn meta_json(
   b.write_string(sig)
   // A saved finding is a candidate until `cmd/verify` re-runs it on a fresh
   // copy.  Nothing in the campaign may call it confirmed.
-  b.write_string("\",\"status\":\"candidate\"")
+  b.write_string("\",\"status\":\"candidate")
   b.write_string("\",\"rc\":")
   b.write_string(r.rc.to_string())
   b.write_string(",\"ms\":")
@@ -2004,7 +2019,7 @@ fn save_diff(
   b.write_string(sig)
   // A saved finding is a candidate until `cmd/verify` re-runs it on a fresh
   // copy.  Nothing in the campaign may call it confirmed.
-  b.write_string("\",\"status\":\"candidate\"")
+  b.write_string("\",\"status\":\"candidate")
   b.write_string("\",\"wasm_stage\":\"")
   b.write_string(r.wasm_stage)
   b.write_string("\",\"js_stage\":\"")
@@ -2088,7 +2103,9 @@ async fn worker(
     }
     let src = @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
     let src_hash = @corpus.sha1_hex(src)
-    s.inputs.set(src_hash, ())
+    if stats_admit(cfg, s.inputs) {
+      s.inputs.set(src_hash, ())
+    }
     let fname = fname_of(cfg.mode)
     if !write(join(wd, fname), src) {
       continue
@@ -2109,7 +2126,9 @@ async fn worker(
     }
     let k1 = judged_kind("t1", r1)
     let sig = behavior_sig("t1", r1)
-    s.diag_families.set(behavior_family("t1", r1), ())
+    if stats_admit(cfg, s.diag_families) {
+      s.diag_families.set(behavior_family("t1", r1), ())
+    }
     let novel = !local_sigs.contains(sig)
     if covctx.enabled &&
       !r1.timed_out &&
@@ -2151,7 +2170,14 @@ async fn worker(
     if cfg.fmt_check && cfg.mode == "mbt" && k1 == "OK" {
       let moonfmt = join(@corpus.dirname(moonc), "moonfmt")
       let fout = "fmt_" + fname
-      let fr = @exec.run(moonfmt, [fname, "-o", fout], wd, cfg.t1_timeout)
+      let fr = @exec.run_isolated(
+        moonfmt,
+        [fname, "-o", fout],
+        wd,
+        cfg.t1_timeout,
+        max_output_bytes=65536,
+        mem_mb=1024,
+      )
       if fr.timed_out {
         let sig = @corpus.short_hash("fmt-hang|" + @corpus.short_hash(src))
         force_persist_source(cfg, pb, src)
@@ -2169,7 +2195,14 @@ async fn worker(
         s.crashes += 1
       } else if fr.rc == 0 {
         let fout2 = "fmt2_" + fname
-        let fr2 = @exec.run(moonfmt, [fout, "-o", fout2], wd, cfg.t1_timeout)
+        let fr2 = @exec.run_isolated(
+          moonfmt,
+          [fout, "-o", fout2],
+          wd,
+          cfg.t1_timeout,
+          max_output_bytes=65536,
+          mem_mb=1024,
+        )
         if fr2.rc != 0 {
           let d2 = @exec.ice_detail(fr2)
           let sig = @corpus.short_hash(
@@ -2304,7 +2337,9 @@ async fn worker(
       )
       s.t2 += 1
       prog.t2 += 1
-      s.t2_inputs.set(src_hash, ())
+      if stats_admit(cfg, s.t2_inputs) {
+        s.t2_inputs.set(src_hash, ())
+      }
       if r2.timed_out {
         s.timeouts += 1
       }
@@ -2329,8 +2364,12 @@ async fn worker(
         continue
       }
       let sig2 = behavior_sig("t2", r2)
-      s.sigs.set(sig2, ())
-      s.diag_families.set(behavior_family("t2", r2), ())
+      if stats_admit(cfg, s.sigs) {
+        s.sigs.set(sig2, ())
+      }
+      if stats_admit(cfg, s.diag_families) {
+        s.diag_families.set(behavior_family("t2", r2), ())
+      }
       let novel2 = !local_t2_sigs.contains(sig2)
       if novel2 {
         local_t2_sigs.set(sig2, ())
@@ -2357,7 +2396,17 @@ async fn worker(
         if @fs.path_exists(core) {
           let snap_dir = join(cfg.out, "trace_cores")
           @corpus.ensure_dir(snap_dir)
-          let core_path = join(snap_dir, @corpus.sha1_hex(src) + ".core")
+          // Unique per submission: two workers holding the same source used to
+          // compute the same path, so a refused duplicate deleted the snapshot
+          // a queued task still referenced.  worker id + clock makes the file
+          // owned by exactly one task, which is what trace_cleanup_core assumes.
+          let core_path = join(
+            snap_dir,
+            @corpus.sha1_hex(
+              src + "|" + id.to_string() + "|" + @env.now().to_string(),
+            ) +
+            ".core",
+          )
           let bytes = @fs.read_file_to_bytes(core) catch { _ => Bytes::new(0) }
           if bytes.length() > 0 {
             @fs.write_bytes_to_file(core_path, bytes) catch {
@@ -2387,7 +2436,9 @@ async fn worker(
       if k2 == "OK" && rng.chance(cfg.p_run) {
         s.diff_attempts += 1
         prog.diff_attempts += 1
-        s.diff_inputs.set(src_hash, ())
+        if stats_admit(cfg, s.diff_inputs) {
+          s.diff_inputs.set(src_hash, ())
+        }
         let d = if cfg.native_diff {
           @oracle.diff_native(
             moonc,
@@ -2458,7 +2509,9 @@ async fn worker(
         }
       }
     }
-    s.sigs.set(sig, ())
+    if stats_admit(cfg, s.sigs) {
+      s.sigs.set(sig, ())
+    }
     if novel {
       local_sigs.set(sig, ())
       // Only inputs that produced a new compiler behaviour enter the dynamic
@@ -2522,7 +2575,7 @@ async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
       ",\"trace_dropped\":" +
       prog.trace_dropped.to_string() +
       "}"
-    @corpus.append_line(join(out, "stats.jsonl"), line)
+    @exec.append_line(join(out, "stats.jsonl"), line)
     println("[mb-fuzz progress] \{line}")
   }
   stats_new()
@@ -2602,6 +2655,7 @@ async fn main {
     parent_cap: PARENT_CAP_DEFAULT,
     persist_cap: PERSIST_CAP_DEFAULT,
     coverage_cap: 4000,
+    stats_cap: 100000,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2685,8 +2739,12 @@ async fn main {
       i += 2
     } else if a == "--persist-cap" && i + 1 < args.length() {
       cfg.persist_cap = parse_int(args[i + 1], cfg.persist_cap)
+      i += 2
     } else if a == "--coverage-cap" && i + 1 < args.length() {
       cfg.coverage_cap = parse_int(args[i + 1], cfg.coverage_cap)
+      i += 2
+    } else if a == "--stats-cap" && i + 1 < args.length() {
+      cfg.stats_cap = parse_int(args[i + 1], cfg.stats_cap)
       i += 2
     } else {
       main_usage()
@@ -2710,6 +2768,9 @@ async fn main {
   }
   if cfg.coverage_cap < 0 {
     cfg.coverage_cap = 0
+  }
+  if cfg.stats_cap < 0 {
+    cfg.stats_cap = 0
   }
   let out = join(cfg.out, run_id)
   cfg.out = out
@@ -2872,6 +2933,8 @@ async fn main {
     cfg.persist_cap.to_string() +
     ",\"coverage_cap\":" +
     cfg.coverage_cap.to_string() +
+    ",\"stats_cap\":" +
+    cfg.stats_cap.to_string() +
     ",\"config_hash\":\"" +
     @corpus.json_escape(config_hash) +
     "\",\"coverage\":" +

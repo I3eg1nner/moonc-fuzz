@@ -270,7 +270,14 @@ async fn worker(
     } else {
       ["syncheck", "-error-format", "json", fname]
     }
-    let r = @exec.run(moonc, args, wd, cfg.timeout_ms)
+    let r = @exec.run_isolated(
+      moonc,
+      args,
+      wd,
+      cfg.timeout_ms,
+      max_output_bytes=65536,
+      mem_mb=2048,
+    )
     let kind = @exec.classify(r)
     if r.timed_out {
       s.timeouts += 1

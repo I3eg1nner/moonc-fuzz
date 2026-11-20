@@ -458,7 +458,7 @@ async fn main {
     println("[asyncfuzz] ERROR: matrix has no F8 control")
     return
   }
-  @corpus.append_line(results_path, outcome_json(f8))
+  @exec.append_line(results_path, outcome_json(f8))
   println(
     "[asyncfuzz] F8 control -> " +
     f8.status +
@@ -534,7 +534,7 @@ async fn main {
       " sig=" +
       outcome.sig,
     )
-    @corpus.append_line(results_path, outcome_json(outcome))
+    @exec.append_line(results_path, outcome_json(outcome))
     if !cfg.keep &&
       (
         outcome.status == "ok" ||

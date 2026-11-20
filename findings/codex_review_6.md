@@ -83,6 +83,18 @@ campaign、PoC 或长跑（本文件之后的工作会跑，见 `findings/p0_clo
 | P0-2 覆盖证据不丢 | 覆盖 witness 独立预算；feature sidecar 与边 key 可恢复；crash 落盘后回灌父本；`--seed-dir` 能重放各 mode；淘汰保护最后 feature owner |
 | P0-3 总资源硬边界 | 统一 runner；stdout/stderr 流式 cap；QEMU 日志写盘上限；stats 真 append；T3 snapshot 路径唯一化 |
 
+## 评审漏掉的一个真实缺陷（本次实施中发现）
+
+`cmd/fuzz` 的参数解析里，`--persist-cap` 分支缺少 `i += 2`：传入
+`--persist-cap N` 后 `i` 不前进，循环永远停在同一参数上。表现为进程
+100% CPU、RSS 个位数 MB、无子进程、无任何输出目录——看起来像"卡死"，
+实际是纯自旋。评审给了 `P0-3`（资源边界）和 `--persist-cap` 的讨论，但
+没有发现这个分支本身不可用。
+
+已在 P0-3 修复，并顺带用脚本审计了其余所有 `i + 1 < args.length()`
+分支（没有第二处）。这类缺陷无法靠"读文档"发现，只能靠实际用每个参数
+跑一次——也是 30 分钟 soak 的第一项收益。
+
 ## 评审未覆盖、但我们认为同样重要的点
 
 - `harness/all_pkgs.json` 的绝对路径重写是上一轮才修的；评审基于 HEAD 没有

@@ -116,6 +116,7 @@ fn trace_test_cfg() -> Config {
     parent_cap: 20000,
     persist_cap: 2000,
     coverage_cap: 4000,
+    stats_cap: 100000,
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
@@ -955,4 +956,29 @@ test "if every parent owns a unique feature the eviction is forced and counted" 
   let _ = feedback_upsert(f, "c", @cov.FuncSet::new(["C"]), 1, 0)
   assert_eq(f.entries.length(), 2)
   assert_eq(f.protected_forced, 1)
+}
+
+///|
+/// The finding metadata is JSON consumed by `cmd/verify` and by humans.  A
+/// status field that leaves an extra quote makes every saved witness
+/// unparseable, which is exactly the kind of bug a string-building writer
+/// produces.
+test "finding metadata is valid JSON and marked candidate" {
+  let r : @exec.RunResult = {
+    rc: -6,
+    stdout: "",
+    stderr: "Fatal error: out of memory\n",
+    ms: 5600L,
+    timed_out: false,
+    stdout_digest: "",
+    stdout_full_len: 0L,
+    stdout_truncated: false,
+  }
+  let m = meta_json("t1", "OOM", "", r, "abc", 1)
+  assert_true(m.contains("\"status\":\"candidate\""))
+  assert_false(
+    m.has_prefix(
+      "{\"stage\":\"t1\",\"kind\":\"OOM\",\"detail\":\"\",\"signature\":\"abc\",\"status\":\"candidate\"\"",
+    ),
+  )
 }

@@ -387,6 +387,16 @@ moon test --target native
   父本选择开销因此不再随 campaign 时长线性增长，代价是保留的父本和证据
   变成有界样本；被淘汰的输入仍会被执行和计数，只是不再保留。细节、
   counter 和逐项文件审计见 `findings/campaign_caps.md`。
+- 差分判定：`semdiff` 每个目标五态（BUILD_FAIL/LINK_FAIL/TIMEOUT/RUN_FAIL/
+  COMPLETE），只有**全部请求目标** COMPLETE 且 rc=0 才 `ALL_EQUAL`；同 timeout、
+  同 signal、同 ICE 一律 `INCONCLUSIVE`，空 case 集非零退出。反例表由
+  `semdiff --self-test` 与门禁 `semdiff_selfcheck` 覆盖。
+- 证据状态：campaign 保存的 finding 一律 `status=candidate`，
+  `confirmed_witnesses` 只由 `cmd/verify` 产生；`cmd/minimize` 只在最终复验
+  通过时写 `--out`，否则写 `<out>.rejected`。
+- 资源边界：QEMU 日志用 `prlimit --fsize` 在写盘时封顶（超限即 SIGXFSZ，
+  分类为 `trace_log_capped`），覆盖证据有独立的 `--coverage-cap`，stats 用
+  O_APPEND；`--as` 仍是逐进程上限，campaign 总量需要外层容器/cgroup。
 - 采集器返回非零时，只有带编译器诊断的退出才算正常拒绝。wrapper 保留的
   124–127 优先判为 `collector_failed`，即使命令已写出 OOM 文本；moonc 的
   199 ICE 仍保留为 `compiler_abort`。无诊断退出和信号也单独分类，失败记录

@@ -135,18 +135,30 @@ pub async fn run_isolated(
   timeout_ms : Int32,
   max_output_bytes~ : Int32 = 0,
   mem_mb~ : Int32 = 0,
+  fsize_mb~ : Int32 = 0,
 ) -> RunResult {
   let secs = ((timeout_ms + 999) / 1000).to_string() + "s"
   let targs : Array[String] = ["-v", "-k", "1s", secs, cmd]
   for a in args {
     targs.push(a)
   }
-  let (outer, oargs) = if mem_mb > 0 {
-    let bytes = mem_mb.to_int64() * 1048576L
-    (
-      "/usr/bin/prlimit",
-      ["--as=" + bytes.to_string(), "--", "/usr/bin/timeout"] + targs,
-    )
+  let limits : Array[String] = []
+  if mem_mb > 0 {
+    limits.push("--as=" + (mem_mb.to_int64() * 1048576L).to_string())
+  }
+  // A file-size limit is a hard write cap for a child whose only output is one
+  // file (the QEMU trace log).  It must not be used for compilers, which write
+  // legitimate build artefacts.
+  if fsize_mb > 0 {
+    limits.push("--fsize=" + (fsize_mb.to_int64() * 1048576L).to_string())
+  }
+  let (outer, oargs) = if limits.length() > 0 {
+    limits.push("--")
+    limits.push("/usr/bin/timeout")
+    for a in targs {
+      limits.push(a)
+    }
+    ("/usr/bin/prlimit", limits)
   } else {
     ("/usr/bin/timeout", targs)
   }
@@ -264,4 +276,18 @@ pub fn ice_detail(r : RunResult) -> String {
     }
   }
   ""
+}
+
+///|
+/// Append one line with O_APPEND through the shell.  `x/fs` exposes no append
+/// handle, and read-then-rewrite made every stats tick and every failure log
+/// O(file size).  The payload travels as a positional argument, so nothing is
+/// shell-quoted or interpolated.
+pub async fn append_line(path : String, line : String) -> Unit {
+  let _ = run(
+    "/bin/sh",
+    ["-c", "printf '%s\\n' \"$1\" >> \"$2\"", "sh", line, path],
+    "/tmp",
+    5000,
+  )
 }

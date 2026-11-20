@@ -248,9 +248,23 @@ pub async fn collect(
   for a in args {
     qargs.push(a)
   }
-  let r = @exec.run_isolated(qemu, qargs, cwd, timeout_ms, mem_mb=4096)
+  // The trace log is the only file QEMU writes, so a file-size limit is a
+  // hard disk cap here (unlike for compilers, which write real artefacts).
+  let cap_mb = ((max_trace_bytes + 1048575L) / 1048576L).to_int()
+  let r = @exec.run_isolated(
+    qemu,
+    qargs,
+    cwd,
+    timeout_ms,
+    mem_mb=4096,
+    fsize_mb=if cap_mb < 1 { 1 } else { cap_mb },
+  )
   let pre_size = log_size(trace_path)
-  let trace = if pre_size > max_trace_bytes {
+  // At the cap the log is either truncated by RLIMIT_FSIZE (qemu killed with
+  // SIGXFSZ) or simply too large to parse; do not read it into memory either
+  // way, and classify it as a collector failure rather than a compiler result.
+  let log_capped = max_trace_bytes > 0L && pre_size >= max_trace_bytes
+  let trace = if log_capped || pre_size <= 0L {
     ""
   } else {
     @fs.read_file_to_string(trace_path) catch {
@@ -268,7 +282,11 @@ pub async fn collect(
   let (functions, unique_pc, mapped_unique_pc, edges, mapped_edges, edge_keys) = coverage_fields(
     trace, sym,
   )
-  let (outcome, failure) = classify_collection(r, trace_bytes, max_trace_bytes)
+  let (outcome, failure) = if log_capped || r.rc == -25 {
+    (CollectorFailed, "trace_log_capped")
+  } else {
+    classify_collection(r, trace_bytes, max_trace_bytes)
+  }
   let complete = outcome != CollectorFailed
   let detail = if complete {
     @exec.ice_detail(r)

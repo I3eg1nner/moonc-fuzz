@@ -180,11 +180,13 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
   // Build first, so a compile/link failure is never mistaken for a run.  A
   // single `moon run` conflates the two and leaves `timed_out` invisible,
   // which is exactly how two hangs used to compare equal.
-  let b = @exec.run(
+  let b = @exec.run_isolated(
     @stager.moon_path(),
     ["build", "--target", target],
     dir,
     timeout_ms,
+    max_output_bytes=65536,
+    mem_mb=2048,
   )
   let elapsed = fn() {
     if @env.now() > start {
@@ -217,11 +219,13 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
       ms: elapsed(),
     }
   }
-  let r = @exec.run(
+  let r = @exec.run_isolated(
     @stager.moon_path(),
     ["run", "main.mbt", "--target", target],
     dir,
     timeout_ms,
+    max_output_bytes=65536,
+    mem_mb=2048,
   )
   let status = if r.timed_out {
     ST_TIMEOUT
