@@ -1,0 +1,15 @@
+// Deep-funnel driver: type-valid IR programs through dedicated T2/T3 queues.
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/ir",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

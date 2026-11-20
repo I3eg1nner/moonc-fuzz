@@ -394,6 +394,33 @@ async fn main {
   let sc_ok = sc.rc == 0 && sc.stdout.contains("\"ok\":true")
   results.push(check("semdiff_selfcheck", sc_ok, sc.stdout.trim().to_owned()))
 
+  // 2g3. Deep funnel.  Type-valid IR programs go through a dedicated T2 queue
+  // and then a T3 run whose output must equal the reference interpreter's.  A
+  // pipeline that builds but never produces checked output fails here; the
+  // 30-minute measurement is in findings/deep_funnel.md.
+  let df = @exec.run(
+    join(bin, "cmd/deepfuzz/deepfuzz.exe"),
+    [
+      "--out",
+      "/tmp/mbtfuzz_accept_deep_" + tag,
+      "--duration",
+      "120",
+      "--cases",
+      "12",
+      "--size",
+      "10",
+      "--batch",
+      "12",
+    ],
+    root,
+    240000,
+  )
+  let df_ok = df.rc == 0 &&
+    df.stdout.contains("\"t2_ok\":12") &&
+    df.stdout.contains("\"t3_matched\":12") &&
+    df.stdout.contains("\"t3_mismatch\":0")
+  results.push(check("deep_funnel", df_ok, df.stdout.trim().to_owned()))
+
   // 3. Trace gates: exact JSON on a frozen trace, then real end-to-end QEMU
   // parity against a Python-golden function set.  These two need host tools
   // (`afl-qemu-trace`, a `moonc` symbol table) and are the only gates skipped
