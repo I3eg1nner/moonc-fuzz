@@ -14,7 +14,10 @@ fn obs(t : String, status : String, rc : Int32, out : String) -> Obs {
 /// to look identical because neither produced output.
 test "compare: two timeouts are not agreement" {
   assert_eq(
-    compare([obs("wasm-gc", ST_TIMEOUT, -999, ""), obs("native", ST_TIMEOUT, -999, "")]),
+    compare([
+      obs("wasm-gc", ST_TIMEOUT, -999, ""),
+      obs("native", ST_TIMEOUT, -999, ""),
+    ]),
     "INCONCLUSIVE",
   )
 }
@@ -22,15 +25,24 @@ test "compare: two timeouts are not agreement" {
 ///|
 test "compare: identical crashes are not agreement" {
   assert_eq(
-    compare([obs("wasm-gc", ST_RUN_FAIL, -11, ""), obs("native", ST_RUN_FAIL, -11, "")]),
+    compare([
+      obs("wasm-gc", ST_RUN_FAIL, -11, ""),
+      obs("native", ST_RUN_FAIL, -11, ""),
+    ]),
     "INCONCLUSIVE",
   )
   assert_eq(
-    compare([obs("wasm-gc", ST_BUILD_FAIL, 1, ""), obs("native", ST_BUILD_FAIL, 1, "")]),
+    compare([
+      obs("wasm-gc", ST_BUILD_FAIL, 1, ""),
+      obs("native", ST_BUILD_FAIL, 1, ""),
+    ]),
     "INCONCLUSIVE",
   )
   assert_eq(
-    compare([obs("wasm-gc", ST_LINK_FAIL, 1, ""), obs("native", ST_LINK_FAIL, 1, "")]),
+    compare([
+      obs("wasm-gc", ST_LINK_FAIL, 1, ""),
+      obs("native", ST_LINK_FAIL, 1, ""),
+    ]),
     "INCONCLUSIVE",
   )
 }
@@ -38,23 +50,29 @@ test "compare: identical crashes are not agreement" {
 ///|
 test "compare: one failed target voids the case" {
   assert_eq(
-    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n"), obs("native", ST_BUILD_FAIL, 1, "")]),
+    compare([
+      obs("wasm-gc", ST_COMPLETE, 0, "a\n"),
+      obs("native", ST_BUILD_FAIL, 1, ""),
+    ]),
     "INCONCLUSIVE",
   )
-  assert_eq(
-    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n")]),
-    "ALL_EQUAL",
-  )
+  assert_eq(compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n")]), "ALL_EQUAL")
 }
 
 ///|
 test "compare: only all-complete equal output is ALL_EQUAL" {
   assert_eq(
-    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n"), obs("native", ST_COMPLETE, 0, "a\n")]),
+    compare([
+      obs("wasm-gc", ST_COMPLETE, 0, "a\n"),
+      obs("native", ST_COMPLETE, 0, "a\n"),
+    ]),
     "ALL_EQUAL",
   )
   assert_eq(
-    compare([obs("wasm-gc", ST_COMPLETE, 0, "a\n"), obs("native", ST_COMPLETE, 0, "b\n")]),
+    compare([
+      obs("wasm-gc", ST_COMPLETE, 0, "a\n"),
+      obs("native", ST_COMPLETE, 0, "b\n"),
+    ]),
     "MISMATCH",
   )
   assert_eq(

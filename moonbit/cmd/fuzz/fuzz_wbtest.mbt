@@ -115,6 +115,7 @@ fn trace_test_cfg() -> Config {
     edge_cap: 1000,
     parent_cap: 20000,
     persist_cap: 2000,
+    coverage_cap: 4000,
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
@@ -438,7 +439,7 @@ test "coverage evidence is keyed by stage and behavior cannot erase it" {
     f,
     q,
   )
-  let pb = persist_budget_new(1000)
+  let pb = persist_budget_new(1000, 1000)
   persist_behavior(cfg, pb, src, "behavior")
   assert_eq(cov.evidence.length(), 2)
   let corpus = join(cfg.out, "corpus")
@@ -552,7 +553,7 @@ test "coverage sidecar persists exact TB counters" {
   }
   // 7 > 5 and 9 > 3 on purpose: the sidecar must keep both the mapped and the
   // total numbers instead of collapsing them into one.
-  let pb = persist_budget_new(1000)
+  let pb = persist_budget_new(1000, 1000)
   persist_coverage(cfg, pb, task, tr, ["camlMoonc__A", "camlMoonc__B"], true)
   let dir = join(
     join(join(join(cfg.out, "corpus"), "coverage"), "t2"),
@@ -825,7 +826,7 @@ test "evidence cap skips non-candidates but never candidates" {
   let cfg = trace_test_cfg()
   cfg.out = "/tmp/mbtfuzz_caps_persist_wbtest"
   rm_rf(cfg.out)
-  let pb = persist_budget_new(2)
+  let pb = persist_budget_new(2, 2)
   persist_behavior(cfg, pb, "alpha", "behavior")
   persist_behavior(cfg, pb, "beta", "behavior")
   assert_eq(pb.written, 2)
@@ -861,12 +862,15 @@ test "evidence cap skips non-candidates but never candidates" {
 }
 
 ///|
-test "coverage sidecars stop at the budget but evidence keeps counting" {
+test "coverage witnesses have their own budget" {
   let cfg = trace_test_cfg()
   cfg.out = "/tmp/mbtfuzz_caps_covcap_wbtest"
   rm_rf(cfg.out)
   let cov = trace_universe_new()
-  cov.persist.cap = 1
+  // The behaviour budget is irrelevant to coverage: setting it to zero must
+  // not stop coverage evidence from being written.
+  cov.persist.cap = 0
+  cov.persist.coverage_cap = 1
   let pb = cov.persist
   let f = feedback_new()
   let q = trace_queue_new()
@@ -880,9 +884,8 @@ test "coverage sidecars stop at the budget but evidence keeps counting" {
   }
   trace_apply(cfg, trace_test_task("first"), tr1, cov, f, q)
   trace_apply(cfg, trace_test_task("second"), tr2, cov, f, q)
-  assert_eq(pb.written, 1)
-  assert_eq(pb.skipped, 1)
-  assert_true(pb.saturated)
+  assert_eq(pb.coverage_written, 1)
+  assert_eq(pb.coverage_skipped, 1)
   // Both traces are still counted in memory; only the second sidecar is gone.
   assert_eq(cov.evidence.length(), 2)
   let dir = join(
@@ -892,4 +895,64 @@ test "coverage sidecars stop at the budget but evidence keeps counting" {
   let suffix = "_" + @corpus.sha1_hex(tr1.config_hash) + ".json"
   assert_true(@fs.path_exists(join(dir, tr1.input_hash + suffix)))
   assert_false(@fs.path_exists(join(dir, tr2.input_hash + suffix)))
+}
+
+///|
+test "corpus file names follow the mode" {
+  assert_eq(corpus_file_name("h", "mbt"), "h.mbt")
+  assert_eq(corpus_file_name("h", "pkg"), "h.moon.pkg")
+  assert_eq(corpus_file_name("h", "mod"), "h.moon.mod")
+  assert_eq(corpus_file_name("h", "mbtmd"), "h.mbt.md")
+  assert_eq(corpus_file_name("h", "mbti"), "h.mbti")
+  assert_eq(corpus_file_name("h", "mbtx"), "h.mbtx")
+}
+
+///|
+/// A restart with `--seed-dir` uses the same suffix table as the mode loader;
+/// the names above must therefore be loadable by it.
+test "a persisted pkg witness is loadable by the pkg suffix" {
+  let dir = "/tmp/mbtfuzz_wbtest_seeddir"
+  rm_rf(dir)
+  @corpus.ensure_dir(dir)
+  let _ = @stager.write_text(
+    join(dir, corpus_file_name("abc", "pkg")),
+    "pkgtype(kind: \"executable\")\n",
+  )
+  let got = @corpus.load_texts([dir], ["moon.pkg"], 4096, 10)
+  assert_eq(got.length(), 1)
+}
+
+///|
+test "eviction never drops the last owner of a feature" {
+  let f = feedback_new()
+  f.cap = 2
+  let _ = feedback_upsert(f, "one", @cov.FuncSet::new(["A", "B"]), 2, 0)
+  let _ = feedback_upsert(f, "two", @cov.FuncSet::new(["B"]), 0, 0)
+  // "one" owns A uniquely, "two" owns only B which "one" also owns.
+  let _ = feedback_upsert(f, "three", @cov.FuncSet::new(["C"]), 1, 0)
+  assert_eq(f.entries.length(), 2)
+  let mut kept_one = false
+  let mut kept_three = false
+  for e in f.entries {
+    if e.src == "one" {
+      kept_one = true
+    }
+    if e.src == "three" {
+      kept_three = true
+    }
+  }
+  assert_true(kept_one)
+  assert_true(kept_three)
+  assert_eq(f.protected_forced, 0)
+}
+
+///|
+test "if every parent owns a unique feature the eviction is forced and counted" {
+  let f = feedback_new()
+  f.cap = 2
+  let _ = feedback_upsert(f, "a", @cov.FuncSet::new(["A"]), 1, 0)
+  let _ = feedback_upsert(f, "b", @cov.FuncSet::new(["B"]), 1, 0)
+  let _ = feedback_upsert(f, "c", @cov.FuncSet::new(["C"]), 1, 0)
+  assert_eq(f.entries.length(), 2)
+  assert_eq(f.protected_forced, 1)
 }

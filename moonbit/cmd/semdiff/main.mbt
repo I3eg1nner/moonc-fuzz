@@ -206,7 +206,11 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
   if b.rc != 0 {
     return {
       target,
-      status: if link_failure(b.stderr) { ST_LINK_FAIL } else { ST_BUILD_FAIL },
+      status: if link_failure(b.stderr) {
+        ST_LINK_FAIL
+      } else {
+        ST_BUILD_FAIL
+      },
       rc: b.rc,
       out: "",
       err: error_excerpt(b.stderr),
@@ -242,7 +246,7 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
 /// gate rather than silently restoring the false pass.
 fn self_test(verbose : Bool) -> Bool {
   let mk = fn(target : String, status : String, rc : Int32, out : String) {
-    { target, status, rc, out, err: "", ms: 0L }
+    { target, status, rc, out, err: "", ms: 0L, }
   }
   let checks : Array[(String, Array[Obs], String)] = [
     (
@@ -301,7 +305,8 @@ fn self_test(verbose : Bool) -> Bool {
     }
   }
   // link_failure must separate the two failure classes.
-  if !link_failure("Error: failed to link foo") || link_failure("Error: [4021] Value x not found") {
+  if !link_failure("Error: failed to link foo") ||
+    link_failure("Error: [4021] Value x not found") {
     println("self-test failed: link_failure classification")
     ok = false
   }
@@ -463,8 +468,11 @@ async fn main {
       b.to_string()
     },
   )
-  let proven = total > 0 && all_equal == total && mismatches == 0 &&
-    inconclusive == 0 && skipped == 0
+  let proven = total > 0 &&
+    all_equal == total &&
+    mismatches == 0 &&
+    inconclusive == 0 &&
+    skipped == 0
   let summary = "{\"ok\":" +
     (if proven { "true" } else { "false" }) +
     ",\"cases\":" +

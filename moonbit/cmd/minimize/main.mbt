@@ -1,4 +1,5 @@
 ///|
+
 ///|
 /// Where a reduction may be published.  Empty means "do not publish": the
 /// final verification did not match the baseline, so `--out` must stay

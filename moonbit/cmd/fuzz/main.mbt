@@ -86,6 +86,10 @@ struct Config {
   mut edge_cap : Int32
   mut parent_cap : Int32
   mut persist_cap : Int32
+  /// Independent budget for coverage witnesses.  Sharing the behaviour budget
+  /// meant that a full behaviour corpus silently stopped writing new coverage
+  /// evidence (P0-2).
+  mut coverage_cap : Int32
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -240,6 +244,12 @@ struct Feedback {
   index : Map[String, Int32]
   mut seen : Int32
   mut evicted : Int32
+  /// Number of evictions that had to take a parent owning a unique feature,
+  /// because every retained parent owned at least one.
+  mut protected_forced : Int32
+  /// How many retained parents own each feature.  Updated incrementally so
+  /// eviction can protect the last owner without a full rescan.
+  feature_owners : Map[String, Int32]
   mut next_seq : Int64
   tombstones : Map[String, Unit]
   tomb_ring : Array[String]
@@ -254,6 +264,8 @@ fn feedback_new() -> Feedback {
     index: Map([]),
     seen: 0,
     evicted: 0,
+    protected_forced: 0,
+    feature_owners: Map([]),
     next_seq: 0L,
     tombstones: Map([]),
     tomb_ring: [],
@@ -290,6 +302,35 @@ fn feedback_tombstone(f : Feedback, h : String) -> Unit {
 /// to an already-retained parent return false.  Admission is capped (see
 /// `Feedback`); a refused or evicted input is still executed and still counts
 /// toward coverage, it just is not retained as a parent.
+fn owner_add(m : Map[String, Int32], key : String) -> Unit {
+  let n = match m.get(key) {
+    Some(v) => v
+    None => 0
+  }
+  m.set(key, n + 1)
+}
+
+///|
+fn owner_sub(m : Map[String, Int32], key : String) -> Unit {
+  match m.get(key) {
+    Some(v) => if v <= 1 { m.remove(key) } else { m.set(key, v - 1) }
+    None => ()
+  }
+}
+
+///|
+/// True when evicting this parent would drop the last copy of some feature.
+fn owns_unique(f : Feedback, e : Parent) -> Bool {
+  for k in e.cov.sorted() {
+    match f.feature_owners.get(k) {
+      Some(1) => return true
+      _ => ()
+    }
+  }
+  false
+}
+
+///|
 fn feedback_upsert(
   f : Feedback,
   src : String,
@@ -309,6 +350,9 @@ fn feedback_upsert(
   match f.index.get(h) {
     Some(i) => {
       let e = f.entries[i]
+      for k in cov.difference(e.cov).sorted() {
+        owner_add(f.feature_owners, k)
+      }
       e.cov = e.cov.union(cov)
       if e.energy < 64 {
         e.energy = e.energy + bonus
@@ -323,23 +367,49 @@ fn feedback_upsert(
       if f.entries.length() < f.cap {
         let i = f.entries.length()
         f.index.set(h, i)
+        for k in cov.sorted() {
+          owner_add(f.feature_owners, k)
+        }
         f.entries.push({ src, hash: h, cov, energy: bonus, seq: f.next_seq, })
         f.next_seq = f.next_seq + 1L
         f.seen += 1
         return true
       }
-      // Full: find the lowest-energy parent, oldest first on a tie.
-      let mut victim = 0
-      let mut j = 1
+      // Full: lowest-energy, oldest-first-on-tie, but never the last owner of
+      // a feature unless every entry owns one (then the count is reported).
+      let mut victim = -1
+      let mut j = 0
       while j < f.entries.length() {
         let e = f.entries[j]
-        let v = f.entries[victim]
-        if e.energy < v.energy || (e.energy == v.energy && e.seq < v.seq) {
-          victim = j
+        if !owns_unique(f, e) {
+          if victim < 0 {
+            victim = j
+          } else {
+            let v = f.entries[victim]
+            if e.energy < v.energy || (e.energy == v.energy && e.seq < v.seq) {
+              victim = j
+            }
+          }
         }
         j += 1
       }
+      if victim < 0 {
+        victim = 0
+        let mut k = 1
+        while k < f.entries.length() {
+          let e = f.entries[k]
+          let v = f.entries[victim]
+          if e.energy < v.energy || (e.energy == v.energy && e.seq < v.seq) {
+            victim = k
+          }
+          k += 1
+        }
+        f.protected_forced += 1
+      }
       let old = f.entries[victim]
+      for k in old.cov.sorted() {
+        owner_sub(f.feature_owners, k)
+      }
       f.index.remove(old.hash)
       feedback_tombstone(f, old.hash)
       f.entries[victim] = { src, hash: h, cov, energy: bonus, seq: f.next_seq, }
@@ -781,7 +851,7 @@ fn trace_universe_new() -> TraceUniverse {
     edge_cap: EDGE_CAP_DEFAULT,
     edge_saturated: false,
     new_edges: 0,
-    persist: persist_budget_new(PERSIST_CAP_DEFAULT),
+    persist: persist_budget_new(PERSIST_CAP_DEFAULT, 4000),
   }
 }
 
@@ -1106,6 +1176,7 @@ fn meta_json(
 ///|
 /// Crash evidence is a candidate and is never budget-gated: the input is
 /// force-copied into the corpus, then the finding directory is written.
+
 ///|
 /// Defect classification goes through the shared oracle layer (`@judge`), not
 /// only the legacy marker matcher.  The legacy name is still returned for the
@@ -1167,10 +1238,16 @@ struct PersistBudget {
   mut forced : Int32
   mut skipped : Int32
   mut saturated : Bool
+  /// Coverage witnesses have their own budget and their own hash set, so a
+  /// full behaviour corpus can no longer starve coverage evidence.
+  mut coverage_cap : Int32
+  covered : Map[String, Unit]
+  mut coverage_written : Int32
+  mut coverage_skipped : Int32
 }
 
 ///|
-fn persist_budget_new(cap : Int32) -> PersistBudget {
+fn persist_budget_new(cap : Int32, coverage_cap : Int32) -> PersistBudget {
   {
     cap,
     sources: Map([]),
@@ -1178,6 +1255,10 @@ fn persist_budget_new(cap : Int32) -> PersistBudget {
     forced: 0,
     skipped: 0,
     saturated: false,
+    coverage_cap,
+    covered: Map([]),
+    coverage_written: 0,
+    coverage_skipped: 0,
   }
 }
 
@@ -1196,6 +1277,29 @@ fn persist_budget_full(pb : PersistBudget) -> Bool {
 /// non-candidate write was skipped because the budget is full.  Re-persisting
 /// an already-written input rewrites the same path and does not consume the
 /// budget a second time.
+
+///|
+/// Canonical on-disk name for one stored input.  The extension follows the
+/// mode so `--seed-dir` replay loads what the campaign wrote; every mode used
+/// to be stored as `.mbt`, which made pkg/mod/mbtmd restarts silently load
+/// nothing.
+fn corpus_file_name(h : String, mode : String) -> String {
+  if mode == "pkg" {
+    h + ".moon.pkg"
+  } else if mode == "mod" {
+    h + ".moon.mod"
+  } else if mode == "mbtmd" {
+    h + ".mbt.md"
+  } else if mode == "mbti" {
+    h + ".mbti"
+  } else if mode == "mbtx" {
+    h + ".mbtx"
+  } else {
+    h + ".mbt"
+  }
+}
+
+///|
 fn persist_admit(
   cfg : Config,
   pb : PersistBudget,
@@ -1203,7 +1307,7 @@ fn persist_admit(
   force : Bool,
 ) -> String? {
   let h = @corpus.sha1_hex(src)
-  let path = join(join(cfg.out, "corpus"), h + ".mbt")
+  let path = join(join(cfg.out, "corpus"), corpus_file_name(h, cfg.mode))
   if pb.sources.contains(h) {
     ignore(write(path, src))
     return Some(h)
@@ -1221,6 +1325,33 @@ fn persist_admit(
   if force {
     pb.forced += 1
   }
+  Some(h)
+}
+
+///|
+/// Coverage witnesses have a separate budget.  Returning `None` here only
+/// stops the sidecar from being written; the trace still ran and still updated
+/// the in-memory universe, and `coverage_skipped` says so.
+fn persist_admit_coverage(
+  cfg : Config,
+  pb : PersistBudget,
+  src : String,
+) -> String? {
+  let h = @corpus.sha1_hex(src)
+  let path = join(join(cfg.out, "corpus"), corpus_file_name(h, cfg.mode))
+  if pb.covered.contains(h) {
+    ignore(write(path, src))
+    return Some(h)
+  }
+  if pb.coverage_written >= pb.coverage_cap {
+    pb.coverage_skipped += 1
+    return None
+  }
+  if !write(path, src) {
+    return None
+  }
+  pb.covered.set(h, ())
+  pb.coverage_written += 1
   Some(h)
 }
 
@@ -1287,7 +1418,7 @@ fn persist_coverage(
   funcs : Array[String],
   edge_novel : Bool,
 ) -> Unit {
-  let source_hash = match persist_admit(cfg, pb, task.src, false) {
+  let source_hash = match persist_admit_coverage(cfg, pb, task.src) {
     Some(h) => h
     None => return
   }
@@ -1301,6 +1432,14 @@ fn persist_coverage(
   // The full config hash contains separators; hash it for a stable filename
   // while keeping the complete value in the JSON body.
   let config_name = @corpus.sha1_hex(tr.config_hash)
+  // Persist a bounded prefix of the actual edge keys, not just their count, so
+  // a restart can rebuild feature ownership for this (input, config).
+  let capped_keys : Array[String] = []
+  let mut ki = 0
+  while ki < tr.edge_keys.length() && ki < 2048 {
+    capped_keys.push(tr.edge_keys[ki])
+    ki += 1
+  }
   let meta = "{\"input_hash\":\"" +
     tr.input_hash +
     "\",\"config_hash\":\"" +
@@ -1335,6 +1474,10 @@ fn persist_coverage(
     tr.mapped_edges.to_string() +
     ",\"trace_edge_keys\":" +
     tr.edge_keys.length().to_string() +
+    ",\"edge_keys\":" +
+    @trace.json_string_array(capped_keys) +
+    ",\"edge_keys_truncated\":" +
+    (if tr.edge_keys.length() > 2048 { "true" } else { "false" }) +
     ",\"edge_novel\":" +
     (if edge_novel { "true" } else { "false" }) +
     ",\"tb_counter_scope\":\"latest_trace\"" +
@@ -1995,6 +2138,10 @@ async fn worker(
       if save_crash(cfg, pb, "t1", r1, src, id) {
         s.witnesses += 1
         prog.witnesses += 1
+        // Re-feed the crashing input as a parent.  Saving the witness without
+        // feeding it back leaves the campaign mutating away from the only
+        // input known to reach the bug.
+        ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
       } else {
         s.finding_duplicates += 1
         prog.finding_duplicates += 1
@@ -2454,6 +2601,7 @@ async fn main {
     edge_cap: EDGE_CAP_DEFAULT,
     parent_cap: PARENT_CAP_DEFAULT,
     persist_cap: PERSIST_CAP_DEFAULT,
+    coverage_cap: 4000,
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2537,6 +2685,8 @@ async fn main {
       i += 2
     } else if a == "--persist-cap" && i + 1 < args.length() {
       cfg.persist_cap = parse_int(args[i + 1], cfg.persist_cap)
+    } else if a == "--coverage-cap" && i + 1 < args.length() {
+      cfg.coverage_cap = parse_int(args[i + 1], cfg.coverage_cap)
       i += 2
     } else {
       main_usage()
@@ -2557,6 +2707,9 @@ async fn main {
   }
   if cfg.persist_cap < 0 {
     cfg.persist_cap = 0
+  }
+  if cfg.coverage_cap < 0 {
+    cfg.coverage_cap = 0
   }
   let out = join(cfg.out, run_id)
   cfg.out = out
@@ -2635,6 +2788,7 @@ async fn main {
   cov.edge_cap = cfg.edge_cap
   // One campaign-wide evidence budget shared by workers and trace paths.
   cov.persist.cap = cfg.persist_cap
+  cov.persist.coverage_cap = cfg.coverage_cap
   let pb = cov.persist
   if cov_on && cfg.baseline_seeds > 0 {
     let n = if cfg.baseline_seeds < seeds.length() {
@@ -2716,6 +2870,8 @@ async fn main {
     cfg.parent_cap.to_string() +
     ",\"persist_cap\":" +
     cfg.persist_cap.to_string() +
+    ",\"coverage_cap\":" +
+    cfg.coverage_cap.to_string() +
     ",\"config_hash\":\"" +
     @corpus.json_escape(config_hash) +
     "\",\"coverage\":" +
@@ -2906,6 +3062,8 @@ async fn main {
     feed.seen.to_string() +
     ",\"parents_retained\":" +
     feed.entries.length().to_string() +
+    ",\"parents_protected_forced\":" +
+    feed.protected_forced.to_string() +
     ",\"parents_evicted\":" +
     feed.evicted.to_string() +
     ",\"persist_cap\":" +
@@ -2918,6 +3076,12 @@ async fn main {
     pb.forced.to_string() +
     ",\"persist_saturated\":" +
     (if pb.saturated { "true" } else { "false" }) +
+    ",\"coverage_cap\":" +
+    pb.coverage_cap.to_string() +
+    ",\"coverage_written\":" +
+    pb.coverage_written.to_string() +
+    ",\"coverage_skipped\":" +
+    pb.coverage_skipped.to_string() +
     ",\"trace_failures_logged\":" +
     q.failure_logged.to_string() +
     ",\"trace_failures_skipped\":" +
