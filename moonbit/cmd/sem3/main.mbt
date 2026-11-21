@@ -157,6 +157,18 @@ fn next_case(family : String, seed : UInt64) -> Case {
     gen_loop(seed)
   } else if family == "array_oob" {
     gen_oob(seed)
+  } else if family == "expr_i32" {
+    gen_expr(seed, 32)
+  } else if family == "expr_i64" {
+    gen_expr(seed, 64)
+  } else if family == "boundary_i32" {
+    gen_boundary(seed)
+  } else if family == "boundary_i64" {
+    gen_boundary64(seed)
+  } else if family == "array_alias" {
+    gen_alias(seed)
+  } else if family == "utf8_string" {
+    gen_utf8(seed)
   } else {
     gen_float(seed)
   }
@@ -186,7 +198,7 @@ async fn main {
   let duration = num_arg(args, "--duration", 300)
   let limit = num_arg(args, "--limit", 100000)
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
-  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "float_format"]
+  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "float_format"]
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
@@ -264,4 +276,212 @@ async fn main {
   b.write_string("}}")
   println(b.to_string())
   ignore(@stager.write_text(join(out, "summary.json"), b.to_string()))
+}
+
+///|
+#derive(Eq)
+enum TE {
+  C(Int64)
+  Add(TE, TE)
+  Sub(TE, TE)
+  Mul(TE, TE)
+  Div(TE, TE)
+  Mod(TE, TE)
+  BAnd(TE, TE)
+  BOr(TE, TE)
+  BXor(TE, TE)
+  Shl(TE, TE)
+  Shr(TE, TE)
+}
+
+///|
+fn te_wrap32(v : Int64) -> Int64 {
+  let x = v & 0xFFFFFFFFL
+  if x >= 0x80000000L { x - 0x100000000L } else { x }
+}
+
+///|
+fn te_eval(t : TE, bits : Int32) -> Int64 {
+  match t {
+    C(v) => if bits == 32 { te_wrap32(v) } else { v }
+    Add(a, b) => {
+      let v = te_eval(a, bits) + te_eval(b, bits)
+      if bits == 32 { te_wrap32(v) } else { v }
+    }
+    Sub(a, b) => {
+      let v = te_eval(a, bits) - te_eval(b, bits)
+      if bits == 32 { te_wrap32(v) } else { v }
+    }
+    Mul(a, b) => {
+      let v = te_eval(a, bits) * te_eval(b, bits)
+      if bits == 32 { te_wrap32(v) } else { v }
+    }
+    Div(a, b) => {
+      let d = te_eval(b, bits)
+      if d == 0L { 0L } else { te_eval(a, bits) / d }
+    }
+    Mod(a, b) => {
+      let d = te_eval(b, bits)
+      if d == 0L { 0L } else { te_eval(a, bits) % d }
+    }
+    BAnd(a, b) => te_eval(a, bits) & te_eval(b, bits)
+    BOr(a, b) => te_eval(a, bits) | te_eval(b, bits)
+    BXor(a, b) => te_eval(a, bits) ^ te_eval(b, bits)
+    Shl(a, b) => {
+      let sh = te_eval(b, bits) & (if bits == 32 { 31L } else { 63L })
+      let v = te_eval(a, bits) << sh.to_int()
+      if bits == 32 { te_wrap32(v) } else { v }
+    }
+    Shr(a, b) => {
+      let sh = te_eval(b, bits) & (if bits == 32 { 31L } else { 63L })
+      te_eval(a, bits) >> sh.to_int()
+    }
+  }
+}
+
+///|
+fn te_render(t : TE) -> String {
+  match t {
+    C(v) => v.to_string()
+    Add(a, b) => "(" + te_render(a) + " + " + te_render(b) + ")"
+    Sub(a, b) => "(" + te_render(a) + " - " + te_render(b) + ")"
+    Mul(a, b) => "(" + te_render(a) + " * " + te_render(b) + ")"
+    Div(a, b) => "(" + te_render(a) + " / " + te_render(b) + ")"
+    Mod(a, b) => "(" + te_render(a) + " % " + te_render(b) + ")"
+    BAnd(a, b) => "(" + te_render(a) + " & " + te_render(b) + ")"
+    BOr(a, b) => "(" + te_render(a) + " | " + te_render(b) + ")"
+    BXor(a, b) => "(" + te_render(a) + " ^ " + te_render(b) + ")"
+    Shl(a, b) => "(" + te_render(a) + " << " + te_render(b) + ")"
+    Shr(a, b) => "(" + te_render(a) + " >> " + te_render(b) + ")"
+  }
+}
+
+///|
+fn te_render64(t : TE) -> String {
+  match t {
+    C(v) => v.to_string() + "L"
+    Add(a, b) => "(" + te_render64(a) + " + " + te_render64(b) + ")"
+    Sub(a, b) => "(" + te_render64(a) + " - " + te_render64(b) + ")"
+    Mul(a, b) => "(" + te_render64(a) + " * " + te_render64(b) + ")"
+    Div(a, b) => "(" + te_render64(a) + " / " + te_render64(b) + ")"
+    Mod(a, b) => "(" + te_render64(a) + " % " + te_render64(b) + ")"
+    BAnd(a, b) => "(" + te_render64(a) + " & " + te_render64(b) + ")"
+    BOr(a, b) => "(" + te_render64(a) + " | " + te_render64(b) + ")"
+    BXor(a, b) => "(" + te_render64(a) + " ^ " + te_render64(b) + ")"
+    Shl(a, b) => "(" + te_render64(a) + " << " + te_render64(b) + ")"
+    Shr(a, b) => "(" + te_render64(a) + " >> " + te_render64(b) + ")"
+  }
+}
+
+///|
+fn te_gen(rng : @mutate.Rng, depth : Int32, bits : Int32) -> TE {
+  if depth <= 0 {
+    let v = rng.int(2000).to_int64() - 1000L
+    C(if bits == 32 { te_wrap32(v) } else { v })
+  } else {
+    let op = rng.int(11)
+    let a = te_gen(rng, depth - 1, bits)
+    let b = if op == 3 || op == 4 {
+      // Keep divisors non-zero in-tree to avoid trap cases here.
+      C(if rng.int(2) == 0 { 1L } else { -1L })
+    } else {
+      te_gen(rng, depth - 1, bits)
+    }
+    match op {
+      0 => Add(a, b)
+      1 => Sub(a, b)
+      2 => Mul(a, b)
+      3 => Div(a, b)
+      4 => Mod(a, b)
+      5 => BAnd(a, b)
+      6 => BOr(a, b)
+      7 => BXor(a, b)
+      8 => Shl(a, b)
+      9 => Shr(a, b)
+      _ => Add(a, b)
+    }
+  }
+}
+
+///|
+fn gen_expr(seed : UInt64, bits : Int32) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let depth = rng.int(3) + 2
+  let t = te_gen(rng, depth, bits)
+  let e = te_eval(t, bits)
+  let ty = if bits == 32 { "Int" } else { "Int64" }
+  let lit = if bits == 32 { te_render(t) } else { te_render(t) + "L" }
+  // For 64-bit, every literal in the tree needs the L suffix; render with a
+  // cast instead: Int64 conversion of the rendered Int expression.
+  let expr = if bits == 32 { lit } else { te_render64(t) }
+  let src = "fn main {\n  println((" + expr + ").to_string())\n}\n"
+  { family: if bits == 32 { "expr_i32" } else { "expr_i64" }, src, expected: [e.to_string()], excluded: false }
+}
+
+///|
+fn gen_boundary(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let cases : Array[(String, String)] = [
+    ("2147483647 + 1", "-2147483648"),
+    ("-2147483648 - 1", "2147483647"),
+    ("2147483647 * 2", "-2"),
+    ("-2147483648 / -1", "-2147483648"),
+    ("-7 / 2", "-3"),
+    ("-7 % 2", "-1"),
+    ("7 % -2", "1"),
+    ("1 << 31", "-2147483648"),
+    ("1 << 32", "1"),
+    ("-1 >> 1", "-1"),
+    ("1 << -1", "-2147483648"),
+  ]
+  let i = rng.int(cases.length())
+  let (expr, exp) = cases[i]
+  let src = "fn main {\n  println((" + expr + ").to_string())\n}\n"
+  { family: "boundary_i32", src, expected: [exp], excluded: false }
+}
+
+///|
+fn gen_boundary64(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let cases : Array[(String, String)] = [
+    ("9223372036854775807L + 1L", "-9223372036854775808"),
+    ("-9223372036854775808L - 1L", "9223372036854775807"),
+    ("9223372036854775807L * 2L", "-2"),
+    ("-9223372036854775808L / -1L", "-9223372036854775808"),
+    ("-7L / 2L", "-3"),
+    ("-7L % 2L", "-1"),
+    ("1L << 63", "-9223372036854775808"),
+    ("1L << 64", "1"),
+    ("-1L >> 1", "-1"),
+    ("1L << -1", "-9223372036854775808"),
+  ]
+  let i = rng.int(cases.length())
+  let (expr, exp) = cases[i]
+  let src = "fn main {\n  println((" + expr + ").to_string())\n}\n"
+  { family: "boundary_i64", src, expected: [exp], excluded: false }
+}
+
+///|
+fn gen_alias(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let v = rng.int(20)
+  let src = "fn main {\n  let xs : Array[Int] = [" + v.to_string() +
+    "]\n  let ys = xs\n  ys[0] = " + (v + 1).to_string() +
+    "\n  println(xs[0].to_string())\n}\n"
+  { family: "array_alias", src, expected: [(v + 1).to_string()], excluded: false }
+}
+
+///|
+fn gen_utf8(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let strs = ["é", "éa", "🙂", "aé🙂", "日本語"]
+  let s = strs[rng.int(strs.length())]
+  let src = "fn main {\n  let s = \"" + s +
+    "\"\n  println(s.length().to_string())\n  println(s.char_length().to_string())\n}\n"
+  // Probe (all three backends agree): length() counts UTF-16 code units,
+  // char_length() counts Unicode scalar values.  "é"=1/1, "🙂"=2/1,
+  // "aé🙂"=4/3, "日本語"=3/3.
+  let units = if s == "🙂" { 2 } else if s == "aé🙂" { 4 } else if s == "éa" { 2 } else if s == "日本語" { 3 } else { 1 }
+  let chars = if s == "🙂" { 1 } else if s == "aé🙂" { 3 } else if s == "éa" { 2 } else if s == "日本語" { 3 } else { 1 }
+  { family: "utf8_string", src, expected: [units.to_string(), chars.to_string()], excluded: false }
 }

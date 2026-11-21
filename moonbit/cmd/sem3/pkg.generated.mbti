@@ -1,0 +1,16 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cmd/sem3"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Case
+
+#derive(Eq)
+type TE
+
+// Type aliases
+
+// Traits
