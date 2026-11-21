@@ -59,6 +59,7 @@ for i in $(seq 1 "$EPOCHS"); do
     # carry the epoch's persisted corpus and coverage state to the next epoch
     cp -n "$run"/*/corpus/*.mbt "$POOL" 2>/dev/null || true
     cp -f "$run"/*/coverage_state.jsonl "$POOL/coverage_state.jsonl" 2>/dev/null || true
+    cp -f "$run"/*/coverage_state.jsonl.sha256 "$POOL/coverage_state.jsonl.sha256" 2>/dev/null || true
     echo "$i,$SECS,$rss,${it:-0},${t2:-0},${adds:-0},${edges:-0},${stop:-}" >> "$OUT/epochs.csv"
   else
     echo "$i,$SECS,$rss,0,0,0,0,no-summary" >> "$OUT/epochs.csv"

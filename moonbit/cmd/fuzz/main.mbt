@@ -48,6 +48,16 @@ const PERSIST_CAP_DEFAULT : Int32 = 2000
 const TRACE_FAILURE_LOG_MAX : Int32 = 2048
 
 ///|
+/// Sidecar edge preview cap.  Larger than the old silent 2048, explicitly
+/// flagged when truncated instead of looking complete.
+const SIDECAR_EDGE_CAP : Int32 = 8192
+
+///|
+/// Bound on the edge-diagnostic maps; collision accounting is best-effort and
+/// must not grow without limit.
+const EDGE_DIAG_CAP : Int32 = 200000
+
+///|
 /// MoonBit-native fuzz driver.
 ///
 /// The process model is deliberately the same as the Python driver:
@@ -142,6 +152,11 @@ struct Stats {
   mut deep_t3_matched : Int32
   mut deep_t3_distinct : Int32
   mut deep_t3_mismatch : Int32
+  mut deep_t3_inconclusive : Int32
+  /// Phase attribution for the edge-reward throughput question.
+  mut ms_mutate : Int64
+  mut ms_t1 : Int64
+  mut ms_t2 : Int64
   mut t3_compiler_abort : Int32
   mut diff_attempts : Int32
   mut diff_nonempty : Int32
@@ -185,6 +200,10 @@ fn stats_new() -> Stats {
     deep_t3_matched: 0,
     deep_t3_distinct: 0,
     deep_t3_mismatch: 0,
+    deep_t3_inconclusive: 0,
+    ms_mutate: 0L,
+    ms_t1: 0L,
+    ms_t2: 0L,
     t3_compiler_abort: 0,
     diff_attempts: 0,
     diff_nonempty: 0,
@@ -222,6 +241,7 @@ struct Progress {
   mut witnesses : Int32
   /// Non-empty when the harness stopped itself before the duration expired.
   /// "memory" means it hit --rss-limit-mb; the summary is still written.
+  deep_matched : Map[String, Unit]
   mut stop_reason : String
   mut trace_completed : Int32
   mut trace_failed : Int32
@@ -246,6 +266,7 @@ fn progress_new() -> Progress {
     finding_duplicates: 0,
     crashes: 0,
     witnesses: 0,
+    deep_matched: Map([]),
     stop_reason: "",
     trace_completed: 0,
     trace_failed: 0,
@@ -525,6 +546,8 @@ struct TraceTask {
   fname : String
   core_path : String
   baseline : Bool
+  /// "deep" for the IR lane; those tasks never reward ordinary parents.
+  lane : String
   /// Time reserved at dequeue time.  In-flight work must count toward the
   /// stage share or several workers can all dequeue the same oversubscribed
   /// stage before any completion is recorded.
@@ -832,6 +855,7 @@ fn trace_submit(
   core_path : String,
   baseline : Bool,
   config_hash : String,
+  lane? : String = "",
 ) -> Bool {
   let task : TraceTask = {
     stage,
@@ -842,6 +866,7 @@ fn trace_submit(
     fname,
     core_path,
     baseline,
+    lane,
     reserved_ms: 0L,
   }
   let key = trace_key(task)
@@ -987,11 +1012,15 @@ fn edge_universe_add_scoped(
     // what the old one-namespace map was hiding.
     match cov.edge_raw_owner.get(raw) {
       Some(prev) =>
-        if prev != identity && !cov.edge_collided.contains(raw) {
+        if prev != identity && !cov.edge_collided.contains(raw) &&
+          cov.edge_collided.length() < EDGE_DIAG_CAP {
           cov.edge_collided.set(raw, ())
           cov.edge_collisions += 1
         }
-      None => cov.edge_raw_owner.set(raw, identity)
+      None =>
+        if cov.edge_raw_owner.length() < EDGE_DIAG_CAP {
+          cov.edge_raw_owner.set(raw, identity)
+        }
     }
   }
   if cov.edge_saturated {
@@ -1569,7 +1598,7 @@ fn persist_coverage(
   // a restart can rebuild feature ownership for this (input, config).
   let capped_keys : Array[String] = []
   let mut ki = 0
-  while ki < tr.edge_keys.length() && ki < 2048 {
+  while ki < tr.edge_keys.length() && ki < SIDECAR_EDGE_CAP {
     capped_keys.push(tr.edge_keys[ki])
     ki += 1
   }
@@ -1610,7 +1639,7 @@ fn persist_coverage(
     ",\"edge_keys\":" +
     @trace.json_string_array(capped_keys) +
     ",\"edge_keys_truncated\":" +
-    (if tr.edge_keys.length() > 2048 { "true" } else { "false" }) +
+    (if tr.edge_keys.length() > SIDECAR_EDGE_CAP { "true" } else { "false" }) +
     ",\"edge_novel\":" +
     (if edge_novel { "true" } else { "false" }) +
     ",\"tb_counter_scope\":\"latest_trace\"" +
@@ -1827,7 +1856,7 @@ fn trace_apply_delta(
       task.config_hash +
       "|" +
       @trace.trace_stage_name(task.stage)
-    if !cov.rewarded.contains(reward_key) {
+    if !cov.rewarded.contains(reward_key) && task.lane != "deep" {
       cov.rewarded.set(reward_key, ())
       ignore(feedback_upsert(feed, task.src, covset, delta.len(), edge_new))
     }
@@ -2277,7 +2306,6 @@ async fn worker(
     local_pool.push(p)
   }
   let local_sigs : Map[String, Unit] = Map([])
-  let local_deep_matched : Map[String, Unit] = Map([])
   let local_t2_sigs : Map[String, Unit] = Map([])
   let end = @async.now() + cfg.duration_s.to_int64() * 1000L
   let bundle = join(
@@ -2310,6 +2338,7 @@ async fn worker(
     // many T1-OK/T2-fail inputs (small, syntactically robust sources), which
     // dragged the deep arm's T2 success rate below the byte-mutation arm.
     // They are used directly and deliberately not admitted as mutation parents.
+    let ph0 = @env.now()
     let is_deep = cfg.deep_p > 0.0 && rng.chance(cfg.deep_p)
     let mut deep_expected : Array[String] = []
     let src = if is_deep {
@@ -2323,6 +2352,7 @@ async fn worker(
     } else {
       @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
     }
+    s.ms_mutate += (@env.now() - ph0).to_int().to_int64()
     let src_hash = @corpus.sha1_hex(src)
     if stats_admit(cfg, s.inputs) {
       s.inputs.set(src_hash, ())
@@ -2331,6 +2361,7 @@ async fn worker(
     if !write(join(wd, fname), src) {
       continue
     }
+    let pt1 = @env.now()
     let r1 = run_t1(
       moonc,
       wd,
@@ -2340,6 +2371,7 @@ async fn worker(
       builtin,
       prelude,
     )
+    s.ms_t1 += (@env.now() - pt1).to_int().to_int64()
     s.t1 += 1
     prog.t1 += 1
     if r1.timed_out {
@@ -2387,12 +2419,50 @@ async fn worker(
         lines_equal(rr.stdout, deep_expected) {
         s.deep_t3_matched += 1
         let h = @corpus.sha1_hex(src)
-        if !local_deep_matched.contains(h) {
-          local_deep_matched.set(h, ())
+        if !prog.deep_matched.contains(h) {
+          prog.deep_matched.set(h, ())
           s.deep_t3_distinct += 1
         }
       } else if !rr.timed_out && rr.rc == 0 && deep_expected.length() > 0 {
-        s.deep_t3_mismatch += 1
+        let truncated = rr.stdout_truncated
+        if truncated {
+          s.deep_t3_inconclusive += 1
+        } else {
+          s.deep_t3_mismatch += 1
+        }
+        // Keep the candidate before anything can clean it: emitted source,
+        // expected/actual, the exact argv and the generator provenance.
+        let ev = join(
+          join(cfg.out, "deep_mismatch"),
+          @corpus.short_hash(src),
+        )
+        @corpus.ensure_dir(ev)
+        ignore(@stager.write_text(join(ev, "source.mbt"), src))
+        ignore(@stager.write_text(join(ev, "expected.txt"), deep_expected.join("\n")))
+        ignore(@stager.write_text(join(ev, "actual.txt"), rr.stdout))
+        ignore(
+          @stager.write_text(
+            join(ev, "argv.txt"),
+            @stager.moon_path() +
+            " run " +
+            fname +
+            " --target wasm-gc (cwd=" +
+            wd +
+            ")\n",
+          ),
+        )
+        ignore(
+          @stager.write_text(
+            join(ev, "ir_seed.txt"),
+            "seed=" +
+            deep_seed.to_string() +
+            " size=12 truncated=" +
+            (if truncated { "true" } else { "false" }) +
+            " rc=" +
+            rr.rc.to_string() +
+            "\n",
+          ),
+        )
       }
     }
     if k1 != "OK" && k1 != "ERR" {
@@ -2573,6 +2643,7 @@ async fn worker(
       }
     }
     if cfg.mode == "mbt" && k1 == "OK" && rng.chance(cfg.p_deep) {
+      let pt2 = @env.now()
       let src2 = with_main(src)
       if !write(join(wd, "in.mbt"), src2) {
         continue
@@ -2584,6 +2655,7 @@ async fn worker(
         cfg.t2_timeout,
         mem_mb=6144,
       )
+      s.ms_t2 += (@env.now() - pt2).to_int().to_int64()
       s.t2 += 1
       prog.t2 += 1
       if stats_admit(cfg, s.t2_inputs) {
@@ -2650,6 +2722,7 @@ async fn worker(
             "",
             false,
             covctx.config_hash,
+            lane=(if is_deep { "deep" } else { "" }),
           ),
         )
       }
@@ -2898,7 +2971,9 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let expected = @stager.read_text(cfg.coverage_state + ".sha256")
     .trim()
     .to_owned()
-  if expected != "" && @corpus.sha1_hex(text) != expected {
+  if text != "" &&
+    (expected == "" || @corpus.sha1_hex(text) != expected) {
+    // A state file without a checksum is as untrusted as a corrupted one.
     return (0, 0)
   }
   let mut keys = 0
@@ -2918,6 +2993,10 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
       }
     } else if line.contains("\"edges\":") {
       for e in json_str_array_field(line.to_owned(), "edges") {
+        if cov.edge_seen.length() >= cov.edge_cap {
+          cov.edge_saturated = true
+          break
+        }
         cov.edge_seen.set(e, ())
         edges += 1
       }
@@ -2927,7 +3006,7 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
 }
 
 ///|
-async fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
+async fn save_coverage_state(cov : TraceUniverse, out : String) -> Bool {
   let lines : Array[String] = []
   for k, v in cov.by_key {
     lines.push(
@@ -2947,16 +3026,21 @@ async fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
   let body = lines.join("\n") + "\n"
   let target = join(out, "coverage_state.jsonl")
   let tmp = target + ".tmp"
-  ignore(@stager.write_text(tmp, body))
+  if !@stager.write_text(tmp, body) {
+    return false
+  }
   // Atomic replace: a reader never sees a half-written state, and the hash
   // makes a truncated file detectable.
-  let _ = @exec.run(
+  let mv = @exec.run(
     "/bin/sh",
     ["-c", "mv -f \"$1\" \"$2\"", "sh", tmp, target],
     out,
     5000,
   )
-  ignore(@stager.write_text(target + ".sha256", @corpus.sha1_hex(body) + "\n"))
+  if mv.rc != 0 {
+    return false
+  }
+  @stager.write_text(target + ".sha256", @corpus.sha1_hex(body) + "\n")
 }
 
 ///|
@@ -3671,6 +3755,10 @@ async fn main {
     total.deep_t3_matched += r.deep_t3_matched
     total.deep_t3_distinct += r.deep_t3_distinct
     total.deep_t3_mismatch += r.deep_t3_mismatch
+    total.deep_t3_inconclusive += r.deep_t3_inconclusive
+    total.ms_mutate += r.ms_mutate
+    total.ms_t1 += r.ms_t1
+    total.ms_t2 += r.ms_t2
     total.t3_diff += r.t3_diff
     total.t3_runtime += r.t3_runtime
     total.t3_inconclusive += r.t3_inconclusive
@@ -3715,8 +3803,16 @@ async fn main {
     parent_bytes += e.src.length().to_int64() + e.hash.length().to_int64()
     parent_bytes += e.cov.len().to_int64() * 32L
   }
-  // Persist coverage for the next epoch: inputs alone are not enough.
-  save_coverage_state(cov, out)
+  // Persist coverage for the next epoch: inputs alone are not enough.  A
+  // failed write is an infrastructure error, not a silent empty state.
+  if !save_coverage_state(cov, out) {
+    println(
+      "{\"ok\":false,\"error\":\"coverage_state write failed\",\"out\":\"" +
+      @stager.escape(out) +
+      "\"}",
+    )
+    @env.exit(2)
+  }
   let (tri_checked, tri_confirmed, tri_known, tri_flaky, tri_inconclusive) = if cfg.triage_after {
     let (checked, confirmed, known, flaky, inconclusive) = triage_tree(
       cfg,
@@ -3757,6 +3853,16 @@ async fn main {
     total.deep_t3_distinct.to_string() +
     ",\"deep_t3_mismatch\":" +
     total.deep_t3_mismatch.to_string() +
+    ",\"deep_t3_inconclusive\":" +
+    total.deep_t3_inconclusive.to_string() +
+    ",\"deep_t3_distinct_global\":" +
+    prog.deep_matched.length().to_string() +
+    ",\"ms_mutate\":" +
+    total.ms_mutate.to_string() +
+    ",\"ms_t1\":" +
+    total.ms_t1.to_string() +
+    ",\"ms_t2\":" +
+    total.ms_t2.to_string() +
     ",\"t3_diff\":" +
     total.t3_diff.to_string() +
     ",\"t3_runtime\":" +

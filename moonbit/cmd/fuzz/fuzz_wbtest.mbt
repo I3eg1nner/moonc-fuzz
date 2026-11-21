@@ -145,6 +145,7 @@ fn trace_test_task_stage(
     fname: "in.mbt",
     core_path: "",
     baseline,
+    lane: "",
     reserved_ms: 0L,
   }
 }
@@ -1140,7 +1141,7 @@ async test "coverage state roundtrip, checksum and atomic file" {
   let cov = trace_universe_new()
   cov.by_key.set("k|accepted|cfg", @cov.FuncSet::new(["f1", "f2"]))
   cov.edge_seen.set("e1", ())
-  save_coverage_state(cov, out)
+  ignore(save_coverage_state(cov, out))
   let cfg = trace_test_cfg()
   cfg.coverage_state = out + "/coverage_state.jsonl"
   let cov2 = trace_universe_new()
@@ -1177,4 +1178,31 @@ test "edge identity: baseline, candidate, cross-config, cap" {
   let _ = edge_universe_add_scoped(cov, bin1, ["r1,r2"])
   assert_true(cov.edge_saturated)
   assert_eq(edge_status(cov), "degraded_cap")
+}
+
+///|
+async test "coverage state without checksum is rejected; edges respect the cap" {
+  let out = "/tmp/covstate_fault_test"
+  @stager.rm_rf(out)
+  @corpus.ensure_dir(out)
+  let cov = trace_universe_new()
+  cov.edge_seen.set("e1", ())
+  cov.by_key.set("k", @cov.FuncSet::new(["f"]))
+  ignore(save_coverage_state(cov, out))
+  let cfg = trace_test_cfg()
+  cfg.coverage_state = out + "/coverage_state.jsonl"
+  // Remove the checksum: the body exists but must not be trusted.
+  @fs.remove_file(cfg.coverage_state + ".sha256") catch { _ => () }
+  let c2 = trace_universe_new()
+  assert_eq(load_coverage_state(cfg, c2).0, 0)
+  // Restore checksum, then set a tiny cap: loading must stop at the cap and
+  // flag saturation rather than importing an unbounded edge set.
+  ignore(save_coverage_state(cov, out))
+  cfg.edge_cap = 0
+  let c3 = trace_universe_new()
+  c3.edge_cap = 0
+  let (_, edges3) = load_coverage_state(cfg, c3)
+  assert_eq(edges3, 0)
+  assert_true(c3.edge_saturated)
+  @stager.rm_rf(out)
 }
