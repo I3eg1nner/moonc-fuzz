@@ -51,6 +51,10 @@ trace"的场景；该机制存在但在这组预算下未被激活，不能声�
 
 ## 三臂同预算（各 600 s，4 workers，seed=1）
 
+> **更正（2026-11-21）**：本节 `new_edges` 数字受 `--edge-cap 50000` 饱和影响。
+> 见文末"edge 更正"与 `findings/edge_saturation.md`；不要再引用本节把
+> "edge 无新颖度"当作结论。
+
 | 臂 | it | t2_ok | 新函数 | 新边 | trace 完成 | CPU (user+sys) | max RSS | 中位新 feature/60s |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | behavior | 69,860 | 57 | 0 | 0 | 0 | 1,372 s | 1,044 MB | 0 |
@@ -166,11 +170,12 @@ seeds 1/7/2026 顺序，1800 s/run、2 workers、trace T1/T2 5%、baseline 8
 
 判读：
 
-1. **edge 这一轴在这组配置下是死的**：9 次运行的 `new_edges` 全为 0。
-   baseline 的边集合已经把 campaign 边 universe 覆盖，候选 trace 没有新增边；
-   因此 function 与 func-edge 实际上是同一个实验，二者 `adds` 差异
-   （1,908–1,926 vs 1,919–2,017）在 seed 方差内，不能声称 edge 奖励有效或无效
-   ——只能说没有可观测到的边新颖度可供奖励。
+1. **`new_edges=0` 是容量截断，不是"没有新边"**：9 次运行的
+   `edge_keys` 都恰好 50000、`edge_saturated=true`；对照实验（cap=200000）
+   里 baseline 到 65,302 条边，之后 T1 仍新增 13,255 条。50000 的 cap 在
+   baseline 阶段（约 24 s）就满了，之后的边全部被拒绝。因此 function 与
+   func-edge 的对比测到的是 cap，不是新颖度；`adds` 的差异仍只能算 seed
+   方差，不能当作 edge 反馈结论。
 2. **deep 臂的 t2_ok 高一个数量级**（中位 2,282 vs 14），成功率 98.4–98.8%，
    与前一轮 600 s 结果一致；`adds` 与另两臂同量级（1,859–1,979），说明
    "深层有效执行"增加的是合法 T2/T3 次数，不是函数覆盖。
@@ -182,6 +187,6 @@ seeds 1/7/2026 顺序，1800 s/run、2 workers、trace T1/T2 5%、baseline 8
    这是下一轮要补的：`bench_ab_30m_seq.sh` 应像 `bench_campaigns.sh` 一样
    用 GNU time 记录 user+sys。
 
-结论：**没有观察到 edge 反馈的可重复收益；deep 队列显著提高合法深阶段执行量，
-但不提高函数覆盖。** 这是本轮 A/B 能支持的全部；不把它写成"反馈无效"的
-一般结论。
+结论：**deep 队列显著提高合法深阶段执行量，但不提高函数覆盖**；edge 反馈
+在本轮**没有被有效测量**（cap 饱和），既不能说有效也不能说无效。详见
+`findings/edge_saturation.md`。
