@@ -56,3 +56,22 @@ triage selftest: ok
   当成"非缺陷"。
 - 自动 triage 还没有接进 campaign 结束流程，只提供命令与脚本；接线的
   入口是 `status=candidate` 的 findings 目录。
+
+## Campaign 集成（--triage / --triage-only）
+
+- `--triage`：campaign 结束时遍历 `<run>/findings/<stage>/<kind>/<sig>/`，
+  用与 `cmd/triage` 相同的规则逐个判定，写 `triage.jsonl` 与
+  `regression.txt`（只含 confirmed），summary 增加
+  `triage_checked/confirmed/known/flaky/inconclusive`；
+- `--triage-only DIR`：对既有 findings 树执行同一函数并退出，供复检与验收；
+- confirmed 时自动调用 `cmd/minimize`，要求 `published:true`；minimize 不存在
+  或未发布则退回 `flaky`，不会标 confirmed。
+
+端到端验收（`scripts/triage_campaign_selftest.sh`，门禁 `triage_campaign`）：
+
+```
+tree: known(F2) + benign(valid) + timeout(while true)
+out:  {"triaged":3,"confirmed":0,"known":1,"flaky":0,"inconclusive":2}
+```
+
+走的是 campaign 的 `--triage-only` 路径，不是纯函数分类器。
