@@ -8,6 +8,8 @@ pub fn basename(String) -> String
 
 pub fn collect_files(String, Array[String], Int32, Int32) -> Array[String]
 
+pub fn dir_slug(String) -> String
+
 pub fn dirname(String) -> String
 
 pub fn ensure_dir(String) -> Unit

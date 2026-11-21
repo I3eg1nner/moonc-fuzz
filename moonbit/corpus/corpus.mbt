@@ -164,6 +164,34 @@ pub fn load_texts(
 }
 
 ///|
+/// Filesystem-safe directory name for a finding signature.  Cluster signatures
+/// contain quotes and pipes (`Invalid_argument("Char.chr")`), which are legal
+/// in a path only by accident; the hash suffix keeps two sanitised signatures
+/// from colliding.
+pub fn dir_slug(sig : String) -> String {
+  let b = StringBuilder()
+  let mut i = 0
+  while i < sig.length() && i < 80 {
+    let c = sig.get_char(i).unwrap_or('_')
+    let ok = (c >= 'a' && c <= 'z') ||
+      (c >= 'A' && c <= 'Z') ||
+      (c >= '0' && c <= '9') ||
+      c == '.' ||
+      c == '_' ||
+      c == '-'
+    if ok {
+      b.write_char(c)
+    } else {
+      b.write_char('_')
+    }
+    i += 1
+  }
+  let head = b.to_string().trim().to_owned()
+  let prefix = if head == "" { "sig" } else { head }
+  prefix + "-" + short_hash(sig)
+}
+
+///|
 /// Atomically-ish persist one crash: directory name is the signature, so
 /// concurrent workers converge on the same path.  Returns true only for the
 /// worker that created the case file first.
@@ -176,7 +204,9 @@ pub fn save_finding(
   meta : String,
   fname : String,
 ) -> Bool {
-  let d = join(join(join(out_root, "findings"), stage), kind) + "/" + sig
+  let d = join(join(join(out_root, "findings"), stage), kind) +
+    "/" +
+    dir_slug(sig)
   ensure_dir(d)
   let case = join(d, fname)
   if path_exists(case) {

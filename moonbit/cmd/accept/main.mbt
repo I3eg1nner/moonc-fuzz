@@ -436,6 +436,20 @@ async fn main {
   let tri_ok = tri.rc == 0 && tri.stdout.contains("triage selftest: ok")
   results.push(check("triage_controls", tri_ok, tri.stdout.trim().to_owned()))
 
+  // 2g5. The same triage rules through the campaign's --triage-only path:
+  // one known witness, one benign candidate, one timeout-only candidate.
+  let tce = @exec.run(
+    "/bin/bash",
+    [
+      join(root, "scripts/triage_campaign_selftest.sh"),
+      "/tmp/mbtfuzz_accept_triage_e2e_" + tag,
+    ],
+    root,
+    300000,
+  )
+  let tce_ok = tce.rc == 0 && tce.stdout.contains("triage campaign selftest: ok")
+  results.push(check("triage_campaign", tce_ok, tce.stdout.trim().to_owned()))
+
   // 3. Trace gates: exact JSON on a frozen trace, then real end-to-end QEMU
   // parity against a Python-golden function set.  These two need host tools
   // (`afl-qemu-trace`, a `moonc` symbol table) and are the only gates skipped

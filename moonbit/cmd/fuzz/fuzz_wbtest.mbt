@@ -121,6 +121,9 @@ fn trace_test_cfg() -> Config {
     rss_limit_mb: 0,
     baseline_trace_max_mb: 256,
     deep_p: 0.0,
+    triage_after: false,
+    triage_only: "",
+    coverage_state: "",
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
@@ -1012,4 +1015,23 @@ test "baseline sample spreads across the corpus" {
   // fewer seeds than requested: take them all, once
   assert_eq(spread_indices(3, 8).length(), 3)
   assert_eq(spread_indices(0, 8).length(), 0)
+}
+
+///|
+test "quoted cluster signatures are escaped in meta.json" {
+  let r : @exec.RunResult = {
+    rc: 199,
+    stdout: "",
+    stderr: "Error: Invalid_argument(\"Char.chr\")\n",
+    ms: 5L,
+    timed_out: false,
+    stdout_digest: "",
+    stdout_full_len: 0L,
+    stdout_truncated: false,
+  }
+  let sig = "crash|ICE|Invalid_argument(\"Char.chr\")|known=F2"
+  let m = meta_json("build", "ICE", "", r, sig, 1)
+  // The signature must be escaped, not embedded raw.
+  assert_true(m.contains("\\\"Char.chr\\\""))
+  assert_false(m.contains("\"signature\":\"crash|ICE|Invalid_argument(\"Char.chr\")"))
 }

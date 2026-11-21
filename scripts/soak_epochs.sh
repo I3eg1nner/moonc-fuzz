@@ -34,8 +34,13 @@ echo "epoch,seconds,maxrss_kb,it,t2_ok,coverage_adds,new_edges,stop_reason" > "$
 for i in $(seq 1 "$EPOCHS"); do
   run="$OUT/e$i"
   rm -rf "$run"
+  state_args=()
+  if [ -f "$POOL/coverage_state.jsonl" ]; then
+    state_args=(--coverage-state "$POOL/coverage_state.jsonl")
+  fi
   /usr/bin/time -q -o "$OUT/e$i.time" -f "%M" \
     "$BIN" --root "$ROOT" --out "$run" --workers "$WORKERS" --duration "$SECS" \
+      "${state_args[@]}" \
       --mode mbt --body-only --seed-dir "$POOL" \
       --trace-t1 "$TRACE_T1" --trace-t2 "$TRACE_T2" --trace-t3 0 \
       --trace-workers 3 --trace-queue 32 --trace-max-mb 64 \
@@ -51,8 +56,9 @@ for i in $(seq 1 "$EPOCHS"); do
     adds=$(grep -o '"coverage_adds":[0-9]*' "$sum" | head -1 | cut -d: -f2)
     edges=$(grep -o '"new_edges":[0-9]*' "$sum" | head -1 | cut -d: -f2)
     stop=$(grep -o '"stop_reason":"[^"]*"' "$sum" | head -1 | cut -d'"' -f4)
-    # carry the epoch's persisted corpus into the next seed pool
+    # carry the epoch's persisted corpus and coverage state to the next epoch
     cp -n "$run"/*/corpus/*.mbt "$POOL" 2>/dev/null || true
+    cp -f "$run"/*/coverage_state.jsonl "$POOL/coverage_state.jsonl" 2>/dev/null || true
     echo "$i,$SECS,$rss,${it:-0},${t2:-0},${adds:-0},${edges:-0},${stop:-}" >> "$OUT/epochs.csv"
   else
     echo "$i,$SECS,$rss,0,0,0,0,no-summary" >> "$OUT/epochs.csv"

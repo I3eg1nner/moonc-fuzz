@@ -109,6 +109,15 @@ struct Config {
   /// Percentage of iterations seeded from a type-valid IR program instead of
   /// a byte mutation.  This is the "deep queue" wired into the main campaign.
   mut deep_p : Double
+  /// Run cmd/triage rules over the saved candidates at campaign end.
+  mut triage_after : Bool
+  /// Triages an existing findings tree and exits (used by the acceptance
+  /// control, and to re-triage a past run).
+  mut triage_only : String
+  /// Coverage state from a previous epoch: per-key function unions and the
+  /// edge universe.  Without it, an epoch restart resets by_key and every
+  /// carried input looks novel again.
+  mut coverage_state : String
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -1211,7 +1220,7 @@ fn meta_json(
   b.write_string("\",\"detail\":\"")
   b.write_string(@corpus.json_escape(detail))
   b.write_string("\",\"signature\":\"")
-  b.write_string(sig)
+  b.write_string(@corpus.json_escape(sig))
   // A saved finding is a candidate until `cmd/verify` re-runs it on a fresh
   // copy.  Nothing in the campaign may call it confirmed.
   b.write_string("\",\"status\":\"candidate")
@@ -2089,7 +2098,7 @@ fn save_diff(
   b.write_string("{\"stage\":\"diff\",\"kind\":\"DIFF\",\"verdict\":\"")
   b.write_string(@oracle.diff_class_name(r.verdict))
   b.write_string("\",\"signature\":\"")
-  b.write_string(sig)
+  b.write_string(@corpus.json_escape(sig))
   // A saved finding is a candidate until `cmd/verify` re-runs it on a fresh
   // copy.  Nothing in the campaign may call it confirmed.
   b.write_string("\",\"status\":\"candidate")
@@ -2379,7 +2388,7 @@ async fn worker(
           )
           let fd = join(join(join(cfg.out, "findings"), "fmt"), "REPARSE") +
             "/" +
-            sig
+            @corpus.dir_slug(sig)
           @corpus.ensure_dir(fd)
           ignore(
             write(
@@ -2672,6 +2681,306 @@ async fn rss_mb() -> Int64 {
 }
 
 ///|
+/// Stage recorded in a finding's meta.json.
+fn triage_stage_of(dir : String) -> String {
+  let meta = @stager.read_text(join(dir, "meta.json"))
+  let key = "\"stage\":\""
+  match meta.find(key) {
+    Some(i) => {
+      let rest = meta[i + key.length():].to_owned()
+      match rest.find("\"") {
+        Some(j) => rest[0:j].to_owned()
+        None => "build"
+      }
+    }
+    None => "build"
+  }
+}
+
+///|
+fn triage_source_of(dir : String) -> String {
+  for name in @stager.try_read_dir(dir) {
+    if name != "meta.json" {
+      return @stager.read_text(join(dir, name))
+    }
+  }
+  ""
+}
+
+///|
+async fn triage_run_once(
+  cfg : Config,
+  src : String,
+  stage : String,
+  dir : String,
+) -> (String, String, String) {
+  if !write_pkg_dir(dir, src) {
+    return ("", "", "write-failed")
+  }
+  if stage == "syncheck" {
+    let r = @exec.run(
+      @stager.tool_path("moonc"),
+      ["syncheck", "-error-format", "json", "main.mbt"],
+      dir,
+      cfg.t2_timeout * 3,
+    )
+    return (@stager.signature("build", r), r.stderr, "")
+  }
+  let r = @stager.run_stage(stage, "wasm-gc", dir, cfg.t2_timeout * 3)
+  (@stager.signature(stage, r), r.stderr, "")
+}
+
+///|
+/// Extract the value of `"<key>":"<value>"` from one JSON line.
+fn json_str_field(line : String, key : String) -> String {
+  let pat = "\"" + key + "\":\""
+  match line.find(pat) {
+    Some(i) => {
+      let rest = line[i + pat.length():].to_owned()
+      match rest.find("\"") {
+        Some(j) => rest[0:j].to_owned()
+        None => ""
+      }
+    }
+    None => ""
+  }
+}
+
+///|
+/// Parse a JSON array of strings that starts at `"<key>":[`.
+fn json_str_array_field(line : String, key : String) -> Array[String] {
+  let out : Array[String] = []
+  let pat = "\"" + key + "\":["
+  let i = match line.find(pat) {
+    None => return out
+    Some(i) => i + pat.length()
+  }
+  let mut j = i
+  while j < line.length() {
+    match line.get_char(j) {
+      Some('"') => {
+        let start = j + 1
+        let mut k = start
+        while k < line.length() && line.get_char(k) != Some('"') {
+          k += 1
+        }
+        out.push(line[start:k].to_owned())
+        j = k + 1
+      }
+      Some(']') => break
+      Some(_) => j += 1
+      None => break
+    }
+  }
+  out
+}
+
+///|
+/// Load a coverage state written by a previous epoch.
+fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
+  let text = @stager.read_text(cfg.coverage_state)
+  let mut keys = 0
+  let mut edges = 0
+  if text == "" {
+    return (0, 0)
+  }
+  for line in text.split("\n") {
+    if line.contains("\"key\":") {
+      let key = json_str_field(line.to_owned(), "key")
+      if key != "" {
+        cov.by_key.set(key, @cov.FuncSet::new(json_str_array_field(line.to_owned(), "funcs")))
+        keys += 1
+      }
+    } else if line.contains("\"edges\":") {
+      for e in json_str_array_field(line.to_owned(), "edges") {
+        cov.edge_seen.set(e, ())
+        edges += 1
+      }
+    }
+  }
+  (keys, edges)
+}
+
+///|
+/// Persist per-key function unions and the edge universe for the next epoch.
+fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
+  let lines : Array[String] = []
+  for k, v in cov.by_key {
+    lines.push(
+      "{\"key\":\"" +
+      @stager.escape(k) +
+      "\",\"funcs\":" +
+      @trace.json_string_array(v.sorted()) +
+      "}",
+    )
+  }
+  let edges : Array[String] = []
+  for e in cov.edge_seen.keys() {
+    edges.push(e)
+  }
+  edges.sort()
+  lines.push("{\"edges\":" + @trace.json_string_array(edges) + "}")
+  ignore(@stager.write_text(join(out, "coverage_state.jsonl"), lines.join("\n") + "\n"))
+}
+
+///|
+fn triage_known(stderr : String) -> String {
+  match @cluster.known_id(stderr) {
+    Some(id) => id
+    None => ""
+  }
+}
+
+///|
+/// Triage one finding directory.  Returns (status, known id).
+async fn triage_one(cfg : Config, dir : String) -> (String, String) {
+  let stage = triage_stage_of(dir)
+  let src = triage_source_of(dir)
+  if src == "" {
+    return ("inconclusive", "")
+  }
+  let work = "/tmp/mbfuzz_triage_" + @env.now().to_string()
+  ensure_dirs(work)
+  let mut defects = 0
+  let mut first_err = ""
+  for k in 0..<3 {
+    let (sig, err, _) = triage_run_once(cfg, src, stage, join(work, "r" + k.to_string()))
+    if sig.contains("crash|") {
+      defects += 1
+    }
+    if first_err == "" {
+      first_err = err
+    }
+  }
+  let (csig, _, _) = triage_run_once(
+    cfg,
+    "fn main {\n  println(\"ok\")\n}\n",
+    stage,
+    join(work, "control"),
+  )
+  let control_clean = !csig.contains("crash|")
+  let known = triage_known(first_err)
+  let mut minimised = false
+  if defects == 3 && control_clean && known == "" {
+    let bin = join(
+      join(join(cfg.root, "moonbit/_build/native/debug/build"), "cmd/minimize"),
+      "minimize.exe",
+    )
+    if @fs.path_exists(bin) {
+      let (_, _, _) = triage_run_once(cfg, src, stage, join(work, "min"))
+      let out = join(work, "reduced.mbt")
+      let r = @exec.run(
+        bin,
+        [
+          "--dir", join(work, "min"), "--file", "main.mbt", "--stage", stage, "--out",
+          out,
+        ],
+        work,
+        600000,
+      )
+      minimised = r.rc == 0 && r.stdout.contains("\"published\":true")
+    }
+  }
+  @stager.rm_rf(work)
+  let status = if defects == 0 {
+    "inconclusive"
+  } else if known != "" {
+    "known"
+  } else if defects < 3 {
+    "flaky"
+  } else if !control_clean {
+    "inconclusive"
+  } else if !minimised {
+    "flaky"
+  } else {
+    "confirmed"
+  }
+  (status, known)
+}
+
+///|
+fn write_pkg_dir(dir : String, src : String) -> Bool {
+  @stager.rm_rf(dir)
+  ensure_dirs(dir)
+  @stager.write_text(
+    join(dir, "moon.mod"),
+    "name = \"repro/triaged\"\nversion = \"0.1.0\"\n",
+  ) &&
+  @stager.write_text(join(dir, "moon.pkg"), "pkgtype(kind: \"executable\")\n") &&
+  @stager.write_text(join(dir, "main.mbt"), src)
+}
+
+///|
+fn ensure_dirs(path : String) -> Unit {
+  ignore(
+    try {
+      @fs.create_dir(path)
+      true
+    } catch {
+      _ => false
+    },
+  )
+}
+
+///|
+/// Walk `<root>/findings/<stage>/<kind>/<sig>` and triage each.  Writes one
+/// JSON line per case and returns counts (checked, confirmed, known, flaky,
+/// inconclusive).
+async fn triage_tree(
+  cfg : Config,
+  root : String,
+  jsonl : String,
+) -> (Int32, Int32, Int32, Int32, Int32) {
+  let dirs : Array[String] = []
+  for stage in @stager.try_read_dir(root) {
+    let sd = join(root, stage)
+    for kind in @stager.try_read_dir(sd) {
+      let kd = join(sd, kind)
+      for sig in @stager.try_read_dir(kd) {
+        let d = join(kd, sig)
+        if @fs.path_exists(join(d, "meta.json")) {
+          dirs.push(d)
+        }
+      }
+    }
+  }
+  dirs.sort()
+  let mut checked = 0
+  let mut confirmed = 0
+  let mut known = 0
+  let mut flaky = 0
+  let mut inconclusive = 0
+  let lines : Array[String] = []
+  for d in dirs {
+    if checked >= 50 {
+      break
+    }
+    checked += 1
+    let (status, kid) = triage_one(cfg, d)
+    if status == "confirmed" {
+      confirmed += 1
+    } else if status == "known" {
+      known += 1
+    } else if status == "flaky" {
+      flaky += 1
+    } else {
+      inconclusive += 1
+    }
+    lines.push(
+      "{\"dir\":\"" +
+      @stager.escape(d) +
+      "\",\"status\":\"" +
+      status +
+      "\",\"known\":\"" +
+      kid +
+      "\"}",
+    )
+  }
+  ignore(@stager.write_text(jsonl, lines.join("\n") + "\n"))
+  (checked, confirmed, known, flaky, inconclusive)
+}
+
+///|
 async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
   while prog.done < cfg.workers {
     @async.sleep(2000)
@@ -2843,6 +3152,9 @@ async fn main {
     rss_limit_mb: 0,
     baseline_trace_max_mb: 256,
     deep_p: 0.0,
+    triage_after: false,
+    triage_only: "",
+    coverage_state: "",
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -2948,6 +3260,15 @@ async fn main {
     } else if a == "--deep-p" && i + 1 < args.length() {
       cfg.deep_p = percent_arg(args, i, "--deep-p").to_double() / 100.0
       i += 2
+    } else if a == "--triage" {
+      cfg.triage_after = true
+      i += 1
+    } else if a == "--triage-only" && i + 1 < args.length() {
+      cfg.triage_only = args[i + 1]
+      i += 2
+    } else if a == "--coverage-state" && i + 1 < args.length() {
+      cfg.coverage_state = args[i + 1]
+      i += 2
     } else {
       main_usage()
       return
@@ -2973,6 +3294,27 @@ async fn main {
   }
   if cfg.stats_cap < 0 {
     cfg.stats_cap = 0
+  }
+  if cfg.triage_only != "" {
+    let (checked, confirmed, known, flaky, inconclusive) = triage_tree(
+      cfg,
+      cfg.triage_only,
+      join(cfg.triage_only, "triage.jsonl"),
+    )
+    println(
+      "{\"triaged\":" +
+      checked.to_string() +
+      ",\"confirmed\":" +
+      confirmed.to_string() +
+      ",\"known\":" +
+      known.to_string() +
+      ",\"flaky\":" +
+      flaky.to_string() +
+      ",\"inconclusive\":" +
+      inconclusive.to_string() +
+      "}",
+    )
+    return
   }
   let out = join(cfg.out, run_id)
   cfg.out = out
@@ -3049,6 +3391,11 @@ async fn main {
   let q = trace_queue_new()
   let cov = trace_universe_new()
   cov.edge_cap = cfg.edge_cap
+  let (restored_keys, restored_edges) = if cfg.coverage_state != "" {
+    load_coverage_state(cfg, cov)
+  } else {
+    (0, 0)
+  }
   // One campaign-wide evidence budget shared by workers and trace paths.
   cov.persist.cap = cfg.persist_cap
   cov.persist.coverage_cap = cfg.coverage_cap
@@ -3217,6 +3564,25 @@ async fn main {
     parent_bytes += e.src.length().to_int64() + e.hash.length().to_int64()
     parent_bytes += e.cov.len().to_int64() * 32L
   }
+  // Persist coverage for the next epoch: inputs alone are not enough.
+  save_coverage_state(cov, out)
+  let (tri_checked, tri_confirmed, tri_known, tri_flaky, tri_inconclusive) = if cfg.triage_after {
+    let (checked, confirmed, known, flaky, inconclusive) = triage_tree(
+      cfg,
+      join(out, "findings"),
+      join(out, "triage.jsonl"),
+    )
+    let reg : Array[String] = []
+    for line in @stager.read_text(join(out, "triage.jsonl")).split("\n") {
+      if line.contains("\"status\":\"confirmed\"") {
+        reg.push(line.to_owned())
+      }
+    }
+    ignore(@stager.write_text(join(out, "regression.txt"), reg.join("\n") + "\n"))
+    (checked, confirmed, known, flaky, inconclusive)
+  } else {
+    (0, 0, 0, 0, 0)
+  }
   let rss_now = rss_mb()
   let summary = "{\"run_id\":\"" +
     @corpus.json_escape(run_id) +
@@ -3326,6 +3692,20 @@ async fn main {
     ",\"stop_reason\":\"" +
     @corpus.json_escape(prog.stop_reason) +
     "\"" +
+    ",\"restored_keys\":" +
+    restored_keys.to_string() +
+    ",\"restored_edges\":" +
+    restored_edges.to_string() +
+    ",\"triage_checked\":" +
+    tri_checked.to_string() +
+    ",\"triage_confirmed\":" +
+    tri_confirmed.to_string() +
+    ",\"triage_known\":" +
+    tri_known.to_string() +
+    ",\"triage_flaky\":" +
+    tri_flaky.to_string() +
+    ",\"triage_inconclusive\":" +
+    tri_inconclusive.to_string() +
     ",\"rss_mb\":" +
     rss_now.to_string() +
     ",\"parent_bytes\":" +

@@ -190,7 +190,10 @@ fn save_bytes_finding(
   worker : Int32,
 ) -> Unit {
   let sig = @corpus.short_hash(stage + "|" + kind + "|" + detail)
-  let d = join(join(join(join(cfg.out, "findings"), stage), kind), sig)
+  let d = join(
+    join(join(join(cfg.out, "findings"), stage), kind),
+    @corpus.dir_slug(sig),
+  )
   @corpus.ensure_dir(d)
   let case = join(d, "case" + ext)
   if !@fs.path_exists(case) {

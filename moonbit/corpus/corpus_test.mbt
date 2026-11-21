@@ -51,6 +51,18 @@ test "collect_files filters suffixes and skips build dirs" {
 ///|
 test "save_finding is first-writer-wins" {
   let out = "/tmp/mbtfuzz_corpus_test_out"
+  // Hermetic: a previous failed run may have left the case file behind, and
+  // save_finding is deliberately first-writer-wins.
+  let stale = out + "/findings/t1/ICE/" + @corpus.dir_slug("deadbeef")
+  @fs.remove_file(stale + "/case.mbt") catch {
+    _ => ()
+  }
+  @fs.remove_file(stale + "/meta.json") catch {
+    _ => ()
+  }
+  @fs.remove_dir(stale) catch {
+    _ => ()
+  }
   @corpus.ensure_dir(out)
   let first = @corpus.save_finding(
     out, "t1", "ICE", "deadbeef", "fn x {}", "{}", "case.mbt",
@@ -60,17 +72,15 @@ test "save_finding is first-writer-wins" {
   )
   assert_true(first)
   assert_true(!second)
-  assert_eq(
-    @fs.read_file_to_string(out + "/findings/t1/ICE/deadbeef/case.mbt"),
-    "fn x {}",
-  )
-  @fs.remove_file(out + "/findings/t1/ICE/deadbeef/case.mbt") catch {
+  let d = out + "/findings/t1/ICE/" + @corpus.dir_slug("deadbeef")
+  assert_eq(@fs.read_file_to_string(d + "/case.mbt"), "fn x {}")
+  @fs.remove_file(d + "/case.mbt") catch {
     _ => ()
   }
-  @fs.remove_file(out + "/findings/t1/ICE/deadbeef/meta.json") catch {
+  @fs.remove_file(d + "/meta.json") catch {
     _ => ()
   }
-  @fs.remove_dir(out + "/findings/t1/ICE/deadbeef") catch {
+  @fs.remove_dir(d) catch {
     _ => ()
   }
   @fs.remove_dir(out + "/findings/t1/ICE") catch {
@@ -193,4 +203,19 @@ test "ensure_dir builds parents and append_line appends" {
 test "json_escape handles tabs, CR and control bytes" {
   assert_eq(@corpus.json_escape("a\tb\rc"), "a\\tb\\rc")
   assert_eq(@corpus.json_escape("\u{0001}"), "\\u0001")
+}
+
+///|
+test "finding dir names are filesystem-safe and collision-resistant" {
+  let a = dir_slug("crash|ICE|Invalid_argument(\"Char.chr\")")
+  let b = dir_slug("crash|ICE|Invalid_argument(\"Char.chr\")")
+  let c = dir_slug("crash|ICE|Invalid_argument(\"Other.exn\")")
+  assert_eq(a, b)
+  assert_true(a != c)
+  assert_false(a.contains("\""))
+  assert_false(a.contains("/"))
+  assert_false(a.contains("|"))
+  assert_false(a.contains(" "))
+  assert_true(a.length() <= 81 + 16)
+  assert_eq(dir_slug(""), "sig-" + short_hash(""))
 }
