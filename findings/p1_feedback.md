@@ -136,3 +136,52 @@ parent-cap 500、trace T1/T2 5%，12 个进程并行跑。中位数（每臂 3 �
 - 窗口读取的 `coverage_adds` / `new_edges` 之前根本不在 stats 行里，所以
   "每 60s 新 feature" 结构性恒零；monitor 现在每 2s 输出这两个累计值。
   旧运行（包括修复前的 A/B）没有这两个字段，其窗口中位数仍是 0，不能引用。
+
+## Post-fix 30 分钟 × 3 seeds（seed 主序、每批 3 臂并行）
+
+9 路全并行那批因 trace I/O 饱和导致 6/9 baseline 不完整（见
+`findings/ab30_parallel_invalid.md`），重跑改为 seed 主序：每批 3 臂并行、
+seeds 1/7/2026 顺序，1800 s/run、2 workers、trace T1/T2 5%、baseline 8
+（spread）、trace cap 64 MiB、baseline cap 256 MiB。
+
+| arm | seed | it | t2 | t2_ok | rate | adds | edges | baseline | maxRSS |
+|---|---|---:|---:|---:|---:|---:|---:|---|---:|
+| function | 1 | 15,324 | 51 | 11 | 21.6% | 1,911 | 0 | complete | 412 MB |
+| function | 7 | 17,896 | 50 | 25 | 50.0% | 1,908 | 0 | complete | 1,815 MB |
+| function | 2026 | 15,610 | 59 | 14 | 23.7% | 1,926 | 0 | complete | 1,816 MB |
+| func-edge | 1 | 13,771 | 53 | 16 | 30.2% | 2,017 | 0 | complete | 416 MB |
+| func-edge | 7 | 15,877 | 37 | 16 | 43.2% | 1,973 | 0 | complete | 415 MB |
+| func-edge | 2026 | 15,612 | 45 | 15 | 33.3% | 1,919 | 0 | complete | 1,817 MB |
+| deep | 1 | 28,655 | 2,318 | 2,282 | 98.4% | 1,859 | 0 | complete | 416 MB |
+| deep | 7 | 21,365 | 1,660 | 1,635 | 98.5% | 1,979 | 0 | complete | 1,816 MB |
+| deep | 2026 | 30,588 | 2,313 | 2,286 | 98.8% | 1,923 | 0 | complete | 415 MB |
+
+中位数（9/9 baseline complete）：
+
+| arm | it | t2_ok | adds | edges |
+|---|---:|---:|---:|---:|
+| function | 15,610 | 14 | 1,911 | 0 |
+| func-edge | 15,612 | 16 | 1,973 | 0 |
+| deep | 28,655 | 2,282 | 1,923 | 0 |
+
+判读：
+
+1. **edge 这一轴在这组配置下是死的**：9 次运行的 `new_edges` 全为 0。
+   baseline 的边集合已经把 campaign 边 universe 覆盖，候选 trace 没有新增边；
+   因此 function 与 func-edge 实际上是同一个实验，二者 `adds` 差异
+   （1,908–1,926 vs 1,919–2,017）在 seed 方差内，不能声称 edge 奖励有效或无效
+   ——只能说没有可观测到的边新颖度可供奖励。
+2. **deep 臂的 t2_ok 高一个数量级**（中位 2,282 vs 14），成功率 98.4–98.8%，
+   与前一轮 600 s 结果一致；`adds` 与另两臂同量级（1,859–1,979），说明
+   "深层有效执行"增加的是合法 T2/T3 次数，不是函数覆盖。
+3. **seed 间方差远大于臂间差异**：`adds` 全表 1,859–2,017（±4%），而 RSS 在
+   412 MB 与 1.8 GB 之间跳动，t2 成功率 21.6–50.0%（function 臂）。任何
+   "更优调度"的结论都需要更多 seed 或按 CPU 归一。
+4. CPU 这一批没有记录（脚本只采 `time` 的 maxRSS）；上一批的 CPU 账本
+   （1372.66/1508.50/1502.18 s）只对应旧 10 分钟运行，不能搬到 30 分钟表上。
+   这是下一轮要补的：`bench_ab_30m_seq.sh` 应像 `bench_campaigns.sh` 一样
+   用 GNU time 记录 user+sys。
+
+结论：**没有观察到 edge 反馈的可重复收益；deep 队列显著提高合法深阶段执行量，
+但不提高函数覆盖。** 这是本轮 A/B 能支持的全部；不把它写成"反馈无效"的
+一般结论。
