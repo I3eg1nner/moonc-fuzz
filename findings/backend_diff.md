@@ -66,3 +66,30 @@ moonldif js/wasm-gc 两边测试都跑，494 次尝试里 0 witness、6 excluded
 
 f9 的 `test --target wasm-gc` 与 `--target js` 都报 4021（v128 stub 仅
 native），没有第二后端可用，未跑跨后端。
+
+## 第二轮：f8 js vs native（30 分钟，分类器已修正）
+
+| 包 | 后端对 | T3 尝试 | backend attempts | witnesses | excluded | triage |
+|---|---|---:|---:|---:|---:|---|
+| f8 | js / native release | 565 | 565 | **0** | **0** | 4 inconclusive |
+
+两边都真正跑了测试（`Total tests: 1`），pass/fail 计数在 565 次变异里完全
+一致，没有跨后端差异，也没有被语义域排除的样本。
+
+## 汇总与诚实分类
+
+| 实验 | 有效? | witness | 分类 |
+|---|---|---|---|
+| f8 js/wasm-gc | **无效**（B 跑 0 测试） | 164 目录→全部 excluded | 不是编译器差异 |
+| f8 js/native | 有效 | 0 | 无差异 |
+| moonldif wasm-gc/js | 有效 | 0（6 excluded） | 无差异/排除 |
+| f9 | 无第二后端 | — | 阻塞（4021） |
+
+- **真编译器不一致：0**；
+- **后端语义差异（排除）：164 个异常目录 + 6 个运行期 excluded**，都是
+  harness/域问题或未触发；
+- **inconclusive：0**（没有 witness 可判）。
+- 需要说清：0 witness 更可能是**变异太浅 + 测试语义域太窄**（f8 测试只断言
+  `pick` 的返回、moonldif 测试断言固定字符串/数字），而不是"编译器没问题"。
+  要让这条链真正有用，需要能跨后端触发算术/边界/字符串/控制流差异的变异
+  与更深的测试，而不是继续加时长。
