@@ -12,12 +12,13 @@ scripts/cgroup_run.sh --dry-run
 ```
 
 正常路径：在可写的 cgroup v2 下创建 `$CGROUP_ROOT/$NAME`，写
-`memory.max`/`pids.max`，把 `$$` 放进 `cgroup.procs`，运行命令；每 2 s 采
+`memory.max`/`pids.max`；supervisor 不进组，子 shell 写自己的 pid 后 exec
+命令；每 2 s 采
 `memory.peak` 和 `du -sb $OUT`，结束时写 `OUT/memory.peak` 与
 `OUT/disk_peak_bytes`，清理 cgroup。
 
-不可写时：打印完整计划（root/group/memory.max/pids.max/peak 路径/disk 采样/
-用法），**exit 2 并明确 "limits not enforced"**，不声称实测。
+不可写时：`--dry-run` 打印完整计划并 **exit 0**（只是计划，不代表执行）；
+非 dry-run 且不可写时打印同样的计划并 **exit 2**，明确 "limits not enforced"。
 
 ## 本机 dry-run
 
@@ -37,6 +38,7 @@ status: NOT WRITABLE on this host; limits not enforced
 
 - 长跑必须通过该脚本启动，并把 `OUT/memory.peak`、`disk_peak_bytes` 与
   `summary.json` 一起归档；
-- `--memory-max` 要大于单进程 AS 顶（prlimit）之和，否则 OOM 会归因错；
+- `--memory-max` 是 cgroup 总量，与逐进程 `prlimit --as` 不是同一层，不能
+  用后者相加来推导前者；
 - `pids.max` 要覆盖 worker + trace + moonc/qemu 子进程；
 - 脚本不修改 pin，也不依赖 systemd。

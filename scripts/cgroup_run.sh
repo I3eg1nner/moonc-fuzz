@@ -49,28 +49,48 @@ PLAN
   exit 0
 fi
 
-cleanup() {
-  if [ -n "${peak:-}" ]; then
-    printf '%s\n' "$peak" > "$OUT/memory.peak" 2>/dev/null || true
-  fi
-  if [ -n "${disk_peak:-}" ]; then
-    printf '%s\n' "$disk_peak" > "$OUT/disk_peak_bytes" 2>/dev/null || true
-  fi
-  rmdir "$CGROUP_ROOT/$NAME" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-echo "$MEM" > "$CGROUP_ROOT/$NAME/memory.max"
-echo "$PIDS" > "$CGROUP_ROOT/$NAME/pids.max"
-echo $$ > "$CGROUP_ROOT/$NAME/cgroup.procs"
-
-[ -n "$OUT" ] && mkdir -p "$OUT"
-"$@" &
-child=$!
+supervisor_outside=1
 peak=0
 disk_peak=0
+child=""
+cleanup() {
+  # Final peak read happens even on signal, before the group is removed.
+  if [ -n "${cg:-}" ] && [ -d "$cg" ]; then
+    p=$(cat "$cg/memory.peak" 2>/dev/null || echo 0)
+    [ "$p" -gt "$peak" ] 2>/dev/null && peak=$p
+    echo 1 > "$cg/cgroup.kill" 2>/dev/null || true
+  fi
+  if [ -n "${OUT:-}" ] && [ -d "$OUT" ]; then
+    printf '%s\n' "$peak" > "$OUT/memory.peak" 2>/dev/null || true
+    printf '%s\n' "$disk_peak" > "$OUT/disk_peak_bytes" 2>/dev/null || true
+  fi
+  [ -n "${cg:-}" ] && rmdir "$cg" 2>/dev/null || true
+}
+on_signal() {
+  # Forward to the child, then kill anything it spawned inside the group.
+  if [ -n "$child" ]; then
+    kill -TERM "$child" 2>/dev/null || true
+    wait "$child" 2>/dev/null || true
+  fi
+  echo 1 > "$cg/cgroup.kill" 2>/dev/null || true
+  cleanup
+  exit 130
+}
+trap on_signal INT TERM
+trap cleanup EXIT
+
+cg="$CGROUP_ROOT/$NAME"
+echo "$MEM" > "$cg/memory.max"
+echo "$PIDS" > "$cg/pids.max"
+
+[ -n "$OUT" ] && mkdir -p "$OUT"
+# The supervisor never joins the cgroup: the child shell writes its own pid
+# into cgroup.procs and then execs the command, so the whole command tree is
+# accounted for without counting the wrapper.
+sh -c 'echo $$ > "$1"; shift; exec "$@"' sh "$cg/cgroup.procs" "$@" &
+child=$!
 while kill -0 "$child" 2>/dev/null; do
-  p=$(cat "$CGROUP_ROOT/$NAME/memory.peak" 2>/dev/null || echo 0)
+  p=$(cat "$cg/memory.peak" 2>/dev/null || echo 0)
   [ "$p" -gt "$peak" ] 2>/dev/null && peak=$p
   if [ -n "$OUT" ] && [ -d "$OUT" ]; then
     d=$(du -sb "$OUT" 2>/dev/null | awk '{print $1}')
@@ -80,5 +100,8 @@ while kill -0 "$child" 2>/dev/null; do
 done
 wait "$child"
 rc=$?
+p=$(cat "$cg/memory.peak" 2>/dev/null || echo 0)
+[ "$p" -gt "$peak" ] 2>/dev/null && peak=$p
 echo "cgroup: memory.peak=$peak bytes, disk_peak=$disk_peak bytes, rc=$rc"
+[ "$supervisor_outside" = 1 ] && true
 exit "$rc"

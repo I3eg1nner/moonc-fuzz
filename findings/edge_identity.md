@@ -39,8 +39,10 @@ T1/T2 任务还会追加 `|entry=<stage>`，所以同一个裸 pair 在不同编
 ```
 
 - **collisions=39,347**：T1 与 T2 的 raw 边大量重叠但身份不同；旧空间把它们
-  压成一份，既掩盖了"哪条 lane 贡献了哪条边"，也让 cap 更早饱和。
-- 身份化后 universe 104,991 > 裸 key 的 65k 量级，200k cap 仍未饱和；
+  压成一份，掩盖了"哪条 lane 贡献了哪条边"。身份化不是减少 key，而是**放大**
+  universe（约 1.6×，105k vs 65k 量级），因为同一裸边在不同配置下各存一份；
+  这会**更早**碰到 cap，不是更晚。
+- 200k cap 下仍未饱和；
   `new_edges` 54 全部来自 T1，T2 trace 在这轮没有新增。
 - deep lane 同轮 536 个 distinct T3 matched、0 mismatch，和 `edge_*` 计数
   互不影响。

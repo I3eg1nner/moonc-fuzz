@@ -42,8 +42,9 @@ replay_rc=1；日志中 "Assertion failed" 出现 1 次
 
 ## 边界
 
-- 包模式不做归约（minimize 只支持单文件），因此 capsule confirmed 不要求
-  `published`；正控落在 known，不受影响；
+- 包模式不做归约（minimize 只支持单文件），triage 因此把
+  `minimise_required=false`，不会因为缺少 `published` 把候选判 flaky；
+  正控落在 known，不受影响；
 - capsule 仍不接主 campaign 的 seed 队列（独立 lane）；本轮接的是
   save→triage 链，不是 fuzz 调度；
 - `--known` 是测试入口，不会在正常变异循环里伪造 witness；

@@ -38,8 +38,10 @@ TB 边，universe 在约 24 秒时饱和并置 `edge_saturated=true`，此后所
 
 （`funcEdge200k` 第一次运行 baseline incomplete，作废；上表是重跑。）
 
-`func50k` 的 `stats.jsonl` 显示第 12 个采样点（约 24 s）`edge_keys` 已达
-50000 且 `edge_saturated=true`——早于 baseline 结束，也早于任何候选奖励。
+`func50k` 的 `stats.jsonl` 显示**第 7 个采样点**（约 2 s 周期，即 ~12–14 s；
+该文件没有 `elapsed_ms`，不能精确到秒）`edge_keys` 已达 50000 且
+`edge_saturated=true`——早于 baseline 结束，也早于任何候选奖励。旧写的
+"24 s" 来自对采样索引的错误换算，已更正。
 
 ## 这修正了什么
 
