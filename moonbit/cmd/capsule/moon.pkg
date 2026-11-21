@@ -1,0 +1,18 @@
+// Real-package capsule: copy a multi-file package, mutate one file in place,
+// replay the original argv.  Smallest version; no campaign integration yet.
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/corpus",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/judge",
+  "I3eg1nner/mbtfuzz/mutate",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")
