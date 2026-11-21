@@ -131,6 +131,71 @@ fn latest_run(arm_dir : String) -> String {
 }
 
 ///|
+///|
+/// (adds_sat_ms, edges_sat_ms, has_time).  Saturation = the cumulative value
+/// stops increasing well before the run ends; such an arm cannot contribute
+/// a benefit statistic.
+fn saturation_ms(stats_path : String) -> (Int64, Int64, Bool) {
+  let text = read(stats_path)
+  let times : Array[Int64] = []
+  let adds : Array[Int64] = []
+  let edges : Array[Int64] = []
+  let mut has_time = true
+  for line in text.split("\n") {
+    let s = line.trim().to_owned()
+    if s.has_prefix("{") {
+      if !s.contains("\"elapsed_ms\"") {
+        has_time = false
+      }
+      times.push(num_field(s, "elapsed_ms"))
+      adds.push(num_field(s, "coverage_adds"))
+      edges.push(num_field(s, "new_edges"))
+    }
+  }
+  if !has_time || times.length() < 2 {
+    return (0L, 0L, has_time)
+  }
+  let last_ms = times[times.length() - 1]
+  let mut adds_sat = last_ms
+  if adds[adds.length() - 1] > 0L {
+    let fa = adds[adds.length() - 1]
+    let mut i = 0
+    while i < adds.length() {
+      if adds[i] == fa {
+        adds_sat = times[i]
+        break
+      }
+      i += 1
+    }
+  }
+  let mut edges_sat = last_ms
+  if edges[edges.length() - 1] > 0L {
+    let fe = edges[edges.length() - 1]
+    let mut i = 0
+    while i < edges.length() {
+      if edges[i] == fe {
+        edges_sat = times[i]
+        break
+      }
+      i += 1
+    }
+  }
+  (adds_sat, edges_sat, true)
+}
+
+///|
+fn saturation_last_ms(stats_path : String) -> Int64 {
+  let text = read(stats_path)
+  let mut last = 0L
+  for line in text.split("\n") {
+    let s = line.trim().to_owned()
+    if s.has_prefix("{") {
+      last = num_field(s, "elapsed_ms")
+    }
+  }
+  last
+}
+
 fn field_text(line : String, key : String) -> String {
   let pat = "\"" + key + "\":\""
   match line.find(pat) {
@@ -242,6 +307,9 @@ fn main {
       0L
     }
     let (windows, has_fields, has_time) = window_deltas(join(dir, "stats.jsonl"))
+    let (adds_sat, edges_sat, sat_time) = saturation_ms(
+      join(dir, "stats.jsonl"),
+    )
     let baseline = field_text(summary, "baseline_state")
     let edge_status = field_text(summary, "edge_status")
     let reasons : Array[String] = []
@@ -256,6 +324,18 @@ fn main {
     }
     if !has_time {
       reasons.push("stats missing elapsed_ms")
+    }
+    if sat_time && has_time {
+      // The run's last sample time is the denominator for "well before end".
+      let last_ms = saturation_last_ms(join(dir, "stats.jsonl"))
+      if last_ms > 0L {
+        if adds_sat > 0L && adds_sat * 10L < last_ms * 8L {
+          reasons.push("adds saturated at " + (adds_sat / 1000L).to_string() + "s")
+        }
+        if edges_sat > 0L && edges_sat * 10L < last_ms * 8L {
+          reasons.push("edges saturated at " + (edges_sat / 1000L).to_string() + "s")
+        }
+      }
     }
     let valid = reasons.length() == 0
     if !first {

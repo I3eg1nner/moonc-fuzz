@@ -41,3 +41,25 @@ test "missing elapsed_ms makes window metrics invalid, not zero" {
   assert_eq(w.length(), 0)
   ignore(@stager.rm_rf(path))
 }
+
+///|
+test "saturated metrics are detected from elapsed time" {
+  let path = "/tmp/benchstat_sat.jsonl"
+  let lines : Array[String] = []
+  let mut i = 0
+  while i < 10 {
+    let adds = if i < 3 { i * 10 } else { 20 }
+    let ms = i * 60000
+    lines.push(
+      "{\"elapsed_ms\":" + ms.to_string() + ",\"coverage_adds\":" +
+      adds.to_string() + ",\"new_edges\":0}",
+    )
+    i += 1
+  }
+  ignore(@stager.write_text(path, lines.join("\n") + "\n"))
+  let (adds_sat, _, has) = saturation_ms(path)
+  assert_true(has)
+  // Plateau reached at sample 2 (120 s), long before the 540 s end.
+  assert_eq(adds_sat, 120000L)
+  ignore(@stager.rm_rf(path))
+}

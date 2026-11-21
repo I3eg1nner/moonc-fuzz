@@ -157,6 +157,9 @@ struct Stats {
   mut ms_mutate : Int64
   mut ms_t1 : Int64
   mut ms_t2 : Int64
+  /// Size accounting for the T1-cost question: mutated bytes vs parent bytes.
+  mut bytes_src : Int64
+  mut bytes_parent : Int64
   mut t3_compiler_abort : Int32
   mut diff_attempts : Int32
   mut diff_nonempty : Int32
@@ -204,6 +207,8 @@ fn stats_new() -> Stats {
     ms_mutate: 0L,
     ms_t1: 0L,
     ms_t2: 0L,
+    bytes_src: 0L,
+    bytes_parent: 0L,
     t3_compiler_abort: 0,
     diff_attempts: 0,
     diff_nonempty: 0,
@@ -2353,6 +2358,8 @@ async fn worker(
       @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
     }
     s.ms_mutate += (@env.now() - ph0).to_int().to_int64()
+    s.bytes_src += src.length().to_int64()
+    s.bytes_parent += base.length().to_int64()
     let src_hash = @corpus.sha1_hex(src)
     if stats_admit(cfg, s.inputs) {
       s.inputs.set(src_hash, ())
@@ -3759,6 +3766,8 @@ async fn main {
     total.ms_mutate += r.ms_mutate
     total.ms_t1 += r.ms_t1
     total.ms_t2 += r.ms_t2
+    total.bytes_src += r.bytes_src
+    total.bytes_parent += r.bytes_parent
     total.t3_diff += r.t3_diff
     total.t3_runtime += r.t3_runtime
     total.t3_inconclusive += r.t3_inconclusive
@@ -3863,6 +3872,10 @@ async fn main {
     total.ms_t1.to_string() +
     ",\"ms_t2\":" +
     total.ms_t2.to_string() +
+    ",\"bytes_src\":" +
+    total.bytes_src.to_string() +
+    ",\"bytes_parent\":" +
+    total.bytes_parent.to_string() +
     ",\"t3_diff\":" +
     total.t3_diff.to_string() +
     ",\"t3_runtime\":" +

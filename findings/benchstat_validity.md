@@ -34,3 +34,22 @@ Date: 2026-11-21. 依据：本轮 (3)。工具链 pin 未改。
   覆盖学习可言；
 - `edge=degraded_cap` 判 invalid 只影响边指标，函数 `adds` 仍可读，但整个
   arm 被标 invalid 以防混用。
+
+## 指标饱和也是 invalid（2026-11-21 追加）
+
+`benchstat` 现在从同一份 stats 读 `elapsed_ms` 与累计 `coverage_adds`/
+`new_edges`：若累计值在运行结束前 80% 就已到顶（最后一次增长的时间戳），
+该 arm 记 `valid:false`，理由为 `adds saturated at Xs` /
+`edges saturated at Xs`，`median_window` 仍为 null。
+
+单测：10 个 60 s 采样、adds 在 120 s 到顶 → `saturation_ms` 返回 120000，
+臂必须被判 invalid。六份 30 分钟 edge 数据按此规则都会 invalid（t90 仅
+2.4–2.9 分钟），因此它们不能用于收益统计。
+
+## 边界
+
+- "到顶"按累计值首次等于终值判定；长时间平台但末尾偶发 +1 会让它显得
+  未饱和，这是偏保守（更容易判有效）的方向；
+- 阈值 80% 是经验值，不适用于本来就短于 60 s 的烟测；
+- benchstat 不重新跑实验，只读 stats；没有 elapsed_ms 的旧数据仍先因
+  "missing elapsed_ms" 判 invalid。
