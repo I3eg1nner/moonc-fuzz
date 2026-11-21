@@ -51,10 +51,16 @@ TB 边，universe 在约 24 秒时饱和并置 `edge_saturated=true`，此后所
   新颖度计入奖励或 `new_edges`。这是有意的成本约束，但必须显式暴露
   （已进 summary/stats），不能把"不可测"报告成"0 新颖度"。
 
+## 确定性正/负控（已补）
+
+`edge axis: new keys counted until the cap, then explicitly degraded`
+单测用 cap=4：基线 `{a,b}` 计 2；候选 `{b,c,d}` 计 2（新边 B 被计数）；
+universe 到 4 条（未饱和）；下一条新边 `e` 返回 0 并置
+`edge_saturated=true`——显式 degraded，不是静默 0。另有断言证明
+`new_edges>0` 时父本能量确实增加（奖励路径可达，不是只计数）。
+
 ## 仍未做
 
-- 固定小 cap 的确定性正/负控（基线边 A、候选新边 B 必须被计数并奖励；
-  到 cap 必须显式 `degraded`）——见 handoff 第 3 项；
 - 稳定 feature 空间（带 binary/config 身份）与跨 epoch 的边状态恢复目前
   只存 50000 上限内的并集；
 - 不在完成上述两项前再做 function vs edge 长跑。

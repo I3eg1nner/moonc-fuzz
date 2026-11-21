@@ -1102,3 +1102,31 @@ test "replacing a full parent registers the newcomer's features" {
     assert_eq(got, want)
   }
 }
+
+///|
+/// Deterministic small-cap control for the edge axis: a baseline set A, a
+/// candidate set B that provably adds edges, then an explicit degraded state
+/// when the cap is reached (never a silent zero).
+test "edge axis: new keys counted until the cap, then explicitly degraded" {
+  let cov = trace_universe_new()
+  cov.edge_cap = 4
+  assert_eq(edge_universe_add(cov, ["a", "b"]), 2)
+  assert_false(cov.edge_saturated)
+  // B shares b and adds c,d -> 2 new, universe full at the cap.
+  assert_eq(edge_universe_add(cov, ["b", "c", "d"]), 2)
+  assert_eq(cov.edge_seen.length(), 4)
+  assert_false(cov.edge_saturated)
+  // The first refused edge flips the explicit degraded state; that is the
+  // signal the summary reports instead of a silent zero.
+  assert_eq(edge_universe_add(cov, ["e"]), 0)
+  assert_true(cov.edge_saturated)
+  // A candidate that carries genuinely new edges still earns the edge bonus
+  // while the universe has room.
+  let cov2 = trace_universe_new()
+  cov2.edge_cap = 100
+  let f = feedback_new()
+  let _ = feedback_upsert(f, "src", @cov.FuncSet::new(["F"]), 1, 0)
+  let base_energy = f.entries[0].energy
+  let _ = feedback_upsert(f, "src", @cov.FuncSet::new(["F"]), 0, 1)
+  assert_true(f.entries[0].energy > base_energy)
+}
