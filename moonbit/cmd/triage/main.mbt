@@ -138,7 +138,7 @@ async fn run_signature(
   dir : String,
   stage : String,
   timeout_ms : Int32,
-) -> String {
+) -> (String, Int32, String) {
   if stage == "syncheck" {
     let r = @exec.run(
       @stager.tool_path("moonc"),
@@ -146,10 +146,10 @@ async fn run_signature(
       dir,
       timeout_ms,
     )
-    @stager.signature("build", r)
+    (@stager.signature("build", r), r.rc, r.stderr)
   } else {
     let r = @stager.run_stage(stage, "wasm-gc", dir, timeout_ms)
-    @stager.signature(stage, r)
+    (@stager.signature(stage, r), r.rc, r.stderr)
   }
 }
 
@@ -185,12 +185,12 @@ fn triage_status(
     } else {
       "inconclusive"
     }
-  } else if known {
-    "known"
   } else if reproduced < 3 {
     "flaky"
   } else if !control_clean {
     "inconclusive"
+  } else if known {
+    "known"
   } else if minimise_required && !minimised {
     "flaky"
   } else {
@@ -232,27 +232,45 @@ async fn main {
   // create_dir is not recursive; without this every write_pkg failed and the
   // candidate was silently reported as "no signature".
   ensure_dir(work)
+  let meta = @stager.read_text(join(case_dir, "meta.json"))
+  let original = match meta.find("\"signature\":\"") {
+    Some(i) => {
+      let rest = meta[i + 13:].to_owned()
+      match rest.find("\"") {
+        Some(j) => rest[0:j].to_owned()
+        None => ""
+      }
+    }
+    None => ""
+  }
   let sigs : Array[String] = []
   let mut reproducible = 0
+  let mut first_err = ""
   for k in 0..<3 {
     let d = join(work, "r" + k.to_string())
     if !write_pkg(d, src, "mbt") {
       continue
     }
-    let sig = run_signature(d, stage, relaxed)
+    let (sig, _, err) = run_signature(d, stage, relaxed)
     sigs.push(sig)
-    if is_defect_sig(sig) {
+    if first_err == "" {
+      first_err = err
+    }
+    // Same fingerprint as the candidate AND crash class; three different
+    // crashes are not three reproductions of one defect.
+    if original != "" && sig == original {
       reproducible += 1
     }
   }
   // Negative control: a benign package under the same stage and budget.
   let ctl = join(work, "control")
-  let ctl_sig = if write_pkg(ctl, "fn main {\n  println(\"ok\")\n}\n", "mbt") {
-    run_signature(ctl, stage, relaxed)
-  } else {
-    "control-write-failed"
+  let mut control_clean = false
+  if write_pkg(ctl, "fn main {\n  println(\"ok\")\n}\n", "mbt") {
+    let (ctl_sig, ctl_rc, _) = run_signature(ctl, stage, relaxed)
+    // A clean control must actually complete (rc 0), not merely abstain from
+    // crashing.
+    control_clean = ctl_rc == 0 && !is_defect_sig(ctl_sig)
   }
-  let control_clean = !is_defect_sig(ctl_sig)
   // Optional minimise: only "published" counts.
   let mut minimised = false
   let mut minimise_note = "not requested"
@@ -277,7 +295,7 @@ async fn main {
     None => ()
   }
   let first = if sigs.length() > 0 { sigs[0] } else { "" }
-  let known = known_match(first)
+  let known = known_match(first_err)
   let known_some = match known {
     Some(_) => true
     None => false

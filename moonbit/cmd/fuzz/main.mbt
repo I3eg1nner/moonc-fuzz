@@ -2713,9 +2713,9 @@ async fn triage_run_once(
   src : String,
   stage : String,
   dir : String,
-) -> (String, String, String) {
+) -> (String, String, Int32) {
   if !write_pkg_dir(dir, src) {
-    return ("", "", "write-failed")
+    return ("", "", -1)
   }
   if stage == "syncheck" {
     let r = @exec.run(
@@ -2724,10 +2724,10 @@ async fn triage_run_once(
       dir,
       cfg.t2_timeout * 3,
     )
-    return (@stager.signature("build", r), r.stderr, "")
+    return (@stager.signature("build", r), r.stderr, r.rc)
   }
   let r = @stager.run_stage(stage, "wasm-gc", dir, cfg.t2_timeout * 3)
-  (@stager.signature(stage, r), r.stderr, "")
+  (@stager.signature(stage, r), r.stderr, r.rc)
 }
 
 ///|
@@ -2903,12 +2903,12 @@ async fn triage_one(cfg : Config, dir : String) -> (String, String) {
   @stager.rm_rf(work)
   let status = if defects == 0 {
     "inconclusive"
-  } else if known != "" {
-    "known"
   } else if defects < 3 {
     "flaky"
   } else if !control_clean {
     "inconclusive"
+  } else if known != "" {
+    "known"
   } else if !minimised {
     "flaky"
   } else {

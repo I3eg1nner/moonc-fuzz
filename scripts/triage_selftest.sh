@@ -15,6 +15,7 @@ rm -rf "$OUT"; mkdir -p "$OUT/pos-known" "$OUT/neg-valid" "$OUT/neg-timeout"
 
 f2=$(find "$ROOT/poc/f2_lex_escape_ice" -name '*.mbt' | head -1)
 cp "$f2" "$OUT/pos-known/in.mbt"
+printf '{"stage":"build","kind":"ICE","signature":"crash|ICE|Invalid_argument(\\"Char.chr\\")"}\n' > "$OUT/pos-known/meta.json"
 printf 'fn main {\n  println("ok")\n}\n' > "$OUT/neg-valid/in.mbt"
 printf 'fn main {\n  while true {\n    ()\n  }\n}\n' > "$OUT/neg-timeout/in.mbt"
 

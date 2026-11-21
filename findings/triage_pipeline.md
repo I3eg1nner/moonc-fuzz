@@ -75,3 +75,14 @@ out:  {"triaged":3,"confirmed":0,"known":1,"flaky":0,"inconclusive":2}
 ```
 
 走的是 campaign 的 `--triage-only` 路径，不是纯函数分类器。
+
+## 第二轮复核补修
+
+- **同一缺陷才算复现**：三次运行必须与候选 meta 里的 `signature` 完全一致
+  （不再只数 `crash|` 出现次数）；三个不同的 crash 是 `flaky`，不是 confirmed。
+- **负控必须完成**：良性包要求 `rc == 0`，不是"没有 crash"；编译失败的负控
+  不能算 clean。
+- **known 在 3/3 之后**：判定顺序为 defect → 3/3 → 负控 → known → minimise，
+  避免"抽样不足时直接贴 known 标签"。
+- campaign 的 `--triage` 路径同步了这三条，不只是独立命令。
+- 控制脚本的 meta 现在带 `signature` 字段（以前缺字段会让 3/3 永远为 0）。
