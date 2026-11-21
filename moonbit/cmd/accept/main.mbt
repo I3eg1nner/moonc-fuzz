@@ -466,6 +466,20 @@ async fn main {
   let fmtc_ok = fmtc.rc == 0 && fmtc.stdout.contains("fmt cluster selftest: ok")
   results.push(check("fmt_cluster", fmtc_ok, fmtc.stdout.trim().to_owned()))
 
+  // 2g7. Unknown-witness promotion through a stub compiler: a real save_crash
+  // plus triage must reach confirmed for an ICE outside the known table.
+  let st = @exec.run(
+    "/bin/bash",
+    [
+      join(root, "scripts/stub_ice_triage.sh"),
+      "/tmp/mbtfuzz_accept_stub_" + tag,
+    ],
+    root,
+    300000,
+  )
+  let st_ok = st.rc == 0 && st.stdout.contains("stub triage: ok")
+  results.push(check("stub_ice_triage", st_ok, st.stdout.trim().to_owned()))
+
   // 3. Trace gates: exact JSON on a frozen trace, then real end-to-end QEMU
   // parity against a Python-golden function set.  These two need host tools
   // (`afl-qemu-trace`, a `moonc` symbol table) and are the only gates skipped
