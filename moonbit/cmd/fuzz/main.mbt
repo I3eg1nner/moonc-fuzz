@@ -137,6 +137,11 @@ struct Stats {
   mut t3_inconclusive : Int32
   mut t3_semantic_diff : Int32
   mut t3_accept_diff : Int32
+  /// Deep-lane semantic T3: reference interpreter output vs wasm-gc stdout.
+  mut deep_t3_attempts : Int32
+  mut deep_t3_matched : Int32
+  mut deep_t3_distinct : Int32
+  mut deep_t3_mismatch : Int32
   mut t3_compiler_abort : Int32
   mut diff_attempts : Int32
   mut diff_nonempty : Int32
@@ -176,6 +181,10 @@ fn stats_new() -> Stats {
     t3_inconclusive: 0,
     t3_semantic_diff: 0,
     t3_accept_diff: 0,
+    deep_t3_attempts: 0,
+    deep_t3_matched: 0,
+    deep_t3_distinct: 0,
+    deep_t3_mismatch: 0,
     t3_compiler_abort: 0,
     diff_attempts: 0,
     diff_nonempty: 0,
@@ -2179,6 +2188,32 @@ fn save_diff(
 }
 
 ///|
+fn output_lines(s : String) -> Array[String] {
+  let out : Array[String] = []
+  for line in s.split("\n") {
+    out.push(line.to_owned())
+  }
+  while out.length() > 0 && out[out.length() - 1] == "" {
+    out.pop() |> ignore
+  }
+  out
+}
+
+///|
+fn lines_equal(a : String, expected : Array[String]) -> Bool {
+  let got = output_lines(a)
+  if got.length() != expected.length() {
+    return false
+  }
+  for i, e in expected {
+    if got[i] != e {
+      return false
+    }
+  }
+  true
+}
+
+///|
 async fn worker(
   cfg : Config,
   id : Int32,
@@ -2203,6 +2238,7 @@ async fn worker(
     local_pool.push(p)
   }
   let local_sigs : Map[String, Unit] = Map([])
+  let local_deep_matched : Map[String, Unit] = Map([])
   let local_t2_sigs : Map[String, Unit] = Map([])
   let end = @async.now() + cfg.duration_s.to_int64() * 1000L
   let bundle = join(
@@ -2236,8 +2272,15 @@ async fn worker(
     // dragged the deep arm's T2 success rate below the byte-mutation arm.
     // They are used directly and deliberately not admitted as mutation parents.
     let is_deep = cfg.deep_p > 0.0 && rng.chance(cfg.deep_p)
+    let mut deep_expected : Array[String] = []
     let src = if is_deep {
-      @ir.emit_program(@ir.generate(deep_seed, 12))
+      let prog_deep = @ir.generate(deep_seed, 12)
+      deep_expected = try {
+        @ir.run(prog_deep, 200000)
+      } catch {
+        _ => []
+      }
+      @ir.emit_program(prog_deep)
     } else {
       @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
     }
@@ -2288,6 +2331,30 @@ async fn worker(
           covctx.config_hash,
         ),
       )
+    }
+    // Deep lane's real T3: run the type-valid program and compare its stdout
+    // with the reference interpreter.  t2_ok is not used as a substitute.
+    if is_deep && k1 == "OK" {
+      s.deep_t3_attempts += 1
+      let rr = @exec.run_isolated(
+        @stager.moon_path(),
+        ["run", fname, "--target", "wasm-gc"],
+        wd,
+        cfg.t2_timeout,
+        max_output_bytes=1048576,
+        mem_mb=2048,
+      )
+      if !rr.timed_out && rr.rc == 0 && deep_expected.length() > 0 &&
+        lines_equal(rr.stdout, deep_expected) {
+        s.deep_t3_matched += 1
+        let h = @corpus.sha1_hex(src)
+        if !local_deep_matched.contains(h) {
+          local_deep_matched.set(h, ())
+          s.deep_t3_distinct += 1
+        }
+      } else if !rr.timed_out && rr.rc == 0 && deep_expected.length() > 0 {
+        s.deep_t3_mismatch += 1
+      }
     }
     if k1 != "OK" && k1 != "ERR" {
       s.crashes += 1
@@ -2516,8 +2583,12 @@ async fn worker(
       let novel2 = !local_t2_sigs.contains(sig2)
       if novel2 {
         local_t2_sigs.set(sig2, ())
-        ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
-        persist_behavior(cfg, pb, src, "behavior_t2")
+        // Deep programs are a separate lane: they must not become ordinary
+        // mutation parents (https://... no URL, just the rule).
+        if !is_deep {
+          ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
+          persist_behavior(cfg, pb, src, "behavior_t2")
+        }
       }
       let t2_chance = if q.t1_trace_off {
         if cfg.trace_t2 > 0.95 {
@@ -3550,6 +3621,10 @@ async fn main {
     total.t2 += r.t2
     total.t2_ok += r.t2_ok
     total.t3_ok += r.t3_ok
+    total.deep_t3_attempts += r.deep_t3_attempts
+    total.deep_t3_matched += r.deep_t3_matched
+    total.deep_t3_distinct += r.deep_t3_distinct
+    total.deep_t3_mismatch += r.deep_t3_mismatch
     total.t3_diff += r.t3_diff
     total.t3_runtime += r.t3_runtime
     total.t3_inconclusive += r.t3_inconclusive
@@ -3628,6 +3703,14 @@ async fn main {
     total.t2_ok.to_string() +
     ",\"t3_ok\":" +
     total.t3_ok.to_string() +
+    ",\"deep_t3_attempts\":" +
+    total.deep_t3_attempts.to_string() +
+    ",\"deep_t3_matched\":" +
+    total.deep_t3_matched.to_string() +
+    ",\"deep_t3_distinct\":" +
+    total.deep_t3_distinct.to_string() +
+    ",\"deep_t3_mismatch\":" +
+    total.deep_t3_mismatch.to_string() +
     ",\"t3_diff\":" +
     total.t3_diff.to_string() +
     ",\"t3_runtime\":" +
