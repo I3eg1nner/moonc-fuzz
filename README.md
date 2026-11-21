@@ -449,6 +449,8 @@ moon test --target native
 | `findings/exact_coverage_wiring.md` | 精确块/边覆盖接入 fuzz 证据 |
 | `findings/edge_feedback.md` | 边新颖度进入调度：权重、上限、口径与限制 |
 | `findings/campaign_caps.md` | 父本池/持久证据上限、counter、文件审计与 before/after |
+| `findings/sem3_final.md` | 三后端语义差分：能力、控制、最终计数与边界 |
+| `findings/int_min_divergence.md` | min/-1 的 allowed_impl_divergence 与规范依据 |
 | `findings/xdiff_mvp.md` | 跨后端执行差分：布局矩阵、判定优先级 |
 | `findings/xdiff_async.md` | async 逐测试状态差分与 160 case 全矩阵结果 |
 | `findings/async_cancel_probe.md` | async 超时/取消/组合子探针的负结果 |
