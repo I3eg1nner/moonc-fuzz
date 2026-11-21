@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "I3eg1nner/mbtfuzz/cluster"
+
+// Values
+pub fn cause_token(String) -> String
+
+pub fn crash_signature(String, Int32, String, String) -> String
+
+pub fn formatter_signature(Int32, String, String) -> String
+
+pub fn known_id(String) -> String?
+
+pub fn normalize_text(String) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

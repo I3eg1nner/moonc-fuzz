@@ -1,0 +1,6 @@
+// Stable defect signatures: normalise ICE text and stack frames so one root
+// cause maps to one directory, without merging distinct causes.
+import {
+}
+
+pkgtype(kind: "library")

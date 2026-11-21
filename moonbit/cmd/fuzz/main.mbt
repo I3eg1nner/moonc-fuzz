@@ -785,6 +785,23 @@ fn trace_key(task : TraceTask) -> String {
 }
 
 ///|
+/// Deterministic spread sample: `k` indices over `total`, evenly spaced.
+fn spread_indices(total : Int32, k : Int32) -> Array[Int32] {
+  let out : Array[Int32] = []
+  if total <= 0 || k <= 0 {
+    return out
+  }
+  let n = if k < total { k } else { total }
+  let mut i = 0
+  while i < n {
+    let idx = i * total / n
+    out.push(idx)
+    i += 1
+  }
+  out
+}
+
+///|
 fn trace_submit(
   cfg : Config,
   q : TraceQueue,
@@ -1245,9 +1262,9 @@ fn save_crash(
 ) -> Bool {
   let kind = judged_kind(stage, r)
   let detail = @exec.ice_detail(r)
-  let sig = @corpus.short_hash(
-    stage + "|" + kind + "|" + detail + "|rc=" + r.rc.to_string(),
-  )
+  // Root-cause bucket: normalised ICE text / top frame / known class, not a
+  // hash of the stage and the volatile first error line.
+  let sig = @cluster.crash_signature(kind, r.rc, r.stderr, r.stdout)
   force_persist_source(cfg, pb, src)
   @corpus.save_finding(
     cfg.out,
@@ -2168,7 +2185,12 @@ async fn worker(
     // type-valid IR program (the same generator cmd/deepfuzz measured) instead
     // of a byte mutation.  Everything downstream is the normal T1/T2/T3 path.
     let deep_seed = rng.int(1000000).to_uint64()
-    let src = if cfg.deep_p > 0.0 && rng.chance(cfg.deep_p) {
+    // Deep programs are type-valid by construction; mutating them produces
+    // many T1-OK/T2-fail inputs (small, syntactically robust sources), which
+    // dragged the deep arm's T2 success rate below the byte-mutation arm.
+    // They are used directly and deliberately not admitted as mutation parents.
+    let is_deep = cfg.deep_p > 0.0 && rng.chance(cfg.deep_p)
+    let src = if is_deep {
       @ir.emit_program(@ir.generate(deep_seed, 12))
     } else {
       @mutate.mutate(base, rng, local_pool, cfg.body_only, dict~)
@@ -2251,7 +2273,10 @@ async fn worker(
         mem_mb=1024,
       )
       if fr.timed_out {
-        let sig = @corpus.short_hash("fmt-hang|" + @corpus.short_hash(src))
+        // Formatter findings are bucketed by what the formatter reported, not
+        // by the source hash: one defect must not create one directory per
+        // input.
+        let sig = @cluster.formatter_signature(fr.rc, fr.stderr, fr.stdout)
         force_persist_source(cfg, pb, src)
         ignore(
           @corpus.save_finding(
@@ -2593,7 +2618,7 @@ async fn worker(
     if stats_admit(cfg, s.sigs) {
       s.sigs.set(sig, ())
     }
-    if novel {
+    if novel && !is_deep {
       // Per-worker novelty memory: without a cap this map grows with every
       // distinct behaviour the campaign ever sees, which is unbounded.
       if stats_admit(cfg, local_sigs) {
@@ -3029,12 +3054,12 @@ async fn main {
   cov.persist.coverage_cap = cfg.coverage_cap
   let pb = cov.persist
   if cov_on && cfg.baseline_seeds > 0 {
-    let n = if cfg.baseline_seeds < seeds.length() {
-      cfg.baseline_seeds
-    } else {
-      seeds.length()
-    }
-    for i in 0..<n {
+    // Spread the baseline across the corpus instead of taking the first N
+    // files after sort(): with --seed-dir the corpus grows every epoch, and a
+    // fixed prefix made U0 describe the same eight files forever, so every new
+    // epoch reported the carried corpus as "novel" (inflated coverage_adds).
+    let picked = spread_indices(seeds.length(), cfg.baseline_seeds)
+    for i in picked {
       let src = seeds[i]
       ignore(
         trace_submit(

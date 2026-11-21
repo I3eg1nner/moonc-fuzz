@@ -995,3 +995,21 @@ test "percent flags accept integers only" {
   assert_eq(parse_percent(""), None)
   assert_eq(parse_percent("2x"), None)
 }
+
+///|
+test "baseline sample spreads across the corpus" {
+  let a = spread_indices(100, 8)
+  assert_eq(a.length(), 8)
+  assert_eq(a[0], 0)
+  assert_eq(a[7], 87)
+  // distinct and in range
+  let seen : Map[Int32, Unit] = Map([])
+  for x in a {
+    assert_true(x >= 0 && x < 100)
+    assert_false(seen.contains(x))
+    seen.set(x, ())
+  }
+  // fewer seeds than requested: take them all, once
+  assert_eq(spread_indices(3, 8).length(), 3)
+  assert_eq(spread_indices(0, 8).length(), 0)
+}
