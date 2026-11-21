@@ -421,6 +421,21 @@ async fn main {
     df.stdout.contains("\"t3_mismatch\":0")
   results.push(check("deep_funnel", df_ok, df.stdout.trim().to_owned()))
 
+  // 2g4. Triage controls: a known witness must be classified `known` (3/3)
+  // and two fake candidates (valid program, timeout-only) must not be
+  // promoted.  This is the gate for the candidate -> confirmed rule.
+  let tri = @exec.run(
+    "/bin/bash",
+    [
+      join(root, "scripts/triage_selftest.sh"),
+      "/tmp/mbtfuzz_accept_triage_" + tag,
+    ],
+    root,
+    300000,
+  )
+  let tri_ok = tri.rc == 0 && tri.stdout.contains("triage selftest: ok")
+  results.push(check("triage_controls", tri_ok, tri.stdout.trim().to_owned()))
+
   // 3. Trace gates: exact JSON on a frozen trace, then real end-to-end QEMU
   // parity against a Python-golden function set.  These two need host tools
   // (`afl-qemu-trace`, a `moonc` symbol table) and are the only gates skipped

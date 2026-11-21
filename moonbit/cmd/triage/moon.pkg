@@ -1,0 +1,16 @@
+// Candidate triage: fresh-copy reproducibility, relaxed timeout, negative
+// control, known-witness match, optional minimise; only a full pass is
+// "confirmed".
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")
