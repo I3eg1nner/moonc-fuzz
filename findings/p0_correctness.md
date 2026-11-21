@@ -118,3 +118,10 @@ truncated；两个程序只要前 64 KiB 相同，后缀不同也会判 `ALL_EQU
 仍会是 `published:true`。现在 `publish_reduction` 要求
 `write_text` 成功才返回路径，否则 `published:""`；测试用目录路径制造写失败
 （`publishing requires a successful write`）。
+
+### 64 KiB cap 的后果：网格用例被判 INCONCLUSIVE
+
+截断严格化之后，`f64-bits-grid`（1022 行）与 `int-bits-grid`（1561 行）在
+64 KiB 处被截断，正确地从 `ALL_EQUAL` 变成 `INCONCLUSIVE`。这说明规则生效，
+但也说明 64 KiB 对真实输出太小：cap 提到 4 MiB 后 27/27 恢复 `ALL_EQUAL`，
+digest 路径仍保留（超过 4 MiB 仍判 INCONCLUSIVE）。

@@ -206,7 +206,7 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
     ["build", "--target", target],
     dir,
     timeout_ms,
-    max_output_bytes=65536,
+    max_output_bytes=4194304,
     mem_mb=2048,
   )
   let elapsed = fn() {
@@ -251,7 +251,7 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
     ["run", "main.mbt", "--target", target],
     dir,
     timeout_ms,
-    max_output_bytes=65536,
+    max_output_bytes=4194304,
     mem_mb=2048,
   )
   let status = if r.timed_out {
