@@ -82,3 +82,11 @@ IR 之外增加一个类型有效的 MoonBit 子集生成器；两者都要先�
 - 类型有效由 `@ir.generate` 保证，因此 T2 成功率接近 100% 是构造结果，
   不能当作主 campaign 的 T2 成功率。
 - 单机、单 pin；30 分钟是一个预算点，不外推。
+
+## 第二轮复核补修：mismatch 证据
+
+原先语义 mismatch 只 `+= 1` 然后删除工作目录，最有价值的 wrong-code 候选
+会丢证据。现在在清理前把 `main.mbt`、`expected.txt`、`actual.txt`、`argv.txt`
+写到 `<out>/mismatch/<case>/`，测试
+`mismatch evidence keeps source, expected, actual and argv` 固定这一行为。
+本轮 0 mismatch 的历史批次不受影响，但以后发现不会丢现场。

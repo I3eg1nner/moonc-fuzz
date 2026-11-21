@@ -233,6 +233,59 @@ fn output_matches(actual : String, expected : Array[String]) -> Bool {
 }
 
 ///|
+/// Preserve one wrong-code candidate before the work dir is removed.
+fn save_mismatch(
+  out_dir : String,
+  case_no : Int,
+  src : String,
+  expected : Array[String],
+  actual : String,
+  target : String,
+  size : Int,
+) -> Bool {
+  let base = join(out_dir, "mismatch")
+  // create_dir is not recursive; make the run dir first.
+  ignore(
+    try {
+      @fs.create_dir(out_dir)
+      true
+    } catch {
+      _ => false
+    },
+  )
+  ignore(
+    try {
+      @fs.create_dir(base)
+      true
+    } catch {
+      _ => false
+    },
+  )
+  let ev = join(base, case_no.to_string())
+  ignore(
+    try {
+      @fs.create_dir(ev)
+      true
+    } catch {
+      _ => false
+    },
+  )
+  @stager.write_text(join(ev, "main.mbt"), src) &&
+  @stager.write_text(join(ev, "expected.txt"), expected.join("\n")) &&
+  @stager.write_text(join(ev, "actual.txt"), actual) &&
+  @stager.write_text(
+    join(ev, "argv.txt"),
+    "target=" +
+    target +
+    "\nsize=" +
+    size.to_string() +
+    "\ncase=" +
+    case_no.to_string() +
+    "\n",
+  )
+}
+
+///|
 async fn main {
   let args = @env.args()
   if args.contains("--help") {
@@ -402,6 +455,20 @@ async fn main {
         }
       } else {
         mismatch += 1
+        // Preserve the wrong-code candidate before cleaning the work dir: the
+        // source, the interpreter's expected lines, the actual stdout and the
+        // invocation are the whole evidence.
+        ignore(
+          save_mismatch(
+            out_dir,
+            cases_done,
+            sources[k],
+            expecteds[k],
+            r.stdout,
+            target,
+            size,
+          ),
+        )
       }
       @stager.rm_rf(dir)
       if cases_done % 500 == 0 {
