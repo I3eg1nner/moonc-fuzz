@@ -31,6 +31,32 @@ length）、`loop_counter`（while 计数求和）、`array_oob`（越界必须�
 - 负控：`float_format` 21 次尝试全部 **excluded**，0 witness；
 - 无注入的 60 s smoke：151 cases，所有可比族 0 witness、float 21 excluded。
 
-## 30 分钟结果
+## 30 分钟结果（4,562 cases，3 后端）
 
-见下。
+| family | attempts | witness | excluded |
+|---|---:|---:|---:|
+| i32 | 651 | 0 | 0 |
+| i64 | 652 | 0 | 0 |
+| string_ascii | 652 | **2** | 0 |
+| array_inbounds | 652 | 0 | 0 |
+| loop_counter | 652 | 0 | 0 |
+| array_oob | 652 | 0 | 0 |
+| float_format | 651 | 0 | **651** |
+
+- 2 个 string witness 都是**生成器的 oracle bug**，不是编译器差异：
+  `a`/`b` 都是 `"t"` 时三个后端都正确打印 `true`，而 generator 把相等
+  硬编码成 `"false"`。修正 expected 后 10 分钟复跑（1,516 cases）：所有
+  可比族 0 witness，float 216 excluded；
+- array_oob：每个后端都 rc≠0，符合"确定性 trap"（0 witness）；
+- **真编译器不一致：0**；**inconclusive：2（已归类为 oracle bug，修复后消失）**；
+  unsupported：0（3 后端都能构建全部族）。
+
+## 诚实结论
+
+- 这轮把触发面从"变异包内窄测试"扩到了六个算子族 × 3 后端、4,562 cases，
+  仍然没有抓到真实跨后端不一致；
+- 这不是"编译器没问题"的证明：语义域仍窄（无浮点、无 Int64 边界/溢出组合、
+  无字符串非 ASCII、无数组别名/引用），且生成器的 expected 本身可能掩盖
+  问题（本轮就出现过一次）；
+- 下一步应扩生成器深度（随机表达式而不是常量对）与更多边界（min/max、
+  除法/取模、负移位、Unicode），而不是继续跑时长。

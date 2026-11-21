@@ -107,7 +107,8 @@ fn gen_str(seed : UInt64) -> Case {
   let b = sb.join("")
   let src = "fn main {\n  let a = \"" + a + "\"\n  let b = \"" + b +
     "\"\n  println(a + b)\n  println((a + b).length().to_string())\n  println((a == b).to_string())\n}\n"
-  { family: "string_ascii", src, expected: [a + b, (a.length() + b.length()).to_string(), "false"], excluded: false }
+  let eq = if a == b { "true" } else { "false" }
+  { family: "string_ascii", src, expected: [a + b, (a.length() + b.length()).to_string(), eq], excluded: false }
 }
 
 ///|
