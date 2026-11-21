@@ -93,3 +93,22 @@ out:  {"triaged":3,"confirmed":0,"known":1,"flaky":0,"inconclusive":2}
 "找到下一个引号"扫描会在反斜杠处截断，导致 `reproduced=0/3`、known 永远
 达不到 3/3。`cluster.json_get_string` 处理 `\\`、`\"`、`\n`、`\t`、`\r`，
 triage 命令与 campaign 路径共用它；单测覆盖带转义引号/普通/缺失三种情况。
+
+## 第三轮复核补修
+
+- **单一实现**：campaign 的 `--triage` 不再复制判定逻辑，逐目录调用
+  `cmd/triage` 可执行文件（`--case/--stage/--timeout-ms/--minimize`），
+  解析它输出的 `status`/`known`。两份规则不会再漂移。
+- **真实 stage**：meta 里的 `t1/t2/t3` 映射到真实编译器阶段
+  （`t1 -> moonc syncheck`，`t2/t3 -> build`），不再把 `t1` 传给
+  `moon t1`。
+- **签名协议统一**：重跑端用 `cluster.crash_signature`（与保存端相同），
+  并跳过 `Error: failed to ...` 包装行；否则 wrapper 的 argv 会进入签名，
+  真候选必然 flaky。测试用真实 F2 witness 验证 3/3 命中。
+- **source 选择**：跳过 `formatted.mbt`/`meta.json`/`triage.jsonl`，优先
+  `in.*` / `main.*`。
+- **负控**：必须 `rc==0`、无 crash 签名、无编译器诊断。
+- **witness 保留**：confirmed 时在 `<case>/confirmed/` 写 `in.mbt`、
+  `reduced.mbt`（若归约通过）与 `status.json`，再清理临时目录。
+- **正控来源**：新增 `--emit-selftest-finding DIR`，用真实
+  `@corpus.save_finding` 写出 F2 候选；campaign 端到端脚本不再手写目录。

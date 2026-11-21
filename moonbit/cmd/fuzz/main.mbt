@@ -114,6 +114,9 @@ struct Config {
   /// Triages an existing findings tree and exits (used by the acceptance
   /// control, and to re-triage a past run).
   mut triage_only : String
+  /// Write one finding through the real `@corpus.save_finding` path and exit.
+  /// Used by the triage positive control so the fixture is not hand-written.
+  mut emit_finding : String
   /// Coverage state from a previous epoch: per-key function unions and the
   /// edge universe.  Without it, an epoch restart resets by_key and every
   /// carried input looks novel again.
@@ -903,6 +906,17 @@ struct TraceUniverse {
   mut edge_cap : Int32
   mut edge_saturated : Bool
   mut new_edges : Int32
+  /// Edge-universe accounting by source: baseline vs mutation stages.  This is
+  /// what a saturation diagnosis needs; `new_edges` alone cannot say when the
+  /// cap was reached or which stage was still contributing.
+  mut edge_new_baseline : Int32
+  mut edge_new_t1 : Int32
+  mut edge_new_t2 : Int32
+  mut edge_new_t3 : Int32
+  /// Universe size frozen when U0 settled (0 if baseline never settled).
+  mut edge_at_settle : Int32
+  /// Edges offered after the universe was already saturated (all refused).
+  mut edge_refused : Int32
   /// Shared budget for full-input evidence on disk (`--persist-cap`).  It is
   /// campaign-wide, so every worker and every trace path uses this object.
   persist : PersistBudget
@@ -923,6 +937,12 @@ fn trace_universe_new() -> TraceUniverse {
     edge_cap: EDGE_CAP_DEFAULT,
     edge_saturated: false,
     new_edges: 0,
+    edge_new_baseline: 0,
+    edge_new_t1: 0,
+    edge_new_t2: 0,
+    edge_new_t3: 0,
+    edge_at_settle: 0,
+    edge_refused: 0,
     persist: persist_budget_new(PERSIST_CAP_DEFAULT, 4000),
   }
 }
@@ -1789,6 +1809,7 @@ fn trace_maybe_settle_baseline(
     return
   }
   q.baseline_settled = true
+  cov.edge_at_settle = cov.edge_seen.length()
   if q.baseline_failed == 0 {
     q.baseline_complete = true
     // U0 becomes the initial value of every per-key universe; novelty is only
@@ -1888,6 +1909,18 @@ fn trace_apply(
   // universe for every complete trace (baseline or candidate) exactly once,
   // and remember the delta so a deferred reward uses the same number.
   let edge_new = edge_universe_add(cov, tr.edge_keys)
+  if task.baseline {
+    cov.edge_new_baseline += edge_new
+  } else if task.stage == @trace.T1 {
+    cov.edge_new_t1 += edge_new
+  } else if task.stage == @trace.T2 {
+    cov.edge_new_t2 += edge_new
+  } else {
+    cov.edge_new_t3 += edge_new
+  }
+  if cov.edge_saturated && edge_new == 0 && tr.edge_keys.length() > 0 {
+    cov.edge_refused += 1
+  }
   if !task.baseline {
     cov.new_edges += edge_new
   }
@@ -2708,38 +2741,6 @@ fn triage_stage_of(dir : String) -> String {
 }
 
 ///|
-fn triage_source_of(dir : String) -> String {
-  for name in @stager.try_read_dir(dir) {
-    if name != "meta.json" {
-      return @stager.read_text(join(dir, name))
-    }
-  }
-  ""
-}
-
-///|
-async fn triage_run_once(
-  cfg : Config,
-  src : String,
-  stage : String,
-  dir : String,
-) -> (String, String, Int32) {
-  if !write_pkg_dir(dir, src) {
-    return ("", "", -1)
-  }
-  if stage == "syncheck" {
-    let r = @exec.run(
-      @stager.tool_path("moonc"),
-      ["syncheck", "-error-format", "json", "main.mbt"],
-      dir,
-      cfg.t2_timeout * 3,
-    )
-    return (@stager.signature("build", r), r.stderr, r.rc)
-  }
-  let r = @stager.run_stage(stage, "wasm-gc", dir, cfg.t2_timeout * 3)
-  (@stager.signature(stage, r), r.stderr, r.rc)
-}
-
 ///|
 /// Extract the value of `"<key>":"<value>"` from one JSON line.
 fn json_str_field(line : String, key : String) -> String {
@@ -2757,7 +2758,6 @@ fn json_str_field(line : String, key : String) -> String {
 }
 
 ///|
-/// Parse a JSON array of strings that starts at `"<key>":[`.
 fn json_str_array_field(line : String, key : String) -> Array[String] {
   let out : Array[String] = []
   let pat = "\"" + key + "\":["
@@ -2786,7 +2786,6 @@ fn json_str_array_field(line : String, key : String) -> Array[String] {
 }
 
 ///|
-/// Load a coverage state written by a previous epoch.
 fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let text = @stager.read_text(cfg.coverage_state)
   let mut keys = 0
@@ -2815,7 +2814,6 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
 }
 
 ///|
-/// Persist per-key function unions and the edge universe for the next epoch.
 fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
   let lines : Array[String] = []
   for k, v in cov.by_key {
@@ -2834,123 +2832,45 @@ fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
   edges.sort()
   lines.push("{\"edges\":" + @trace.json_string_array(edges) + "}")
   ignore(
-    @stager.write_text(
-      join(out, "coverage_state.jsonl"),
-      lines.join("\n") + "\n",
-    ),
+    @stager.write_text(join(out, "coverage_state.jsonl"), lines.join("\n") + "\n"),
   )
 }
 
 ///|
-fn triage_known(stderr : String) -> String {
-  match @cluster.known_id(stderr) {
-    Some(id) => id
-    None => ""
-  }
-}
-
-///|
-/// Triage one finding directory.  Returns (status, known id).
+/// Triage one finding by invoking `cmd/triage` -- the same implementation the
+/// standalone command uses.  Keeping a second copy in the campaign is how the
+/// two protocols drifted apart.
 async fn triage_one(cfg : Config, dir : String) -> (String, String) {
-  let stage = triage_stage_of(dir)
-  let src = triage_source_of(dir)
-  if src == "" {
+  let triage = join(
+    join(join(cfg.root, "moonbit/_build/native/debug/build"), "cmd/triage"),
+    "triage.exe",
+  )
+  if !@fs.path_exists(triage) {
     return ("inconclusive", "")
   }
-  let work = "/tmp/mbfuzz_triage_" + @env.now().to_string()
-  ensure_dirs(work)
-  let mut defects = 0
-  let mut first_err = ""
-  for k in 0..<3 {
-    let (sig, err, _) = triage_run_once(
-      cfg,
-      src,
-      stage,
-      join(work, "r" + k.to_string()),
-    )
-    if sig.contains("crash|") {
-      defects += 1
-    }
-    if first_err == "" {
-      first_err = err
-    }
-  }
-  let (csig, _, _) = triage_run_once(
-    cfg,
-    "fn main {\n  println(\"ok\")\n}\n",
-    stage,
-    join(work, "control"),
+  let minimize = join(
+    join(join(cfg.root, "moonbit/_build/native/debug/build"), "cmd/minimize"),
+    "minimize.exe",
   )
-  let control_clean = !csig.contains("crash|")
-  let known = triage_known(first_err)
-  let mut minimised = false
-  if defects == 3 && control_clean && known == "" {
-    let bin = join(
-      join(join(cfg.root, "moonbit/_build/native/debug/build"), "cmd/minimize"),
-      "minimize.exe",
-    )
-    if @fs.path_exists(bin) {
-      let (_, _, _) = triage_run_once(cfg, src, stage, join(work, "min"))
-      let out = join(work, "reduced.mbt")
-      let r = @exec.run(
-        bin,
-        [
-          "--dir",
-          join(work, "min"),
-          "--file",
-          "main.mbt",
-          "--stage",
-          stage,
-          "--out",
-          out,
-        ],
-        work,
-        600000,
-      )
-      minimised = r.rc == 0 && r.stdout.contains("\"published\":true")
-    }
-  }
-  @stager.rm_rf(work)
-  let status = if defects == 0 {
-    "inconclusive"
-  } else if defects < 3 {
-    "flaky"
-  } else if !control_clean {
-    "inconclusive"
-  } else if known != "" {
-    "known"
-  } else if !minimised {
-    "flaky"
-  } else {
-    "confirmed"
-  }
-  (status, known)
-}
-
-///|
-fn write_pkg_dir(dir : String, src : String) -> Bool {
-  @stager.rm_rf(dir)
-  ensure_dirs(dir)
-  @stager.write_text(
-    join(dir, "moon.mod"),
-    "name = \"repro/triaged\"\nversion = \"0.1.0\"\n",
-  ) &&
-  @stager.write_text(join(dir, "moon.pkg"), "pkgtype(kind: \"executable\")\n") &&
-  @stager.write_text(join(dir, "main.mbt"), src)
-}
-
-///|
-fn ensure_dirs(path : String) -> Unit {
-  ignore(
-    try {
-      @fs.create_dir(path)
-      true
-    } catch {
-      _ => false
-    },
+  let r = @exec.run(
+    triage,
+    [
+      "--case", dir, "--stage", triage_stage_of(dir), "--timeout-ms",
+      cfg.t2_timeout.to_string(), "--minimize", minimize,
+    ],
+    cfg.root,
+    600000,
+  )
+  let out = r.stdout.trim().to_owned()
+  let status = json_str_field(out, "status")
+  let known = json_str_field(out, "known")
+  (
+    if status == "" { "inconclusive" } else { status },
+    if known == "null" { "" } else { known },
   )
 }
 
+///|
 ///|
 /// Walk `<root>/findings/<stage>/<kind>/<sig>` and triage each.  Writes one
 /// JSON line per case and returns counts (checked, confirmed, known, flaky,
@@ -3062,6 +2982,22 @@ async fn monitor(
       cov.coverage_adds.to_string() +
       ",\"new_edges\":" +
       cov.new_edges.to_string() +
+      ",\"edge_keys\":" +
+      cov.edge_seen.length().to_string() +
+      ",\"edge_saturated\":" +
+      (if cov.edge_saturated { "true" } else { "false" }) +
+      ",\"edge_new_baseline\":" +
+      cov.edge_new_baseline.to_string() +
+      ",\"edge_new_t1\":" +
+      cov.edge_new_t1.to_string() +
+      ",\"edge_new_t2\":" +
+      cov.edge_new_t2.to_string() +
+      ",\"edge_new_t3\":" +
+      cov.edge_new_t3.to_string() +
+      ",\"edge_at_settle\":" +
+      cov.edge_at_settle.to_string() +
+      ",\"edge_refused\":" +
+      cov.edge_refused.to_string() +
       ",\"trace_dropped\":" +
       prog.trace_dropped.to_string() +
       "}"
@@ -3192,6 +3128,7 @@ async fn main {
     deep_p: 0.0,
     triage_after: false,
     triage_only: "",
+    emit_finding: "",
     coverage_state: "",
     t1_timeout: 8000,
     t2_timeout: 25000,
@@ -3304,6 +3241,9 @@ async fn main {
     } else if a == "--triage-only" && i + 1 < args.length() {
       cfg.triage_only = args[i + 1]
       i += 2
+    } else if a == "--emit-selftest-finding" && i + 1 < args.length() {
+      cfg.emit_finding = args[i + 1]
+      i += 2
     } else if a == "--coverage-state" && i + 1 < args.length() {
       cfg.coverage_state = args[i + 1]
       i += 2
@@ -3332,6 +3272,25 @@ async fn main {
   }
   if cfg.stats_cap < 0 {
     cfg.stats_cap = 0
+  }
+  if cfg.emit_finding != "" {
+    let src = @stager.read_text(
+      @stager.join(cfg.root, "poc/f2_lex_escape_ice/cmd/main.mbt"),
+    )
+    let sig = @cluster.crash_signature(
+      "ICE",
+      199,
+      "Error: Invalid_argument(\"Char.chr\")\n",
+      "",
+    )
+    let meta = "{\"stage\":\"build\",\"kind\":\"ICE\",\"status\":\"candidate\",\"signature\":\"" +
+      @stager.escape(sig) +
+      "\"}"
+    ignore(
+      @corpus.save_finding(cfg.emit_finding, "build", "ICE", sig, src, meta, "in.mbt"),
+    )
+    println("{\"emitted\":\"" + @stager.escape(sig) + "\"}")
+    return
   }
   if cfg.triage_only != "" {
     let (checked, confirmed, known, flaky, inconclusive) = triage_tree(
@@ -3723,6 +3682,18 @@ async fn main {
     cov.by_key.length().to_string() +
     ",\"edge_keys\":" +
     cov.edge_seen.length().to_string() +
+    ",\"edge_new_baseline\":" +
+    cov.edge_new_baseline.to_string() +
+    ",\"edge_new_t1\":" +
+    cov.edge_new_t1.to_string() +
+    ",\"edge_new_t2\":" +
+    cov.edge_new_t2.to_string() +
+    ",\"edge_new_t3\":" +
+    cov.edge_new_t3.to_string() +
+    ",\"edge_at_settle\":" +
+    cov.edge_at_settle.to_string() +
+    ",\"edge_refused\":" +
+    cov.edge_refused.to_string() +
     ",\"t1_dry\":" +
     q.t1_dry.to_string() +
     ",\"t1_trace_off\":" +

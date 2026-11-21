@@ -139,18 +139,26 @@ async fn run_signature(
   stage : String,
   timeout_ms : Int32,
 ) -> (String, Int32, String) {
-  if stage == "syncheck" {
-    let r = @exec.run(
+  let r = if stage == "syncheck" {
+    @exec.run(
       @stager.tool_path("moonc"),
       ["syncheck", "-error-format", "json", "main.mbt"],
       dir,
       timeout_ms,
     )
-    (@stager.signature("build", r), r.rc, r.stderr)
   } else {
-    let r = @stager.run_stage(stage, "wasm-gc", dir, timeout_ms)
-    (@stager.signature(stage, r), r.rc, r.stderr)
+    @stager.run_stage(stage, "wasm-gc", dir, timeout_ms)
   }
+  // The campaign stores cluster.crash_signature; the re-run must use the same
+  // protocol or a real candidate looks like a different defect.
+  let mut sig = "ok"
+  for f in @stager.findings("build", r) {
+    if @judge.severity_name(f.severity) == "defect" {
+      sig = @cluster.crash_signature(f.class, r.rc, r.stderr, r.stdout)
+      break
+    }
+  }
+  (sig, r.rc, r.stderr)
 }
 
 ///|
@@ -212,9 +220,18 @@ async fn main {
       return
     }
   }
-  let stage = match arg_value(args, "--stage") {
+  let raw_stage = match arg_value(args, "--stage") {
     Some(s) => s
     None => "check"
+  }
+  // Campaign findings use t1/t2/t3; there is no `moon t1`.  Map them to the
+  // real compiler stage: t1 is a syncheck, t2/t3 are builds.
+  let stage = if raw_stage == "t1" {
+    "syncheck"
+  } else if raw_stage == "t2" || raw_stage == "t3" {
+    "build"
+  } else {
+    raw_stage
   }
   let base_timeout = match arg_value(args, "--timeout-ms") {
     Some(s) => parse_num(s, 60000)
@@ -223,7 +240,18 @@ async fn main {
   // Relaxed budget: a hang must survive 3x the campaign limit.
   let relaxed = base_timeout * 3
   let minimize = arg_value(args, "--minimize")
-  let src = @stager.read_text(join(case_dir, "in.mbt"))
+  let mut src = ""
+  for name in @stager.try_read_dir(case_dir) {
+    if name == "meta.json" || name == "formatted.mbt" || name == "triage.jsonl" {
+      continue
+    }
+    if name.has_prefix("in.") || name.has_prefix("main.") || src == "" {
+      src = @stager.read_text(join(case_dir, name))
+      if name.has_prefix("in.") || name.has_prefix("main.") {
+        break
+      }
+    }
+  }
   if src == "" {
     println("{\"ok\":false,\"error\":\"no in.mbt in " + case_dir + "\"}")
     @env.exit(2)
@@ -258,14 +286,28 @@ async fn main {
   let ctl = join(work, "control")
   let mut control_clean = false
   if write_pkg(ctl, "fn main {\n  println(\"ok\")\n}\n", "mbt") {
-    let (ctl_sig, ctl_rc, _) = run_signature(ctl, stage, relaxed)
-    // A clean control must actually complete (rc 0), not merely abstain from
-    // crashing.
-    control_clean = ctl_rc == 0 && !is_defect_sig(ctl_sig)
+    let (ctl_sig, ctl_rc, ctl_err) = run_signature(ctl, stage, relaxed)
+    // A clean control must actually complete (rc 0), avoid a crash signature
+    // and carry no compiler diagnostic.
+    let ctl_obs = @judge.observation(
+      stage,
+      ctl_rc,
+      false,
+      0L,
+      0L,
+      0,
+      false,
+      false,
+      "",
+      ctl_err,
+    )
+    control_clean = ctl_rc == 0 && !is_defect_sig(ctl_sig) &&
+      !@judge.has_diagnostic(ctl_obs)
   }
   // Optional minimise: only "published" counts.
   let mut minimised = false
   let mut minimise_note = "not requested"
+  let mut reduced_path = ""
   match minimize {
     Some(bin) =>
       if @fs.path_exists(bin) {
@@ -280,6 +322,9 @@ async fn main {
           )
           minimised = r.rc == 0 && r.stdout.contains("\"published\":true")
           minimise_note = if minimised { "verified" } else { "not published" }
+          if minimised {
+            reduced_path = out
+          }
         }
       } else {
         minimise_note = "minimise binary missing"
@@ -305,6 +350,30 @@ async fn main {
     minimize_required,
     minimised,
   )
+  // A confirmed witness must outlive the work directory.
+  if status == "confirmed" {
+    let cd = join(case_dir, "confirmed")
+    ensure_dir(cd)
+    ignore(@stager.write_text(join(cd, "in.mbt"), src))
+    if reduced_path != "" {
+      ignore(
+        @stager.write_text(
+          join(cd, "reduced.mbt"),
+          @stager.read_text(reduced_path),
+        ),
+      )
+    }
+    ignore(
+      @stager.write_text(
+        join(cd, "status.json"),
+        "{\"status\":\"confirmed\",\"signature\":\"" +
+        @stager.escape(first) +
+        "\",\"stage\":\"" +
+        stage +
+        "\"}",
+      ),
+    )
+  }
   let b = StringBuilder()
   b.write_string("{\"case\":\"" + @stager.escape(case_dir) + "\"")
   b.write_string(",\"status\":\"" + status + "\"")

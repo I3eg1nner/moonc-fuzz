@@ -116,6 +116,13 @@ pub fn cause_token(text : String) -> String {
       return strip_paths(t.to_owned())
     }
     if t.has_prefix("Error: ") {
+      // `moon build` wraps the compiler failure in an `Error: failed to ...`
+      // line before the actual ICE text; using it as the cause makes the
+      // re-run signature depend on the wrapper and the argv.
+      if t.has_prefix("Error: failed to ") ||
+        t.has_prefix("Error: failed when building") {
+        continue
+      }
       return strip_paths(t.to_owned())
     }
   }
@@ -133,7 +140,13 @@ pub fn crash_signature(
 ) -> String {
   let text = stderr + "\n" + stdout
   let known = known_id(text)
-  let token = cause_token(text)
+  let raw = cause_token(text)
+  // Drop the diagnostic prefix so the stored signature is the cause itself.
+  let token = if raw.has_prefix("Error: ") {
+    raw[7:].to_owned()
+  } else {
+    raw
+  }
   let head = if token == "" {
     "crash|" + kind + "|rc=" + rc.to_string()
   } else {

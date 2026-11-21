@@ -123,6 +123,7 @@ fn trace_test_cfg() -> Config {
     deep_p: 0.0,
     triage_after: false,
     triage_only: "",
+    emit_finding: "",
     coverage_state: "",
     t1_timeout: 1000,
     t2_timeout: 1000,

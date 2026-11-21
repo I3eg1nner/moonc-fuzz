@@ -7,6 +7,7 @@ import {
   "moonbitlang/x/fs",
   "I3eg1nner/mbtfuzz/cluster",
   "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/judge",
   "I3eg1nner/mbtfuzz/stager",
 }
 
