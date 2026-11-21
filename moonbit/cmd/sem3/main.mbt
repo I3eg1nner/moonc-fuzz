@@ -169,6 +169,14 @@ fn next_case(family : String, seed : UInt64) -> Case {
     gen_alias(seed)
   } else if family == "utf8_string" {
     gen_utf8(seed)
+  } else if family == "var_use" {
+    gen_var(seed)
+  } else if family == "if_else" {
+    gen_if(seed)
+  } else if family == "func_call" {
+    gen_func(seed)
+  } else if family == "array_nested" {
+    gen_nested_array(seed)
   } else {
     gen_float(seed)
   }
@@ -254,7 +262,7 @@ async fn main {
   let limit = num_arg(args, "--limit", 100000)
   let seed_off = num_arg(args, "--seed", 1)
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
-  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "float_format"]
+  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "float_format"]
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
@@ -331,17 +339,31 @@ async fn main {
         for o in obs { outs.push(o.out) }
         let mut same_out = true
         for i in 1..<outs.length() { if outs[i] != outs[0] { same_out = false } }
-        let want : Array[String] = []
-        for x in c.expected { want.push(if inject != "" { x + "9" } else { x }) }
-        let got : Array[String] = []
-        for l in outs[0].split("\n") { if l != "" { got.push(l.to_owned()) } }
-        let mut matches = got.length() == want.length()
-        if matches {
-          for j, w in want { if got[j] != w { matches = false } }
+        let mut matched_count = 0
+        for i, o in obs {
+          let want : Array[String] = []
+          for x in c.expected {
+            want.push(
+              if inject == "all" || (inject != "" && targets[i] == inject) {
+                x + "9"
+              } else {
+                x
+              },
+            )
+          }
+          let got : Array[String] = []
+          for l in o.out.split("\n") { if l != "" { got.push(l.to_owned()) } }
+          let mut matches = got.length() == want.length()
+          if matches {
+            for j, w in want { if got[j] != w { matches = false } }
+          }
+          if matches { matched_count += 1 }
         }
-        if same_out && !matches {
+        if matched_count == obs.length() {
+          verdict = "pass"
+        } else if same_out && matched_count == 0 {
           verdict = "oracle"
-        } else if !same_out {
+        } else {
           verdict = "witness"
         }
       }
@@ -607,4 +629,51 @@ fn gen_utf8(seed : UInt64) -> Case {
   let units = if s == "🙂" { 2 } else if s == "aé🙂" { 4 } else if s == "éa" { 2 } else if s == "日本語" { 3 } else { 1 }
   let chars = if s == "🙂" { 1 } else if s == "aé🙂" { 3 } else if s == "éa" { 2 } else if s == "日本語" { 3 } else { 1 }
   { family: "utf8_string", src, expected: [units.to_string(), chars.to_string()], excluded: false }
+}
+
+///|
+fn gen_var(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let t = te_gen(rng, 3, 32)
+  let v = te_eval(t, 32)
+  let src = "fn main {\n  let x = " + te_render(t) +
+    "\n  let y = x + x\n  println(y.to_string())\n}\n"
+  { family: "var_use", src, expected: [(v + v).to_string()], excluded: false }
+}
+
+///|
+fn gen_if(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = te_gen(rng, 2, 32)
+  let b = te_gen(rng, 2, 32)
+  let va = te_eval(a, 32)
+  let vb = te_eval(b, 32)
+  let take_a = va < vb
+  let v = if take_a { va } else { vb }
+  let src = "fn main {\n  let x = if (" + te_render(a) + " < " + te_render(b) +
+    ") { " + te_render(a) + " } else { " + te_render(b) +
+    " }\n  println(x.to_string())\n}\n"
+  { family: "if_else", src, expected: [v.to_string()], excluded: false }
+}
+
+///|
+fn gen_func(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(200).to_int64() - 100L
+  let b = rng.int(200).to_int64() - 100L
+  let v = a + b
+  let src = "fn add(a : Int, b : Int) -> Int { a + b }\nfn main {\n  let x = " +
+    a.to_string() + "\n  let y = " + b.to_string() +
+    "\n  println(add(x, y).to_string())\n}\n"
+  { family: "func_call", src, expected: [v.to_string()], excluded: false }
+}
+
+///|
+fn gen_nested_array(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(10)
+  let b = rng.int(10)
+  let src = "fn main {\n  let xs : Array[Array[Int]] = [[" + a.to_string() +
+    ", " + b.to_string() + "], [3, 4]]\n  println(xs[0][1].to_string())\n}\n"
+  { family: "array_nested", src, expected: [b.to_string()], excluded: false }
 }

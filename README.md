@@ -460,6 +460,32 @@ moon test --target native
 | `moonbit/README.mbt.md` | MoonBit 模块、命令和边界 |
 | `examples/trace2funcs.sh` | 最小可运行示例 |
 
+
+## 9.1 语义差分引擎（`cmd/sem3`，研究原型）
+
+同一份生成源码在 **js / wasm-gc / native** 上各跑一次，与进程内参考求值器
+比较 stdout+rc；逐后端区分 `ok / trap / compile_error / ice / timeout /
+truncated`，三个完整观测才可判 pass。
+
+| 能力 | 状态 |
+|---|---|
+| Int32/Int64 精确算术、位运算、移位、溢出边界 | 已验证（生成 + 三后端比较） |
+| 随机表达式树（深度 2–4，括号） | 已验证 |
+| 变量绑定/多次引用、if/else、while 计数、同文件函数调用 | 已验证（结构化族） |
+| ASCII/UTF-8 字符串 length/char_length/concat/eq | 已验证（`length`=UTF-16 单元，已探测） |
+| 数组 in-bounds、越界 trap、别名、嵌套 | 已验证（越界要求每后端真正 trap） |
+| 浮点格式化 | **排除**（excluded_domain） |
+| `min / -1`、除零 | **allowed_impl_divergence**（core int 文档：no portable result） |
+| 指针/结构体/async/真实包语义 | 未覆盖（研究原型） |
+| i64 参考值独立性 | **未完成**：参考求值仍用宿主 Int64（wrap），存在共模风险 |
+
+控制：`--inject js` 每族必须产出 witness；`--inject all` 产出
+oracle_candidate 而非 witness；float 与 allowed_divergence 只计 excluded。
+
+**结论口径**：窄域三后端差分能力已建立；未观察到真实编译器不一致，不等于
+“编译器无 bug”；旧 sem3 “0 witness” 结果因后端失败被静默跳过而**作废**；
+edge A/B 的 1,960 平台同样**作废**（见 `findings/edge_plateau.md`）。
+
 ## 10. 许可证
 
 Apache-2.0，见 `LICENSE`。仓库内的第三方 fixture（如
