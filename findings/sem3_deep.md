@@ -63,3 +63,35 @@ Date: 2026-11-21. 工具链 pin 未改。
 - expr_i64 用 Int64 wrap，expr_i32 用 32 位 wrap；
 - 移位量取低 5/6 位；除零未进入生成器；
 - 单 seed、单次 30 分钟；本轮 witness 为 0（replay 脚本已备）。
+
+
+## 观测修正后的结果（重要：上面的 0 witness 表作废）
+
+旧 sem3 只统计 rc=0 目标数，后端 compile_error/timeout/trap 会被静默跳过，
+所以上一轮"0 witness"不可引用。修正后 10 分钟验证（1,602 cases，
+unique_programs=832）：
+
+| family | attempts | witness（attempt 级） | inconclusive | oracle_candidate |
+|---|---:|---:|---:|---:|
+| boundary_i32 | 123 | 8 | 0 | 0 |
+| boundary_i64 | 123 | 13 | 0 | 0 |
+| 其余 11 族 | ~123 each | 0 | 0 | 0 |
+| float_format | 123 | 0 (excluded 123) | 0 | 0 |
+
+**unique_witness = 2**（按源 sha1 去重，21 个 witness 目录只是同一程序重复）：
+
+1. `-2147483648 / -1`：js 返回 `-2147483648`（wrap），wasm-gc/native **trap**
+2. `-9223372036854775808L / -1L`：同上
+
+两者在 `regressions/sem3_div_overflow/` 可离线 replay。这是**真实的后端行为
+不一致 candidate**（除法溢出时 js wrap、wasm/native trap），不是 oracle
+bug；是否属于语言允许的实现差异需要规范确认，暂不冒充编译器 bug。
+
+oracle_candidate = 0（修正 shift 右操作数与 i32 div wrap 后，之前的
+expr_i64 全后端一致但 expected 不同的问题消失）。
+
+### 口径
+
+- "未观察到稳定收益" ≠ "已证明无差异"；
+- "窄域三后端差分能力已建立" ≠ "几千个完备 case 通过"：cases 有重复
+  （unique 832/1,602），域仍窄，且本轮修掉了自己的 render/oracle bug。

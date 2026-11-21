@@ -1,0 +1,1 @@
+/home/user/.moon/bin/moon run main.mbt --target js|wasm-gc|native

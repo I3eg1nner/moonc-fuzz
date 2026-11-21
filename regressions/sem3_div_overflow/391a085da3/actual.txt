@@ -1,0 +1,9 @@
+js[ok] rc=0
+-2147483648
+---
+wasm-gc[trap] rc=1
+
+---
+native[runtime_error] rc=136
+
+js=ok wasm-gc=trap native=runtime_error 
