@@ -132,6 +132,60 @@ fn write_pkg(dir : String, src : String, mode : String) -> Bool {
 }
 
 ///|
+fn split_ws(s : String) -> Array[String] {
+  let out : Array[String] = []
+  let b = StringBuilder()
+  for c in s {
+    if c == ' ' || c == '\t' || c == '\n' {
+      if b.to_string() != "" {
+        out.push(b.to_string())
+        b.reset()
+      }
+    } else {
+      b.write_char(c)
+    }
+  }
+  if b.to_string() != "" {
+    out.push(b.to_string())
+  }
+  out
+}
+
+///|
+/// Replay one capsule finding: copy the saved package, write the witness into
+/// the recorded file, run the recorded argv.
+async fn capsule_replay(
+  work : String,
+  pkg_dir : String,
+  file : String,
+  src : String,
+  moon : String,
+  cmd : String,
+  stage : String,
+  timeout_ms : Int32,
+) -> (String, Int32, String) {
+  @stager.rm_rf(work)
+  if !@stager.copy_tree(pkg_dir, work) {
+    return ("", -1, "capsule copy failed")
+  }
+  ignore(@stager.write_text(join(work, file), src))
+  let r = @exec.run(
+    moon,
+    split_ws(cmd),
+    work,
+    timeout_ms,
+  )
+  let mut sig = "ok"
+  for f in @stager.findings(stage, r) {
+    if @judge.severity_name(f.severity) == "defect" {
+      sig = @cluster.crash_signature(f.class, r.rc, r.stderr, r.stdout)
+      break
+    }
+  }
+  (sig, r.rc, r.stderr)
+}
+
+///|
 /// Signature for one run.  Uses the same stager signature the campaign writes,
 /// so a candidate and its triage are comparable.
 async fn run_signature(
@@ -256,6 +310,12 @@ async fn main {
     println("{\"ok\":false,\"error\":\"no in.mbt in " + case_dir + "\"}")
     @env.exit(2)
   }
+  let capsule_json = join(case_dir, "capsule.json")
+  let is_capsule = @fs.path_exists(capsule_json)
+  let cap_moon = @cluster.json_get_string(@stager.read_text(capsule_json), "moon")
+  let cap_cmd = @cluster.json_get_string(@stager.read_text(capsule_json), "cmd")
+  let cap_file = @cluster.json_get_string(@stager.read_text(capsule_json), "file")
+  let baseline_src = @stager.read_text(join(case_dir, "baseline.mbt"))
   let work = "/tmp/mbtfuzz_triage_" + @env.now().to_string()
   // create_dir is not recursive; without this every write_pkg failed and the
   // candidate was silently reported as "no signature".
@@ -267,11 +327,25 @@ async fn main {
   let mut reproducible = 0
   let mut first_err = ""
   for k in 0..<3 {
-    let d = join(work, "r" + k.to_string())
-    if !write_pkg(d, src, "mbt") {
-      continue
+    let sig_err = if is_capsule {
+      capsule_replay(
+        join(work, "r" + k.to_string()),
+        join(case_dir, "pkg"),
+        cap_file,
+        src,
+        cap_moon,
+        cap_cmd,
+        stage,
+        relaxed,
+      )
+    } else {
+      let d = join(work, "r" + k.to_string())
+      if !write_pkg(d, src, "mbt") {
+        continue
+      }
+      run_signature(d, stage, relaxed)
     }
-    let (sig, _, err) = run_signature(d, stage, relaxed)
+    let (sig, _, err) = sig_err
     sigs.push(sig)
     if first_err == "" {
       first_err = err
@@ -285,7 +359,29 @@ async fn main {
   // Negative control: a benign package under the same stage and budget.
   let ctl = join(work, "control")
   let mut control_clean = false
-  if write_pkg(ctl, "fn main {\n  println(\"ok\")\n}\n", "mbt") {
+  let ctl_ok = if is_capsule {
+    if baseline_src == "" {
+      false
+    } else {
+      let (ctl_sig, ctl_rc, ctl_err) = capsule_replay(
+        ctl,
+        join(case_dir, "pkg"),
+        cap_file,
+        baseline_src,
+        cap_moon,
+        cap_cmd,
+        stage,
+        relaxed,
+      )
+      let obs = @judge.observation(
+        stage, ctl_rc, false, 0L, 0L, 0, false, false, "", ctl_err,
+      )
+      control_clean = ctl_rc == 0 &&
+        !is_defect_sig(ctl_sig) &&
+        !@judge.has_diagnostic(obs)
+      true
+    }
+  } else if write_pkg(ctl, "fn main {\n  println(\"ok\")\n}\n", "mbt") {
     let (ctl_sig, ctl_rc, ctl_err) = run_signature(ctl, stage, relaxed)
     // A clean control must actually complete (rc 0), avoid a crash signature
     // and carry no compiler diagnostic.
@@ -295,12 +391,16 @@ async fn main {
     control_clean = ctl_rc == 0 &&
       !is_defect_sig(ctl_sig) &&
       !@judge.has_diagnostic(ctl_obs)
+    true
+  } else {
+    false
   }
+  ignore(ctl_ok)
   // Optional minimise: only "published" counts.
   let mut minimised = false
   let mut minimise_note = "not requested"
   let mut reduced_path = ""
-  match minimize {
+  match (if is_capsule { None } else { minimize }) {
     Some(bin) =>
       if @fs.path_exists(bin) {
         let d = join(work, "min")
