@@ -529,6 +529,10 @@ fn te_gen(rng : @mutate.Rng, depth : Int32, bits : Int32) -> TE {
     let b = if op == 3 || op == 4 {
       // Keep divisors non-zero in-tree to avoid trap cases here.
       C(if rng.int(2) == 0 { 1L } else { -1L })
+    } else if op == 8 || op == 9 {
+      // Shift counts are small non-negative values; negative/huge counts make
+      // the expected value depend on masking details and produced oracle noise.
+      C(rng.int(8).to_int64())
     } else {
       te_gen(rng, depth - 1, bits)
     }
@@ -638,7 +642,7 @@ fn gen_var(seed : UInt64) -> Case {
   let v = te_eval(t, 32)
   let src = "fn main {\n  let x = " + te_render(t) +
     "\n  let y = x + x\n  println(y.to_string())\n}\n"
-  { family: "var_use", src, expected: [(v + v).to_string()], excluded: false }
+  { family: "var_use", src, expected: [te_wrap32(v + v).to_string()], excluded: false }
 }
 
 ///|
