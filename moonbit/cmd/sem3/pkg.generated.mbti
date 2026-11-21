@@ -8,6 +8,8 @@ package "I3eg1nner/mbtfuzz/cmd/sem3"
 // Types and methods
 type Case
 
+type Obs
+
 #derive(Eq)
 type TE
 

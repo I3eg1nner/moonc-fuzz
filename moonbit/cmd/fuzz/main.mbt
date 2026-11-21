@@ -2457,14 +2457,22 @@ fn backend_diff_class(a : String, b : String, rc_a : Int32, rc_b : Int32) -> Str
     if ta != tb {
       return "excluded"
     }
-    // Pass/fail counts are the semantic outcome; assertion text and backend
-    // prefixes are harness formatting.
-    if fa == fb {
-      return "none"
+    // Same failed count is not enough: A failing test X and B failing test Y
+    // must be a divergence.  Compare the identities of failed tests.
+    let la = failed_assertions(a)
+    let lb = failed_assertions(b)
+    if la.length() == lb.length() {
+      let mut same = true
+      for i, x in la {
+        if lb[i] != x {
+          same = false
+        }
+      }
+      if same {
+        return "none"
+      }
     }
-    if fa != fb {
-      return "witness"
-    }
+    return "witness"
   }
   if rc_a == rc_b && a.trim() == b.trim() {
     return "none"
@@ -2510,6 +2518,7 @@ fn save_pkg_witness(
   moon : String,
   sig : String,
   kind : String,
+  cmd : String,
   src : String,
   baseline : String,
   pkg : String,
@@ -2533,7 +2542,11 @@ fn save_pkg_witness(
       "{\"moon\":\"" +
       @stager.escape(moon) +
       "\",\"cmd\":\"" +
+      @stager.escape(cmd) +
+      "\",\"build_cmd\":\"" +
       @stager.escape(cfg.pkg_argv) +
+      "\",\"run_cmd\":\"" +
+      @stager.escape(cfg.pkg_run_argv) +
       "\",\"file\":\"" +
       @stager.escape(file) +
       "\",\"stage\":\"build\",\"target\":\"\",\"signature\":\"" +
@@ -2707,8 +2720,8 @@ async fn worker(
               )
               ignore(
                 save_pkg_witness(
-                  cfg, moon, tsig, "TEST_FAIL", src, baseline, cfg.pkg_seed,
-                  cfg.pkg_file,
+                  cfg, moon, tsig, "TEST_FAIL", cfg.pkg_run_argv, src,
+                  baseline, cfg.pkg_seed, cfg.pkg_file,
                 ),
               )
             }
@@ -2725,7 +2738,8 @@ async fn worker(
           }
           let sig = @cluster.crash_signature(kind, r.rc, r.stderr, r.stdout)
           if save_pkg_witness(
-            cfg, moon, sig, kind, src, baseline, cfg.pkg_seed, cfg.pkg_file,
+            cfg, moon, sig, kind, cfg.pkg_argv, src, baseline, cfg.pkg_seed,
+            cfg.pkg_file,
           ) {
             ps.witnesses += 1
             prog.witnesses += 1

@@ -176,11 +176,14 @@ fn next_case(family : String, seed : UInt64) -> Case {
 
 ///|
 fn ensure_dir(p : String) -> Unit {
-  ignore(try { @fs.create_dir(p); true } catch { _ => false })
-  let parent = @corpus.dirname(p)
-  if parent != p && !@fs.path_exists(p) {
-    ignore(try { @fs.create_dir(parent); true } catch { _ => false })
+  if p == "" || p == "." || p == "/" || @fs.path_exists(p) {
+    return
   }
+  let parent = @corpus.dirname(p)
+  if parent != p {
+    ensure_dir(parent)
+  }
+  ignore(try { @fs.create_dir(p); true } catch { _ => false })
 }
 
 ///|
@@ -192,86 +195,168 @@ fn write_pkg(dir : String, src : String) -> Bool {
 }
 
 ///|
+struct Obs {
+  target : String
+  class : String
+  out : String
+  rc : Int32
+}
+
+///|
+fn target_class(rc : Int32, timed_out : Bool, truncated : Bool, err : String) -> String {
+  if timed_out {
+    "timeout"
+  } else if truncated {
+    "truncated"
+  } else if rc == 0 {
+    "ok"
+  } else if err.contains("RuntimeError") || err.contains("panic") ||
+    err.contains("trap") || err.contains("abort") || err.contains("Abort") ||
+    err.contains("PanicError") ||
+    err.contains("SIGABRT") || err.contains("core dumped") ||
+    err.contains("Segmentation") || err.contains("Illegal instruction") {
+    "trap"
+  } else if err.contains("Oops, the compiler") ||
+    err.contains("Machine_error") || err.contains("Assertion failed") {
+    "ice"
+  } else if err.contains("Error:") || err.contains("failed to build") ||
+    err.contains("error[") || err.contains("unknown method") {
+    "compile_error"
+  } else {
+    "runtime_error"
+  }
+}
+
+///|
+fn save_case(
+  ev : String,
+  kind : String,
+  src : String,
+  expected : Array[String],
+  actual : String,
+  argv : String,
+) -> Bool {
+  ensure_dir(ev)
+  let ok = @stager.write_text(join(ev, "main.mbt"), src) &&
+    @stager.write_text(join(ev, "expected.txt"), expected.join("\n")) &&
+    @stager.write_text(join(ev, "actual.txt"), actual) &&
+    @stager.write_text(join(ev, "kind.txt"), kind) &&
+    @stager.write_text(join(ev, "argv.txt"), argv)
+  ok && @fs.path_exists(join(ev, "main.mbt")) &&
+  @fs.path_exists(join(ev, "actual.txt"))
+}
+
+///|
 async fn main {
   let args = @env.args()
   let out = match arg_value(args, "--out") { Some(s) => s; None => "/tmp/sem3" }
   let duration = num_arg(args, "--duration", 300)
   let limit = num_arg(args, "--limit", 100000)
+  let seed_off = num_arg(args, "--seed", 1)
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
   let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "float_format"]
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
   let targets = ["js", "wasm-gc", "native"]
-  let counts : Map[String, (Int32, Int32, Int32)] = Map([]) // attempts, witness, excluded
-  for f in families { counts.set(f, (0, 0, 0)) }
+  let counts : Map[String, (Int32, Int32, Int32, Int32)] = Map([]) // attempts,witness,excluded,inconclusive
+  for f in families { counts.set(f, (0, 0, 0, 0)) }
   let mut cases = 0
+  let mut unique_programs = 0
+  let seen : Map[String, Unit] = Map([])
   while @env.now() < deadline && cases < limit {
     cases += 1
     let family = families[cases % families.length()]
-    let c = next_case(family, 0x9e3779b97f4a7c15UL * cases.to_uint64())
-    let (at, wi, ex) = counts.get(family).unwrap()
-    counts.set(family, (at + 1, wi, ex))
-    let wd = join(out, "work")
-    if !write_pkg(wd, c.src) { continue }
-    let actuals : Array[String] = []
-    let rcs : Array[Int32] = []
-    let mut ok_targets = 0
-    for t in targets {
-      let r = @exec.run(
-        @stager.moon_path(), ["run", "main.mbt", "--target", t], wd,
-        30000, max_output_bytes=65536,
-      )
-      actuals.push(r.stdout.trim_end().to_owned())
-      rcs.push(r.rc)
-      if r.rc == 0 { ok_targets += 1 }
-    }
+    let c = next_case(
+      family,
+      0x9e3779b97f4a7c15UL * cases.to_uint64() + seed_off.to_uint64() * 131UL,
+    )
+    let (at, wi, ex, inc) = counts.get(family).unwrap()
+    counts.set(family, (at + 1, wi, ex, inc))
+    let h = @corpus.sha1_hex(c.src)
+    if !seen.contains(h) { seen.set(h, ()); unique_programs += 1 }
     if c.excluded {
-      // Float formatting: only count, never compare.
-      counts.set(family, (at + 1, wi, ex + 1))
+      // Float formatting: policy-excluded, only counted.
+      counts.set(family, (at + 1, wi, ex + 1, inc))
       continue
     }
-    if ok_targets == 0 { continue }
-    let expected_ok = c.expected.length() > 0
-    let mut bad = false
+    let wd = join(out, "work")
+    if !write_pkg(wd, c.src) { continue }
+    let obs : Array[Obs] = []
+    for t in targets {
+      let r = @exec.run_isolated(
+        @stager.moon_path(), ["run", "main.mbt", "--target", t], wd,
+        30000, max_output_bytes=1048576, mem_mb=2048,
+      )
+      obs.push({
+        target: t,
+        class: target_class(r.rc, r.timed_out, r.stdout_truncated, r.stderr),
+        out: r.stdout.trim_end().to_owned(),
+        rc: r.rc,
+      })
+    }
+    let mut classes = ""
+    for o in obs { classes = classes + o.target + "=" + o.class + " " }
+    let actual = obs.map(fn(o) { o.target + "[" + o.class + "] rc=" + o.rc.to_string() + "\n" + o.out }).join("\n---\n")
+    let argv = @stager.moon_path() + " run main.mbt --target js|wasm-gc|native\n"
+    let mut verdict = "pass"
     if family == "array_oob" {
-      // Deterministic trap: every executed target must fail (rc != 0).
-      for rc in rcs { if rc == 0 { bad = true } }
-    } else if expected_ok {
-      for i, a in actuals {
-        let lines = a.split("\n")
-        if i < rcs.length() && rcs[i] == 0 {
+      // Every backend must have actually executed and trapped; a compile
+      // error/timeout is not a trap and must not be reported as pass.
+      for o in obs { if o.class != "trap" { verdict = "inconclusive" } }
+    } else {
+      let mut any_ok = false
+      let mut any_trap = false
+      for o in obs {
+        if o.class == "ok" { any_ok = true }
+        if o.class == "trap" { any_trap = true }
+      }
+      if any_ok && any_trap {
+        // One backend produced a value while another trapped: this IS a
+        // cross-backend divergence, not an inconclusive run.
+        verdict = "witness"
+      } else {
+        for o in obs { if o.class != "ok" { verdict = "inconclusive" } }
+      }
+      if verdict == "pass" {
+        for i, o in obs {
           let want : Array[String] = []
           for x in c.expected { want.push(if inject != "" && targets[i] == inject { x + "9" } else { x }) }
           let got : Array[String] = []
-          for l in lines { if l != "" { got.push(l.to_owned()) } }
-          if got.length() != want.length() { bad = true } else {
-            for j, w in want { if got[j] != w { bad = true } }
+          for l in o.out.split("\n") { if l != "" { got.push(l.to_owned()) } }
+          if got.length() != want.length() { verdict = "witness" } else {
+            for j, w in want { if got[j] != w { verdict = "witness" } }
           }
         }
       }
     }
-    if bad {
-      counts.set(family, (at + 1, wi + 1, ex))
-      let ev = join(join(out, "witness"), cases.to_string())
-      ensure_dir(ev)
-      ignore(@stager.write_text(join(ev, "main.mbt"), c.src))
-      ignore(@stager.write_text(join(ev, "expected.txt"), c.expected.join("\n")))
-      ignore(@stager.write_text(join(ev, "actual.txt"), actuals.join("\n---\n")))
-      ignore(@stager.write_text(join(ev, "argv.txt"),
-        @stager.moon_path() + " run main.mbt --target js|wasm-gc|native\n"))
+    if verdict != "pass" {
+      let ev = join(join(out, if verdict == "witness" { "witness" } else { "inconclusive" }), cases.to_string())
+      let saved = save_case(ev, verdict, c.src, c.expected, actual + "\n" + classes, argv)
+      if !saved {
+        println("{\"ok\":false,\"error\":\"witness save failed at " + ev + "\"}")
+        @env.exit(2)
+      }
+      // Count only after the evidence is durable.
+      if verdict == "witness" {
+        counts.set(family, (at + 1, wi + 1, ex, inc))
+      } else {
+        counts.set(family, (at + 1, wi, ex, inc + 1))
+      }
     }
   }
   let b = StringBuilder()
   b.write_string("{\"cases\":" + cases.to_string())
+  b.write_string(",\"unique_programs\":" + unique_programs.to_string())
   b.write_string(",\"families\":{")
   let mut first = true
   for f in families {
-    let (a, w, e) = counts.get(f).unwrap()
+    let (a, w, e, inc) = counts.get(f).unwrap()
     if !first { b.write_string(",") }
     first = false
     b.write_string("\"" + f + "\":{\"attempts\":" + a.to_string() + ",\"witness\":" +
-      w.to_string() + ",\"excluded\":" + e.to_string() + "}")
+      w.to_string() + ",\"excluded\":" + e.to_string() +
+      ",\"inconclusive\":" + inc.to_string() + "}")
   }
   b.write_string("}}")
   println(b.to_string())
@@ -318,11 +403,21 @@ fn te_eval(t : TE, bits : Int32) -> Int64 {
     }
     Div(a, b) => {
       let d = te_eval(b, bits)
-      if d == 0L { 0L } else { te_eval(a, bits) / d }
+      if d == 0L {
+        0L
+      } else {
+        let v = te_eval(a, bits) / d
+        if bits == 32 { te_wrap32(v) } else { v }
+      }
     }
     Mod(a, b) => {
       let d = te_eval(b, bits)
-      if d == 0L { 0L } else { te_eval(a, bits) % d }
+      if d == 0L {
+        0L
+      } else {
+        let v = te_eval(a, bits) % d
+        if bits == 32 { te_wrap32(v) } else { v }
+      }
     }
     BAnd(a, b) => te_eval(a, bits) & te_eval(b, bits)
     BOr(a, b) => te_eval(a, bits) | te_eval(b, bits)
@@ -368,8 +463,8 @@ fn te_render64(t : TE) -> String {
     BAnd(a, b) => "(" + te_render64(a) + " & " + te_render64(b) + ")"
     BOr(a, b) => "(" + te_render64(a) + " | " + te_render64(b) + ")"
     BXor(a, b) => "(" + te_render64(a) + " ^ " + te_render64(b) + ")"
-    Shl(a, b) => "(" + te_render64(a) + " << " + te_render64(b) + ")"
-    Shr(a, b) => "(" + te_render64(a) + " >> " + te_render64(b) + ")"
+    Shl(a, b) => "(" + te_render64(a) + " << (" + te_render(b) + "))"
+    Shr(a, b) => "(" + te_render64(a) + " >> (" + te_render(b) + "))"
   }
 }
 
