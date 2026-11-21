@@ -2430,8 +2430,17 @@ fn parse_after_int(s : String, marker : String) -> Int32 {
 fn failed_assertions(s : String) -> Array[String] {
   let out : Array[String] = []
   for line in s.split("\n") {
-    if line.contains("FAILED: `") || line.contains("failed:") {
-      out.push(line.trim().to_owned())
+    if (line.contains("FAILED: `") || line.contains("failed:")) &&
+      !line.contains("Total tests:") {
+      let mut l = line.trim().to_owned()
+      // Drop the backend tag ("[js] ...") so identities compare across targets.
+      if l.has_prefix("[") {
+        match l.find("]") {
+          Some(i) => l = l[i + 1:].trim().to_owned()
+          None => ()
+        }
+      }
+      out.push(l)
     }
   }
   out.sort()
