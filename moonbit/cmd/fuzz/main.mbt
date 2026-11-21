@@ -131,6 +131,10 @@ struct Config {
   /// edge universe.  Without it, an epoch restart resets by_key and every
   /// carried input looks novel again.
   mut coverage_state : String
+  /// Package lane: a whole package (moon.pkg/deps/argv) instead of flat files.
+  mut pkg_seed : String
+  mut pkg_file : String
+  mut pkg_argv : String
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -2287,6 +2291,77 @@ fn lines_equal(a : String, expected : Array[String]) -> Bool {
 }
 
 ///|
+fn split_spaces(s : String) -> Array[String] {
+  let out : Array[String] = []
+  let b = StringBuilder()
+  for c in s {
+    if c == ' ' || c == '\t' {
+      if b.to_string() != "" {
+        out.push(b.to_string())
+        b.reset()
+      }
+    } else {
+      b.write_char(c)
+    }
+  }
+  if b.to_string() != "" {
+    out.push(b.to_string())
+  }
+  out
+}
+
+///|
+/// Save a package-lane failure in the same layout triage's capsule mode reads.
+fn save_pkg_witness(
+  cfg : Config,
+  moon : String,
+  sig : String,
+  kind : String,
+  src : String,
+  baseline : String,
+  pkg : String,
+  file : String,
+) -> Bool {
+  let fd = join(
+    join(join(join(cfg.out, "findings"), "build"), kind),
+    @corpus.dir_slug(sig),
+  )
+  let probe = join(fd, "meta.json")
+  if @fs.path_exists(probe) {
+    return false
+  }
+  @corpus.ensure_dir(fd)
+  ignore(@stager.write_text(join(fd, "in.mbt"), src))
+  ignore(@stager.write_text(join(fd, "baseline.mbt"), baseline))
+  ignore(@stager.copy_tree(pkg, join(fd, "pkg")))
+  ignore(
+    @stager.write_text(
+      join(fd, "capsule.json"),
+      "{\"moon\":\"" +
+      @stager.escape(moon) +
+      "\",\"cmd\":\"" +
+      @stager.escape(cfg.pkg_argv) +
+      "\",\"file\":\"" +
+      @stager.escape(file) +
+      "\",\"stage\":\"build\",\"target\":\"\",\"signature\":\"" +
+      @stager.escape(sig) +
+      "\"}",
+    ),
+  )
+  ignore(
+    @stager.write_text(
+      join(fd, "meta.json"),
+      "{\"stage\":\"build\",\"kind\":\"" +
+      kind +
+      "\",\"status\":\"candidate\",\"signature\":\"" +
+      @stager.escape(sig) +
+      "\"}",
+    ),
+  )
+  true
+}
+
+///|
 async fn worker(
   cfg : Config,
   id : Int32,
@@ -2300,6 +2375,68 @@ async fn worker(
   q : TraceQueue,
   pb : PersistBudget,
 ) -> Stats {
+  if cfg.pkg_seed != "" {
+    let ps = stats_new()
+    let wd = join(cfg.out, "pkgwd_" + id.to_string())
+    @stager.rm_rf(wd)
+    if @stager.copy_tree(cfg.pkg_seed, wd) {
+      @stager.rm_rf(join(wd, "_build"))
+      let file = join(wd, cfg.pkg_file)
+      let baseline = @stager.read_text(file)
+      let argv = split_spaces(cfg.pkg_argv)
+      let moon = @stager.moon_path()
+      let deadline = @env.now() + cfg.duration_s.to_uint64() * 1000UL
+      let mut i = 0
+      while @env.now() < deadline && prog.stop_reason == "" && baseline != "" {
+        i += 1
+        let rng = @mutate.Rng::new(
+          0x9e3779b97f4a7c15UL + id.to_uint64() * 131UL + i.to_uint64(),
+        )
+        let src = @mutate.mutate(baseline, rng, [], true)
+        if src == baseline || !@stager.write_text(file, src) {
+          continue
+        }
+        ps.it += 1
+        prog.it += 1
+        ps.t2 += 1
+        prog.t2 += 1
+        let r = @exec.run_isolated(
+          moon,
+          argv,
+          wd,
+          cfg.t2_timeout,
+          max_output_bytes=65536,
+          mem_mb=6144,
+        )
+        if r.rc == 0 && !r.timed_out {
+          ps.t2_ok += 1
+          prog.t2_ok += 1
+        } else {
+          ps.crashes += 1
+          prog.crashes += 1
+          let kind = if r.stderr.contains("Oops, the compiler") ||
+            r.stderr.contains("Machine_error") ||
+            r.stderr.contains("Assertion failed") {
+            "ICE"
+          } else {
+            "BUILD_FAIL"
+          }
+          let sig = @cluster.crash_signature(kind, r.rc, r.stderr, r.stdout)
+          if save_pkg_witness(
+            cfg, moon, sig, kind, src, baseline, cfg.pkg_seed, cfg.pkg_file,
+          ) {
+            ps.witnesses += 1
+            prog.witnesses += 1
+          }
+          ignore(pb)
+        }
+        ignore(@stager.write_text(file, baseline))
+      }
+    }
+    @stager.rm_rf(wd)
+    prog.done += 1
+    return ps
+  }
   let s = stats_new()
   let tag = @corpus.short_hash(cfg.run_id)
   let wd = join(join("/tmp/mbtfuzz_mb", tag), "w" + id.to_string())
@@ -3366,6 +3503,9 @@ async fn main {
     triage_only: "",
     emit_finding: "",
     coverage_state: "",
+    pkg_seed: "",
+    pkg_file: "",
+    pkg_argv: "build --target wasm-gc",
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -3479,6 +3619,15 @@ async fn main {
       i += 2
     } else if a == "--emit-selftest-finding" && i + 1 < args.length() {
       cfg.emit_finding = args[i + 1]
+      i += 2
+    } else if a == "--pkg-seed" && i + 1 < args.length() {
+      cfg.pkg_seed = args[i + 1]
+      i += 2
+    } else if a == "--pkg-file" && i + 1 < args.length() {
+      cfg.pkg_file = args[i + 1]
+      i += 2
+    } else if a == "--pkg-argv" && i + 1 < args.length() {
+      cfg.pkg_argv = args[i + 1]
       i += 2
     } else if a == "--coverage-state" && i + 1 < args.length() {
       cfg.coverage_state = args[i + 1]

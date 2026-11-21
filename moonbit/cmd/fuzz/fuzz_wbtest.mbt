@@ -125,6 +125,9 @@ fn trace_test_cfg() -> Config {
     triage_only: "",
     emit_finding: "",
     coverage_state: "",
+    pkg_seed: "",
+    pkg_file: "",
+    pkg_argv: "build --target wasm-gc",
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
