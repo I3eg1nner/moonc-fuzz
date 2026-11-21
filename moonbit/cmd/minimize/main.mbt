@@ -14,6 +14,20 @@ fn publish_path(out : String, verified : Bool) -> String {
 }
 
 ///|
+/// Publish only when the reduction verified AND the bytes reached the disk.
+fn publish_reduction(out : String, verified : Bool, reduced : String) -> String {
+  let p = publish_path(out, verified)
+  if p == "" {
+    return ""
+  }
+  if @stager.write_text(p, reduced) {
+    p
+  } else {
+    ""
+  }
+}
+
+///|
 /// Compiler-driven reducer.
 ///
 /// One rule shapes the whole file: never trust an unverified reduction.  The
@@ -129,7 +143,7 @@ async fn main {
     target_path, stage, target, workdir, timeout_ms, reduced,
   )
   let verified = final_sig == baseline
-  let published = publish_path(out, verified)
+  let mut published = publish_path(out, verified)
   if !verified {
     let _ = @stager.write_text(target_path, original)
     // Keep the unverified candidate for inspection, but never at `--out`:
@@ -138,8 +152,9 @@ async fn main {
     if out != "" {
       let _ = @stager.write_text(publish_path(out + ".rejected", true), reduced)
     }
-  } else if published != "" {
-    let _ = @stager.write_text(published, reduced)
+  }
+  if verified {
+    published = publish_reduction(out, verified, reduced)
   }
   let after_lines = @stager.count_lines(reduced)
   let ms = @env.now() - start_ms

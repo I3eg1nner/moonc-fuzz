@@ -111,3 +111,10 @@ truncated；两个程序只要前 64 KiB 相同，后缀不同也会判 `ALL_EQU
 `judge` 的 busy 判据是 `cpu*2 >= wall`，于是所有超时都被判 `BusyHang`。
 现在适配器明确传 `cpu_ms=0`（未知），超时落到 `timeout_plain`；测试
 `timeout without CPU accounting is timeout_plain, not busy_hang`。
+
+### minimize：写盘成功才算 published
+
+`publish_path` 只看 verified，`write_text` 的返回值被忽略；目标不可写时 JSON
+仍会是 `published:true`。现在 `publish_reduction` 要求
+`write_text` 成功才返回路径，否则 `published:""`；测试用目录路径制造写失败
+（`publishing requires a successful write`）。
