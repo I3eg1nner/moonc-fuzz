@@ -110,6 +110,7 @@ fn trace_test_cfg() -> Config {
     trace_workers: 1,
     trace_queue: 8,
     trace_max_mb: 1,
+    trace_wait_ms: 30000,
     trace_cpu_pct: 25,
     baseline_seeds: 0,
     edge_cap: 1000,
@@ -229,7 +230,7 @@ test "trace coverage admits and rewards only real deltas" {
 }
 
 ///|
-test "feedback parent selection returns a retained input" {
+async test "feedback parent selection returns a retained input" {
   let f = feedback_new()
   ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0, 0))
   let cfg = trace_test_cfg()
@@ -262,7 +263,7 @@ test "feedback parent selection returns a retained input" {
 }
 
 ///|
-test "zero coverage growth does not admit or reward a parent" {
+async test "zero coverage growth does not admit or reward a parent" {
   let cfg = trace_test_cfg()
   let f = feedback_new()
   ignore(feedback_upsert(f, "seed", @cov.FuncSet::new([]), 0, 0))
@@ -290,7 +291,7 @@ test "zero coverage growth does not admit or reward a parent" {
 }
 
 ///|
-test "trace scheduler borrows a share instead of closing the queue" {
+async test "trace scheduler borrows a share instead of closing the queue" {
   let cfg = trace_test_cfg()
   let f = feedback_new()
   let cov = trace_universe_new()
@@ -323,7 +324,7 @@ test "trace scheduler borrows a share instead of closing the queue" {
 }
 
 ///|
-test "trace scheduler counts in-flight reservations" {
+async test "trace scheduler counts in-flight reservations" {
   let cfg = trace_test_cfg()
   let f = feedback_new()
   let cov = trace_universe_new()
@@ -429,7 +430,7 @@ test "failed baseline marks candidates unresolved and unrewarded" {
 }
 
 ///|
-test "coverage evidence is keyed by stage and behavior cannot erase it" {
+async test "coverage evidence is keyed by stage and behavior cannot erase it" {
   let cfg = trace_test_cfg()
   cfg.out = "/tmp/mbtfuzz_sidecar_wbtest"
   rm_rf(cfg.out)
@@ -480,7 +481,7 @@ test "coverage evidence is keyed by stage and behavior cannot erase it" {
 }
 
 ///|
-test "baseline bypasses the queue cap, but a lost baseline still blocks U0" {
+async test "baseline bypasses the queue cap, but a lost baseline still blocks U0" {
   let cfg = trace_test_cfg()
   cfg.trace_queue = 1
   let f = feedback_new()

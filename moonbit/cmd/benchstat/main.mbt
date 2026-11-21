@@ -196,6 +196,16 @@ fn saturation_last_ms(stats_path : String) -> Int64 {
   last
 }
 
+///|
+/// Backpressure adequacy: completed / (completed + failed + deferred) >= 0.8.
+fn completion_ok(completed : Int64, failed : Int64, deferred : Int64) -> Bool {
+  let total = completed + failed + deferred
+  if total <= 0L {
+    return true
+  }
+  completed * 10L >= total * 8L
+}
+
 fn field_text(line : String, key : String) -> String {
   let pat = "\"" + key + "\":\""
   match line.find(pat) {
@@ -324,6 +334,17 @@ fn main {
     }
     if !has_time {
       reasons.push("stats missing elapsed_ms")
+    }
+    let completed = num_field(summary, "trace_completed")
+    let failed = num_field(summary, "trace_failed")
+    let deferred = num_field(summary, "trace_deferred")
+    if !completion_ok(completed, failed, deferred) {
+      reasons.push(
+        "trace completion " +
+        completed.to_string() +
+        "/" +
+        (completed + failed + deferred).to_string(),
+      )
     }
     if sat_time && has_time {
       // The run's last sample time is the denominator for "well before end".

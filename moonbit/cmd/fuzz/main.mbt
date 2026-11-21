@@ -91,6 +91,7 @@ struct Config {
   mut trace_workers : Int32
   mut trace_queue : Int32
   mut trace_max_mb : Int32
+  mut trace_wait_ms : Int32
   mut trace_cpu_pct : Int32
   mut baseline_seeds : Int32
   mut edge_cap : Int32
@@ -589,6 +590,18 @@ struct TraceQueue {
   mut fail_empty : Int32
   mut fail_collector : Int32
   mut fail_other : Int32
+  /// Backpressure state.  Workers wait for room instead of dropping
+  /// immediately; every wait ends on room, the wait cap, the campaign
+  /// deadline, or q.stop.
+  mut stop : Bool
+  mut deadline : UInt64
+  mut wait_events : Int32
+  mut wait_ms_total : Int64
+  mut deferred : Int32
+  mut deferred_queue_full : Int32
+  mut deferred_timeout : Int32
+  mut q_len_sum : Int64
+  mut q_len_samples : Int32
   mut baseline_expected : Int32
   mut baseline_done : Int32
   mut baseline_failed : Int32
@@ -637,6 +650,15 @@ fn trace_queue_new() -> TraceQueue {
     fail_empty: 0,
     fail_collector: 0,
     fail_other: 0,
+    stop: false,
+    deadline: 0UL,
+    wait_events: 0,
+    wait_ms_total: 0L,
+    deferred: 0,
+    deferred_queue_full: 0,
+    deferred_timeout: 0,
+    q_len_sum: 0L,
+    q_len_samples: 0,
     baseline_expected: 0,
     baseline_done: 0,
     baseline_failed: 0,
@@ -873,7 +895,7 @@ fn spread_indices(total : Int32, k : Int32) -> Array[Int32] {
 }
 
 ///|
-fn trace_submit(
+async fn trace_submit(
   cfg : Config,
   q : TraceQueue,
   stage : @trace.TraceStage,
@@ -907,12 +929,40 @@ fn trace_submit(
     // set and an incomplete U0 could look settled.
     q.baseline_expected += 1
   }
+  // Track occupancy on every submit, not only when full.
+  q.q_len_sum += q.tasks.length().to_int64()
+  q.q_len_samples += 1
   // Baseline tasks bypass the capacity check: U0 must cover every seed, and
   // the queue is drained before the campaign starts anyway.  Dropping them
   // here was what kept `baseline_state=incomplete` on every run.
   if !baseline && q.tasks.length() >= cfg.trace_queue {
-    q.dropped += 1
-    return false
+    // Bounded wait: give the trace workers room instead of dropping the
+    // candidate immediately.  Waits end on room, the wait cap, the campaign
+    // deadline, or q.stop (set by the monitor), so a worker can never block
+    // shutdown.
+    let wait_start = @env.now()
+    q.wait_events += 1
+    while q.tasks.length() >= cfg.trace_queue && !q.stop &&
+      @env.now() < q.deadline {
+      let waited = @env.now() - wait_start
+      if waited >= cfg.trace_wait_ms.to_uint64() {
+        break
+      }
+      @async.sleep(10)
+    }
+    q.wait_ms_total += (@env.now() - wait_start).to_int().to_int64()
+    if q.tasks.length() >= cfg.trace_queue {
+      q.dropped += 1
+      q.deferred += 1
+      let waited = @env.now() - wait_start
+      if q.stop || @env.now() >= q.deadline ||
+        waited >= cfg.trace_wait_ms.to_uint64() {
+        q.deferred_timeout += 1
+      } else {
+        q.deferred_queue_full += 1
+      }
+      return false
+    }
   }
   q.seen.set(key, ())
   q.tasks.push(task)
@@ -3381,6 +3431,7 @@ async fn monitor(
   cfg : Config,
   prog : Progress,
   cov : TraceUniverse,
+  q : TraceQueue,
   out : String,
 ) -> Stats {
   let mon_start = @env.now()
@@ -3392,6 +3443,7 @@ async fn monitor(
         prog.stop_reason = "memory"
       }
     }
+    q.stop = prog.stop_reason != ""
     let line = "{\"elapsed_ms\":" +
       (@env.now() - mon_start).to_string() +
       ",\"run_id\":\"" +
@@ -3454,6 +3506,18 @@ async fn monitor(
       cov.edge_collisions.to_string() +
       ",\"trace_dropped\":" +
       prog.trace_dropped.to_string() +
+      ",\"trace_wait_events\":" +
+      q.wait_events.to_string() +
+      ",\"trace_wait_ms_total\":" +
+      q.wait_ms_total.to_string() +
+      ",\"trace_deferred\":" +
+      q.deferred.to_string() +
+      ",\"trace_deferred_queue_full\":" +
+      q.deferred_queue_full.to_string() +
+      ",\"trace_deferred_timeout\":" +
+      q.deferred_timeout.to_string() +
+      ",\"trace_queue_avg_x100\":" +
+      (if q.q_len_samples > 0 { q.q_len_sum * 100L / q.q_len_samples.to_int64() } else { 0L }).to_string() +
       "}"
     @exec.append_line(join(out, "stats.jsonl"), line)
     println("[mb-fuzz progress] \{line}")
@@ -3569,6 +3633,7 @@ async fn main {
     trace_workers: 3,
     trace_queue: 32,
     trace_max_mb: 256,
+    trace_wait_ms: 30000,
     trace_cpu_pct: 25,
     baseline_seeds: 8,
     edge_cap: EDGE_CAP_DEFAULT,
@@ -3653,6 +3718,9 @@ async fn main {
       i += 2
     } else if a == "--trace-queue" && i + 1 < args.length() {
       cfg.trace_queue = parse_int(args[i + 1], cfg.trace_queue)
+      i += 2
+    } else if a == "--trace-wait-ms" && i + 1 < args.length() {
+      cfg.trace_wait_ms = parse_int(args[i + 1], cfg.trace_wait_ms)
       i += 2
     } else if a == "--trace-max-mb" && i + 1 < args.length() {
       cfg.trace_max_mb = parse_int(args[i + 1], cfg.trace_max_mb)
@@ -3861,6 +3929,7 @@ async fn main {
     ignore(feedback_upsert(feed, src, @cov.FuncSet::new([]), 0, 0))
   }
   let q = trace_queue_new()
+  q.deadline = @env.now() + (cfg.duration_s.to_uint64() + 120UL) * 1000UL
   let cov = trace_universe_new()
   cov.edge_cap = cfg.edge_cap
   let (restored_keys, restored_edges) = if cfg.coverage_state != "" {
@@ -3983,7 +4052,7 @@ async fn main {
     let w = id
     tasks.push(() => trace_worker(cfg, w, q, feed, cov, covctx, prog))
   }
-  tasks.push(() => monitor(cfg, prog, cov, out))
+  tasks.push(() => monitor(cfg, prog, cov, q, out))
   let results = @conc.all_limited(tasks, cfg.workers + cfg.trace_workers + 1)
   let total = stats_new()
   for r in results {
@@ -4183,6 +4252,18 @@ async fn main {
     q.aborts.to_string() +
     ",\"trace_dropped\":" +
     q.dropped.to_string() +
+    ",\"trace_wait_events\":" +
+    q.wait_events.to_string() +
+    ",\"trace_wait_ms_total\":" +
+    q.wait_ms_total.to_string() +
+    ",\"trace_deferred\":" +
+    q.deferred.to_string() +
+    ",\"trace_deferred_queue_full\":" +
+    q.deferred_queue_full.to_string() +
+    ",\"trace_deferred_timeout\":" +
+    q.deferred_timeout.to_string() +
+    ",\"trace_queue_avg_x100\":" +
+    (if q.q_len_samples > 0 { q.q_len_sum * 100L / q.q_len_samples.to_int64() } else { 0L }).to_string() +
     ",\"trace_ms\":" +
     q.trace_ms.to_string() +
     ",\"trace_bytes\":" +

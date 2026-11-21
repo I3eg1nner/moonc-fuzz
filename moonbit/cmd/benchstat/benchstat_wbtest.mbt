@@ -63,3 +63,11 @@ test "saturated metrics are detected from elapsed time" {
   assert_eq(adds_sat, 120000L)
   ignore(@stager.rm_rf(path))
 }
+
+///|
+test "completion ratio gates benefit statistics" {
+  assert_true(completion_ok(90L, 5L, 5L))
+  assert_false(completion_ok(40L, 0L, 60L))
+  assert_false(completion_ok(79L, 1L, 20L))
+  assert_true(completion_ok(0L, 0L, 0L))
+}
