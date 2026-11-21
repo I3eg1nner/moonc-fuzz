@@ -439,17 +439,11 @@ fn feedback_upsert(
         j += 1
       }
       if victim < 0 {
-        victim = 0
-        let mut k = 1
-        while k < f.entries.length() {
-          let e = f.entries[k]
-          let v = f.entries[victim]
-          if e.energy < v.energy || (e.energy == v.energy && e.seq < v.seq) {
-            victim = k
-          }
-          k += 1
-        }
+        // Every retained parent owns a feature that nobody else owns.
+        // Evicting one would silently drop the last replayable owner, so the
+        // admission is refused and counted instead.
         f.protected_forced += 1
+        return false
       }
       let old = f.entries[victim]
       for k in old.cov.sorted() {
@@ -2788,6 +2782,12 @@ fn json_str_array_field(line : String, key : String) -> Array[String] {
 ///|
 fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let text = @stager.read_text(cfg.coverage_state)
+  // A state file without its checksum, or with a mismatch, is not trusted:
+  // the campaign starts from an empty universe rather than from half state.
+  let expected = @stager.read_text(cfg.coverage_state + ".sha256").trim().to_owned()
+  if expected != "" && @corpus.sha1_hex(text) != expected {
+    return (0, 0)
+  }
   let mut keys = 0
   let mut edges = 0
   if text == "" {
@@ -2814,7 +2814,7 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
 }
 
 ///|
-fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
+async fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
   let lines : Array[String] = []
   for k, v in cov.by_key {
     lines.push(
@@ -2831,9 +2831,19 @@ fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
   }
   edges.sort()
   lines.push("{\"edges\":" + @trace.json_string_array(edges) + "}")
-  ignore(
-    @stager.write_text(join(out, "coverage_state.jsonl"), lines.join("\n") + "\n"),
+  let body = lines.join("\n") + "\n"
+  let target = join(out, "coverage_state.jsonl")
+  let tmp = target + ".tmp"
+  ignore(@stager.write_text(tmp, body))
+  // Atomic replace: a reader never sees a half-written state, and the hash
+  // makes a truncated file detectable.
+  let _ = @exec.run(
+    "/bin/sh",
+    ["-c", "mv -f \"$1\" \"$2\"", "sh", tmp, target],
+    out,
+    5000,
   )
+  ignore(@stager.write_text(target + ".sha256", @corpus.sha1_hex(body) + "\n"))
 }
 
 ///|

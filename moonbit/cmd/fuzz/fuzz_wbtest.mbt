@@ -953,12 +953,13 @@ test "eviction never drops the last owner of a feature" {
 }
 
 ///|
-test "if every parent owns a unique feature the eviction is forced and counted" {
+test "if every parent owns a unique feature admission is refused, not forced" {
   let f = feedback_new()
   f.cap = 2
   let _ = feedback_upsert(f, "a", @cov.FuncSet::new(["A"]), 1, 0)
   let _ = feedback_upsert(f, "b", @cov.FuncSet::new(["B"]), 1, 0)
-  let _ = feedback_upsert(f, "c", @cov.FuncSet::new(["C"]), 1, 0)
+  let admitted = feedback_upsert(f, "c", @cov.FuncSet::new(["C"]), 1, 0)
+  assert_false(admitted)
   assert_eq(f.entries.length(), 2)
   assert_eq(f.protected_forced, 1)
 }
@@ -1129,4 +1130,29 @@ test "edge axis: new keys counted until the cap, then explicitly degraded" {
   let base_energy = f.entries[0].energy
   let _ = feedback_upsert(f, "src", @cov.FuncSet::new(["F"]), 0, 1)
   assert_true(f.entries[0].energy > base_energy)
+}
+
+///|
+async test "coverage state roundtrip, checksum and atomic file" {
+  let out = "/tmp/covstate_wbtest"
+  @stager.rm_rf(out)
+  @corpus.ensure_dir(out)
+  let cov = trace_universe_new()
+  cov.by_key.set("k|accepted|cfg", @cov.FuncSet::new(["f1", "f2"]))
+  cov.edge_seen.set("e1", ())
+  save_coverage_state(cov, out)
+  let cfg = trace_test_cfg()
+  cfg.coverage_state = out + "/coverage_state.jsonl"
+  let cov2 = trace_universe_new()
+  let (keys, edges) = load_coverage_state(cfg, cov2)
+  assert_eq(keys, 1)
+  assert_eq(edges, 1)
+  assert_eq(cov2.by_key.get("k|accepted|cfg").unwrap().len(), 2)
+  // Corrupt the body: the checksum must reject it instead of loading half.
+  ignore(@stager.write_text(cfg.coverage_state, "{}\n"))
+  let cov3 = trace_universe_new()
+  let (k3, e3) = load_coverage_state(cfg, cov3)
+  assert_eq(k3, 0)
+  assert_eq(e3, 0)
+  @stager.rm_rf(out)
 }
