@@ -233,16 +233,8 @@ async fn main {
   // candidate was silently reported as "no signature".
   ensure_dir(work)
   let meta = @stager.read_text(join(case_dir, "meta.json"))
-  let original = match meta.find("\"signature\":\"") {
-    Some(i) => {
-      let rest = meta[i + 13:].to_owned()
-      match rest.find("\"") {
-        Some(j) => rest[0:j].to_owned()
-        None => ""
-      }
-    }
-    None => ""
-  }
+  // Escape-aware: signatures contain `Invalid_argument(\"Char.chr\")`.
+  let original = @cluster.json_get_string(meta, "signature")
   let sigs : Array[String] = []
   let mut reproducible = 0
   let mut first_err = ""

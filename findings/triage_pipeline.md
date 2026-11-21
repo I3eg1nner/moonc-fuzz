@@ -86,3 +86,10 @@ out:  {"triaged":3,"confirmed":0,"known":1,"flaky":0,"inconclusive":2}
   避免"抽样不足时直接贴 known 标签"。
 - campaign 的 `--triage` 路径同步了这三条，不只是独立命令。
 - 控制脚本的 meta 现在带 `signature` 字段（以前缺字段会让 3/3 永远为 0）。
+
+### meta 里的签名要按 JSON 转义解析
+
+候选 meta 的 `signature` 现在含 `\"`（`Invalid_argument("Char.chr")`），旧的
+"找到下一个引号"扫描会在反斜杠处截断，导致 `reproduced=0/3`、known 永远
+达不到 3/3。`cluster.json_get_string` 处理 `\\`、`\"`、`\n`、`\t`、`\r`，
+triage 命令与 campaign 路径共用它；单测覆盖带转义引号/普通/缺失三种情况。

@@ -87,3 +87,15 @@ test "formatter signature ignores the source" {
   let c = formatter_signature(0, "Error: unterminated string\n", "")
   assert_true(a != c)
 }
+
+///|
+test "signature fields with escaped quotes are read back intact" {
+  let meta =
+    "{\"stage\":\"build\",\"signature\":\"crash|ICE|Invalid_argument(\\\"Char.chr\\\")|known=F2\"}"
+  assert_eq(
+    json_get_string(meta, "signature"),
+    "crash|ICE|Invalid_argument(\"Char.chr\")|known=F2",
+  )
+  assert_eq(json_get_string("{\"signature\":\"plain\"}", "signature"), "plain")
+  assert_eq(json_get_string("{}", "signature"), "")
+}

@@ -161,3 +161,47 @@ pub fn formatter_signature(
     "fmt|" + token
   }
 }
+
+///|
+/// Read a string field from one-line JSON, honouring backslash escapes.
+/// The naive "find the next quote" scan truncates signatures such as
+/// `Invalid_argument(\"Char.chr\")`.
+pub fn json_get_string(text : String, key : String) -> String {
+  let pat = "\"" + key + "\":\""
+  let i = match text.find(pat) {
+    None => return ""
+    Some(i) => i + pat.length()
+  }
+  let b = StringBuilder()
+  let mut j = i
+  let mut closed = false
+  while j < text.length() && !closed {
+    match text.get_char(j) {
+      Some('\\') =>
+        if j + 1 < text.length() {
+          match text.get_char(j + 1) {
+            Some('n') => b.write_char('\n')
+            Some('t') => b.write_char('\t')
+            Some('r') => b.write_char('\r')
+            Some('"') => b.write_char('"')
+            Some('\\') => b.write_char('\\')
+            Some(c) => b.write_char(c)
+            None => ()
+          }
+          j += 2
+        } else {
+          j += 1
+        }
+      Some('"') => {
+        closed = true
+        j += 1
+      }
+      Some(c) => {
+        b.write_char(c)
+        j += 1
+      }
+      None => j += 1
+    }
+  }
+  b.to_string()
+}
