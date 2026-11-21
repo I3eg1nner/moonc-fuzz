@@ -18,13 +18,14 @@ REPARSE 分支用的是 `short_hash("fmt|" + detail + "|" + short_hash(src))`：
 
 ## 端到端验证（`scripts/fmt_cluster_selftest.sh`，门禁 `fmt_cluster`）
 
-三个不同源、同一个 F5 风格前缀 `+`：
+五个不同源、同一个 F5 风格前缀 `+`（150 s campaign；60 s 在负载下会
+一次 fmt 都跑不到）：
 
 ```moonbit
 fn f() { +1 }  /  fn g() { +2 }  /  fn h() { +3 }
 ```
 
-跑 60 s campaign（`--fmt-check --seed-dir`）后：
+跑 150 s campaign（`--fmt-check --seed-dir`）后：
 
 ```
 reparse_dirs=1

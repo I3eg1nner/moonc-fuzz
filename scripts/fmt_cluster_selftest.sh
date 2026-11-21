@@ -14,7 +14,9 @@ rm -rf "$OUT"; mkdir -p "$SEEDS"
 printf 'fn f() {\n  +1\n}\n' > "$SEEDS/a.mbt"
 printf 'fn g() {\n  +2\n}\n' > "$SEEDS/b.mbt"
 printf 'fn h() {\n  +3\n}\n' > "$SEEDS/c.mbt"
-"$BIN" --root "$ROOT" --out "$OUT/run" --workers 2 --duration 60 \
+printf 'fn k() {\n  +4\n}\n' > "$SEEDS/d.mbt"
+printf 'fn m() {\n  +5\n}\n' > "$SEEDS/e.mbt"
+"$BIN" --root "$ROOT" --out "$OUT/run" --workers 2 --duration 150 \
   --mode mbt --body-only --seed-dir "$SEEDS" --fmt-check \
   --trace-t1 0 --trace-t2 0 --parent-cap 100 --stats-cap 1000 \
   > "$OUT/run.log" 2>&1 || true
