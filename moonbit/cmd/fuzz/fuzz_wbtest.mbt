@@ -1037,3 +1037,55 @@ test "quoted cluster signatures are escaped in meta.json" {
     m.contains("\"signature\":\"crash|ICE|Invalid_argument(\"Char.chr\")"),
   )
 }
+
+///|
+test "trace delta counts only functions new to the key" {
+  let cov = trace_universe_new()
+  let feed = feedback_new()
+  let task = trace_test_task_stage("s", @trace.T2, false)
+  let tr = trace_test_result_full(["f1", "f2"], @trace.T2, @trace.Accepted, true)
+  assert_eq(
+    trace_apply_delta(task, tr, @cov.FuncSet::new(["f1", "f2"]), 0, cov, feed),
+    2,
+  )
+  // Same trace again: nothing new, so a dry T1 sample would be detected.
+  assert_eq(
+    trace_apply_delta(task, tr, @cov.FuncSet::new(["f1", "f2"]), 0, cov, feed),
+    0,
+  )
+  assert_eq(
+    trace_apply_delta(task, tr, @cov.FuncSet::new(["f1", "f2", "f3"]), 0, cov, feed),
+    1,
+  )
+}
+
+///|
+test "replacing a full parent registers the newcomer's features" {
+  let f = feedback_new()
+  f.cap = 1
+  let _ = feedback_upsert(f, "a", @cov.FuncSet::new(["A", "B"]), 2, 0)
+  let _ = feedback_upsert(f, "b", @cov.FuncSet::new(["C"]), 1, 0)
+  assert_eq(f.entries.length(), 1)
+  // Ownership must match a fresh count over the retained parent.
+  let expected : Map[String, Int32] = Map([])
+  for e in f.entries {
+    for k in e.cov.sorted() {
+      let n = match expected.get(k) {
+        Some(v) => v
+        None => 0
+      }
+      expected.set(k, n + 1)
+    }
+  }
+  for k in ["A", "B", "C"] {
+    let want = match expected.get(k) {
+      Some(v) => v
+      None => 0
+    }
+    let got = match f.feature_owners.get(k) {
+      Some(v) => v
+      None => 0
+    }
+    assert_eq(got, want)
+  }
+}

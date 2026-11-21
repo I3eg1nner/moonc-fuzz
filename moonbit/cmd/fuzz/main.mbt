@@ -452,6 +452,11 @@ fn feedback_upsert(
       for k in old.cov.sorted() {
         owner_sub(f.feature_owners, k)
       }
+      // The newcomer's features must be registered too; the replacement branch
+      // used to skip this, leaving the ownership map short by one parent.
+      for k in cov.sorted() {
+        owner_add(f.feature_owners, k)
+      }
       f.index.remove(old.hash)
       feedback_tombstone(f, old.hash)
       f.entries[victim] = { src, hash: h, cov, energy: bonus, seq: f.next_seq, }
@@ -1740,7 +1745,7 @@ fn trace_apply_delta(
   edge_new : Int32,
   cov : TraceUniverse,
   feed : Feedback,
-) -> Unit {
+) -> Int32 {
   let key = @trace.trace_stage_name(tr.stage) +
     "|" +
     @trace.trace_outcome_name(tr.outcome) +
@@ -1766,6 +1771,7 @@ fn trace_apply_delta(
       ignore(feedback_upsert(feed, task.src, covset, delta.len(), edge_new))
     }
   }
+  delta.len()
 }
 
 ///|
@@ -1795,14 +1801,14 @@ fn trace_maybe_settle_baseline(
       cov.by_key.set(k, old.union(v))
     }
     for p in cov.pending {
-      trace_apply_delta(
+      ignore(trace_apply_delta(
         p.task,
         p.result,
         @cov.FuncSet::new(p.result.functions),
         p.edge_new,
         cov,
         feed,
-      )
+      ))
     }
     cov.pending.clear()
   } else {
@@ -1940,8 +1946,11 @@ fn trace_apply(
     return
   }
   let reward_edges = if cfg.edge_reward { edge_new } else { 0 }
+  let delta_len = trace_apply_delta(task, tr, covset, reward_edges, cov, feed)
+  // Dryness is about the trace adding nothing NEW, not about the trace having
+  // no functions at all (every T1 trace has functions).
   if task.stage == @trace.T1 && !task.baseline {
-    if covset.len() == 0 && edge_new == 0 {
+    if delta_len == 0 && reward_edges == 0 {
       q.t1_dry += 1
       if q.t1_dry >= 40 {
         q.t1_trace_off = true
@@ -1950,7 +1959,6 @@ fn trace_apply(
       q.t1_dry = 0
     }
   }
-  trace_apply_delta(task, tr, covset, reward_edges, cov, feed)
 }
 
 ///|
