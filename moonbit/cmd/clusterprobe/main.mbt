@@ -8,10 +8,11 @@
 ///|
 async fn main {
   let args = @env.args()
-  if args.length() < 3 || args[1] != "fmt" {
-    println("usage: clusterprobe fmt FILE...")
+  if args.length() < 3 || (args[1] != "fmt" && args[1] != "reparse") {
+    println("usage: clusterprobe fmt|reparse FILE...")
     return
   }
+  let mode = args[1]
   let moonfmt = @stager.tool_path("moonfmt")
   let cwd = match @env.current_dir() {
     Some(d) => d
@@ -26,7 +27,19 @@ async fn main {
       i.to_string() +
       ".mbt"
     let r = @exec.run(moonfmt, [f, "-o", out], "/tmp", 20000)
-    let sig = @cluster.formatter_signature(r.rc, r.stderr, r.stdout)
+    let sig = if mode == "fmt" {
+      @cluster.formatter_signature(r.rc, r.stderr, r.stdout)
+    } else {
+      // The campaign's REPARSE finding is about the formatted output failing
+      // to parse again, so the probe must check exactly that.
+      let rr = @exec.run(
+        @stager.tool_path("moonc"),
+        ["syncheck", "-error-format", "json", out],
+        "/tmp",
+        20000,
+      )
+      @cluster.formatter_signature(rr.rc, rr.stderr, rr.stdout)
+    }
     println(
       "{\"file\":\"" +
       @stager.escape(f) +

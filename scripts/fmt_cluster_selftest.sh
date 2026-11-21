@@ -1,29 +1,36 @@
 #!/usr/bin/env bash
-# End-to-end formatter clustering control.
+# Deterministic formatter-clustering control.
 #
-# Three different sources with the same F5-style prefix operator must land in
-# one REPARSE directory (the signature comes from the reparse failure, not the
-# source hash).  Distinctness of different errors is unit-tested in
-# moonbit/cluster/cluster_wbtest.mbt.
+# `clusterprobe reparse` runs the real moonfmt, then the real moonc on its
+# output, and prints cluster.formatter_signature for the reparse failure --
+# the same computation the campaign's REPARSE path uses.
+#
+# Three sources with F5's prefix-plus shape must share one signature; a valid
+# source (no reparse failure) must differ.
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BIN="$ROOT/moonbit/_build/native/debug/build/cmd/fuzz/fuzz.exe"
+BIN="$ROOT/moonbit/_build/native/debug/build/cmd/clusterprobe/clusterprobe.exe"
 OUT=${1:-/tmp/fmt_cluster_selftest}
-SEEDS="$OUT/seeds"
-rm -rf "$OUT"; mkdir -p "$SEEDS"
-printf 'fn f() {\n  +1\n}\n' > "$SEEDS/a.mbt"
-printf 'fn g() {\n  +2\n}\n' > "$SEEDS/b.mbt"
-printf 'fn h() {\n  +3\n}\n' > "$SEEDS/c.mbt"
-printf 'fn k() {\n  +4\n}\n' > "$SEEDS/d.mbt"
-printf 'fn m() {\n  +5\n}\n' > "$SEEDS/e.mbt"
-"$BIN" --root "$ROOT" --out "$OUT/run" --workers 2 --duration 150 \
-  --mode mbt --body-only --seed-dir "$SEEDS" --fmt-check \
-  --trace-t1 0 --trace-t2 0 --parent-cap 100 --stats-cap 1000 \
-  > "$OUT/run.log" 2>&1 || true
-dirs=$(find "$OUT/run" -type d -path '*findings/fmt/REPARSE/*' 2>/dev/null | wc -l | tr -d ' ')
-echo "reparse_dirs=$dirs"
-if [ "$dirs" != "1" ]; then
-  echo "fmt cluster selftest failed: expected 1 directory, got $dirs" >&2
-  exit 1
-fi
-echo "fmt cluster selftest: ok"
+rm -rf "$OUT"; mkdir -p "$OUT"
+printf 'fn f(y : Int) -> Int { +y }\n' > "$OUT/a.mbt"
+printf 'fn g(z : Int) -> Int { +z }\n' > "$OUT/b.mbt"
+printf 'fn h(w : Int) -> Int { +w }\n' > "$OUT/c.mbt"
+printf 'fn ok() -> Int { 1 }\nfn main { println(ok().to_string()) }\n' > "$OUT/ok.mbt"
+[ -x "$BIN" ] || { echo "build clusterprobe first" >&2; exit 2; }
+"$BIN" reparse "$OUT/a.mbt" "$OUT/b.mbt" "$OUT/c.mbt" "$OUT/ok.mbt" | tee "$OUT/sigs.txt"
+python3 - "$OUT/sigs.txt" <<'PY'
+import json, sys
+lines = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
+sigs = [d["sig"] for d in lines]
+bad = []
+if len(sigs) != 4:
+    bad.append(f"expected 4 signatures, got {len(sigs)}")
+else:
+    if not (sigs[0] == sigs[1] == sigs[2]):
+        bad.append(f"same error did not merge: {sigs[:3]}")
+    if sigs[3] == sigs[0]:
+        bad.append("valid source shared the defect signature")
+if bad:
+    raise SystemExit("fmt cluster selftest failed: " + "; ".join(bad))
+print("fmt cluster selftest: ok")
+PY

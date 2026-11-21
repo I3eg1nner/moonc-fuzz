@@ -16,28 +16,26 @@ REPARSE 分支用的是 `short_hash("fmt|" + detail + "|" + short_hash(src))`：
 - formatter 自身失败的路径同样改用 `formatter_signature(fr...)`；
 - finding 目录名走 `corpus.dir_slug`（见签名转义修复），不再依赖原字符串。
 
-## 端到端验证（`scripts/fmt_cluster_selftest.sh`，门禁 `fmt_cluster`）
+## 验证（`scripts/fmt_cluster_selftest.sh`，门禁 `fmt_cluster`）
 
-五个不同源、同一个 F5 风格前缀 `+`（150 s campaign；60 s 在负载下会
-一次 fmt 都跑不到）：
+确定性版本不再依赖 campaign 的随机采样：`cmd/clusterprobe reparse` 对每个
+文件执行真实的 `moonfmt`，再对 formatter 输出执行真实的 `moonc syncheck`，
+打印 `cluster.formatter_signature(reparse rc/stderr/stdout)` —— 与 campaign
+的 REPARSE 路径同一个函数。
 
-```moonbit
-fn f() { +1 }  /  fn g() { +2 }  /  fn h() { +3 }
-```
-
-跑 150 s campaign（`--fmt-check --seed-dir`）后：
+F5 形状 `fn f(y : Int) -> Int { +y }` 的三个不同源：
 
 ```
-reparse_dirs=1
+{"file":".../a.mbt","sig":"fmt|rc=2"}
+{"file":".../b.mbt","sig":"fmt|rc=2"}
+{"file":".../c.mbt","sig":"fmt|rc=2"}
+{"file":".../ok.mbt","sig":"fmt|rc=0"}
 fmt cluster selftest: ok
 ```
 
-修复前这个计数是 3（每个源一个目录）。
-
-不同错误的分离由 `cluster_wbtest.mbt` 的单测覆盖（`fmt|Parse error...`
-vs `fmt|unterminated string` 互异）；没有找到另一种能在端到端 campaign 里
-稳定产生的 formatter 错误，这一点如实记录。
-
+三个同错误合并、一个正常源分离。此前用 150 s campaign 的版本也能得到
+`reparse_dirs=1`，但在负载下会 0 次 fmt 事件，不适合做门禁；campaign 路径的
+一次性证据保留在提交历史里。
 ## 边界
 
 - 端到端只验证"同错误合并"；"不同错误分离"是签名级测试。
