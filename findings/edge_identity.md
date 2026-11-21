@@ -45,6 +45,15 @@ T1/T2 任务还会追加 `|entry=<stage>`，所以同一个裸 pair 在不同编
 - deep lane 同轮 536 个 distinct T3 matched、0 mismatch，和 `edge_*` 计数
   互不影响。
 
+## 为什么这条 summary 的 coverage_adds=0
+
+不是覆盖学习停了，也不是 cap 拒绝：`coverage_written=9`、`coverage_cap=4000`、
+`coverage_skipped=0`，预算远未用满；`baseline_state=complete`。真正原因是
+trace 采样：17 条完成的 trace 里 16 条是 baseline，12 条失败（日志上限）、
+46 条被队列丢弃，几乎没有候选 trace 进入 `trace_apply_delta`，所以没有
+可计的新函数。该运行的深阶段证据来自 `deep_t3_*`（536 distinct），不是
+coverage_adds。
+
 ## 边界
 
 - 身份化会放大 universe（约 1.6× 于同配置裸集），cap 需要按此调大；
