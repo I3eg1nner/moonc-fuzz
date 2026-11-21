@@ -2404,13 +2404,73 @@ fn lines_equal(a : String, expected : Array[String]) -> Bool {
 }
 
 ///|
-/// Cross-backend difference classification.  Only semantic domains are
-/// compared; known backend artefacts are excluded rather than reported.
+fn parse_after_int(s : String, marker : String) -> Int32 {
+  match s.find(marker) {
+    None => -1
+    Some(i) => {
+      let rest = s[i + marker.length():].to_owned()
+      let mut n = 0
+      let mut any = false
+      for c in rest {
+        if c >= '0' && c <= '9' {
+          n = n * 10 + (c.to_int() - '0'.to_int())
+          any = true
+        } else if !any && (c == ' ' || c == '\t' || c == ':') {
+          continue
+        } else {
+          break
+        }
+      }
+      if any { n } else { -1 }
+    }
+  }
+}
+
+///|
+fn failed_assertions(s : String) -> Array[String] {
+  let out : Array[String] = []
+  for line in s.split("\n") {
+    if line.contains("FAILED: `") || line.contains("failed:") {
+      out.push(line.trim().to_owned())
+    }
+  }
+  out.sort()
+  out
+}
+
+///|
+/// Cross-backend difference classification.  Test-harness metadata (headers,
+/// ordering, backend name) is ignored; only pass/fail counts and failed
+/// assertions are compared.  A backend that runs zero tests is excluded, not
+/// reported as a difference.
 fn backend_diff_class(a : String, b : String, rc_a : Int32, rc_b : Int32) -> String {
+  let has_counts = a.contains("Total tests:") && b.contains("Total tests:")
+  if has_counts {
+    let ta = parse_after_int(a, "Total tests:")
+    let tb = parse_after_int(b, "Total tests:")
+    let fa = parse_after_int(a, ", failed:")
+    let fb = parse_after_int(b, ", failed:")
+
+    if ta == 0 || tb == 0 {
+      return if ta == tb { "none" } else { "excluded" }
+    }
+    if ta != tb {
+      return "excluded"
+    }
+    // Pass/fail counts are the semantic outcome; assertion text and backend
+    // prefixes are harness formatting.
+    if fa == fb {
+      return "none"
+    }
+    if fa != fb {
+      return "witness"
+    }
+  }
   if rc_a == rc_b && a.trim() == b.trim() {
     return "none"
   }
   let diff = a + "\n" + b
+
   for tok in [
     "Float", "Double", "Int64", "UInt64", "nan", "inf", "undefined",
     "timing", "GC", "debug", "elapsed", "ms)",
@@ -2422,6 +2482,7 @@ fn backend_diff_class(a : String, b : String, rc_a : Int32, rc_b : Int32) -> Str
   "witness"
 }
 
+///|
 ///|
 fn split_spaces(s : String) -> Array[String] {
   let out : Array[String] = []

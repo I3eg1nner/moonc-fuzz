@@ -1254,3 +1254,15 @@ test "backend diff classifier: none, witness, excluded" {
   assert_eq(backend_diff_class("Float nan", "Float 0.0", 0, 0), "excluded")
   assert_eq(backend_diff_class("Int64 9223...", "Int64 42", 0, 0), "excluded")
 }
+
+///|
+test "backend diff ignores harness metadata and zero-test backends" {
+  let a = "Total tests: 1, passed: 1, failed: 0."
+  let b = "Total tests: 0, passed: 0, failed: 0."
+  assert_eq(backend_diff_class(a, b, 0, 0), "excluded")
+  let c = "[js] test foo failed: assertion\nTotal tests: 1, passed: 0, failed: 1."
+  let d = "[native] test foo failed: assertion\nTotal tests: 1, passed: 0, failed: 1."
+  assert_eq(backend_diff_class(c, d, 1, 1), "none")
+  let e = "[native] test foo failed: assignment\nTotal tests: 1, passed: 1, failed: 0."
+  assert_eq(backend_diff_class(c, e, 1, 0), "witness")
+}
