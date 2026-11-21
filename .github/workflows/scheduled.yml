@@ -81,6 +81,7 @@ jobs:
       - name: Short traced campaign
         run: |
           set -euo pipefail
+          mkdir -p out
           ./moonbit/_build/native/debug/build/cmd/fuzz/fuzz.exe \
             --root "$GITHUB_WORKSPACE" --out out/soak \
             --workers 2 --duration "$DURATION" \
@@ -106,10 +107,22 @@ jobs:
           problems = []
           if d.get("baseline_state") != "complete":
               problems.append(f"baseline_state={d.get('baseline_state')}")
+          if (d.get("baseline_expected") or 0) < 1:
+              problems.append("no baseline expected")
           if (d.get("baseline_done") or 0) < (d.get("baseline_expected") or 0):
               problems.append("baseline incomplete")
+          if (d.get("it") or 0) < 1:
+              problems.append("no mutation iterations")
           if (d.get("trace_completed") or 0) < 1:
               problems.append("no trace collected")
+          # Baseline traces also count as completed; require at least one
+          # mutation-stage trace beyond them.
+          if (d.get("trace_completed") or 0) <= (d.get("baseline_done") or 0):
+              problems.append("no non-baseline trace")
+          if (d.get("t2_ok") or 0) < 1:
+              problems.append("no successful T2 build")
+          if (d.get("parents_retained") or 0) < 1:
+              problems.append("no feedback parent")
           if (d.get("coverage_records") or 0) < 1:
               problems.append("no coverage record written")
           if problems:

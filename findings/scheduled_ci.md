@@ -16,9 +16,11 @@ Date: 2026-11-21. 依据：本轮第 5 项。工具链 pin 未改。
 - QEMU：`qemu-user-static`，`qemu-x86_64-static --version` 写入 artifact；
   若设置了 `QEMU_VERSION_PREFIX` 则要求版本前缀匹配，否则只记录不失败；
 - 运行：240 s、2 workers、T1/T2 20%、`baseline-trace-max-mb 256`、
-  `--seed-dir` 解包目录；
-- 断言：`baseline_state=complete`、`baseline_done==expected`、
-  `trace_completed ≥ 1`、`coverage_records ≥ 1`；
+  `--seed-dir` 解包目录；运行前 `mkdir -p out`（此前 `tee` 与目录创建有竞态）；
+- 断言：`baseline_state=complete`、`baseline_expected≥1`、
+  `baseline_done==expected`、`it≥1`、`trace_completed > baseline_done`
+  （至少一条非 baseline trace）、`t2_ok≥1`、`parents_retained≥1`、
+  `coverage_records≥1`；只完成 baseline 不再算通过；
 - artifact：整个 `out/` 与 QEMU 版本文件，失败也上传。
 
 ## 验证（本地等价路径）
