@@ -19,10 +19,10 @@ Date: 2026-11-21. 工具链 pin 未改。
 
 - `expr_i64` 含移位的树曾因右操作数渲染成 Int64 而 compile_error（9/10 被
   旧逻辑静默跳过）；修 render 后归零；
-- **`-9223372036854775808L / -1L`：js 返回 min（wrap），wasm-gc/native
-  trap**。这是真实的后端行为分歧，已作为 witness 落盘（不是 oracle bug，
-  js 与 expected 一致）。是否属于语言允许的实现差异需查规范，暂记
-  `backend_div_overflow` candidate。
+- **`min / -1` 的后端分歧**（Int32/Int64）：js wrap，wasm-gc/native trap。
+  按 `moonbitlang/core` int 文档，该情形"no portable result… may abort or
+  get an arbitrary value"，因此归为 **allowed_impl_divergence**，不是
+  compiler inconsistency；详见 `findings/int_min_divergence.md`。
 
 ## P0-2 witness 持久化
 
