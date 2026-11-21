@@ -3074,6 +3074,7 @@ async fn monitor(
   cov : TraceUniverse,
   out : String,
 ) -> Stats {
+  let mon_start = @env.now()
   while prog.done < cfg.workers {
     @async.sleep(2000)
     if cfg.rss_limit_mb > 0 && prog.stop_reason == "" {
@@ -3082,7 +3083,9 @@ async fn monitor(
         prog.stop_reason = "memory"
       }
     }
-    let line = "{\"run_id\":\"" +
+    let line = "{\"elapsed_ms\":" +
+      (@env.now() - mon_start).to_string() +
+      ",\"run_id\":\"" +
       @corpus.json_escape(cfg.run_id) +
       "\",\"it\":" +
       prog.it.to_string() +

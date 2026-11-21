@@ -131,6 +131,20 @@ fn latest_run(arm_dir : String) -> String {
 }
 
 ///|
+fn field_text(line : String, key : String) -> String {
+  let pat = "\"" + key + "\":\""
+  match line.find(pat) {
+    Some(i) => {
+      let rest = line[i + pat.length():].to_owned()
+      match rest.find("\"") {
+        Some(j) => rest[0:j].to_owned()
+        None => ""
+      }
+    }
+    None => ""
+  }
+}
+
 fn median(xs : Array[Int64]) -> Int64 {
   if xs.length() == 0 {
     return 0L
@@ -144,45 +158,57 @@ fn median(xs : Array[Int64]) -> Int64 {
 /// Cumulative counters sampled every ~2 s; convert to per-30-sample windows
 /// (~60 s) so the table reports "new stable features per minute", using the
 /// median window rather than the total to reduce startup bias.
-fn window_deltas(stats_path : String) -> Array[Int64] {
+///|
+/// Windows are 60 s buckets of the real elapsed time, not fixed sample
+/// counts.  Returns (values, has_fields, has_time): a stats file without
+/// coverage_adds/new_edges or elapsed_ms makes the window metric invalid
+/// rather than zero.
+fn window_deltas(stats_path : String) -> (Array[Int64], Bool, Bool) {
   let text = read(stats_path)
-  let samples : Array[(Int64, Int64)] = []
+  let times : Array[Int64] = []
+  let adds : Array[Int64] = []
+  let edges : Array[Int64] = []
+  let mut has_fields = false
+  let mut has_time = false
   for line in text.split("\n") {
     let s = line.trim().to_owned()
     if s.has_prefix("{") {
-      samples.push((num_field(s, "coverage_adds"), num_field(s, "new_edges")))
+      if s.contains("\"coverage_adds\"") && s.contains("\"new_edges\"") {
+        has_fields = true
+      }
+      if s.contains("\"elapsed_ms\"") {
+        has_time = true
+      }
+      times.push(num_field(s, "elapsed_ms"))
+      adds.push(num_field(s, "coverage_adds"))
+      edges.push(num_field(s, "new_edges"))
     }
-  }
-  let deltas : Array[Int64] = []
-  let mut i = 1
-  while i < samples.length() {
-    let (a0, e0) = samples[i - 1]
-    let (a1, e1) = samples[i]
-    deltas.push(a1 - a0 + (e1 - e0))
-    i += 1
   }
   let windows : Array[Int64] = []
-  let mut k = 0
-  while k < deltas.length() {
-    let mut sum = 0L
-    let mut j = k
-    while j < deltas.length() && j < k + 30 {
-      sum += deltas[j]
-      j += 1
+  if has_fields && has_time {
+    let bucket_ms = 60000L
+    let mut last_bucket = -1L
+    let mut last_total = 0L
+    for i, t in times {
+      let b = t / bucket_ms
+      let total = adds[i] + edges[i]
+      if b != last_bucket {
+        if last_bucket >= 0 && total >= last_total {
+          windows.push(total - last_total)
+        }
+        last_bucket = b
+        last_total = total
+      }
     }
-    if sum >= 0L {
-      windows.push(sum)
-    }
-    k += 30
   }
-  windows
+  (windows, has_fields, has_time)
 }
 
 ///|
 fn main {
   let args = @env.args()
   if args.length() < 2 || args[1] == "--help" {
-    usage()
+    println("usage: benchstat OUT")
     return
   }
   let out = args[1]
@@ -198,15 +224,12 @@ fn main {
     let dir = join(join(out, arm), run)
     let summary = read(join(dir, "summary.json"))
     let time_text = read(join(out, arm + ".time"))
-    // "user sys maxrss_kb"
     let parts : Array[String] = []
     for p in time_text.split(" ") {
       if p.trim().length() > 0 {
         parts.push(p.trim().to_owned())
       }
     }
-    // GNU time prints seconds with decimals ("814.39"); integer parsing and a
-    // /10 at the end under-reported CPU by roughly 10x.
     let mut cpu_x100 = 0L
     for i in 0..<2 {
       if i < parts.length() {
@@ -218,7 +241,23 @@ fn main {
     } else {
       0L
     }
-    let windows = window_deltas(join(dir, "stats.jsonl"))
+    let (windows, has_fields, has_time) = window_deltas(join(dir, "stats.jsonl"))
+    let baseline = field_text(summary, "baseline_state")
+    let edge_status = field_text(summary, "edge_status")
+    let reasons : Array[String] = []
+    if baseline != "complete" {
+      reasons.push("baseline=" + baseline)
+    }
+    if edge_status == "degraded_cap" {
+      reasons.push("edge=degraded_cap")
+    }
+    if !has_fields {
+      reasons.push("stats missing coverage_adds/new_edges")
+    }
+    if !has_time {
+      reasons.push("stats missing elapsed_ms")
+    }
+    let valid = reasons.length() == 0
     if !first {
       b.write_string(",\n")
     }
@@ -226,9 +265,7 @@ fn main {
     b.write_string("{\"arm\":\"" + arm + "\"")
     b.write_string(",\"it\":" + num_field(summary, "it").to_string())
     b.write_string(",\"t2_ok\":" + num_field(summary, "t2_ok").to_string())
-    b.write_string(
-      ",\"adds\":" + num_field(summary, "coverage_adds").to_string(),
-    )
+    b.write_string(",\"adds\":" + num_field(summary, "coverage_adds").to_string())
     b.write_string(",\"edges\":" + num_field(summary, "new_edges").to_string())
     b.write_string(
       ",\"completed\":" + num_field(summary, "trace_completed").to_string(),
@@ -241,8 +278,24 @@ fn main {
     )
     b.write_string(",\"cpu_s\":" + (cpu_x100.to_double() / 100.0).to_string())
     b.write_string(",\"rss_mb\":" + (rss_kb / 1024L).to_string())
-    b.write_string(",\"median_window\":" + median(windows).to_string())
-    b.write_string(",\"windows\":" + windows.length().to_string() + "}")
+    b.write_string(
+      ",\"median_window\":" +
+      (if valid && windows.length() > 0 {
+        median(windows).to_string()
+      } else {
+        "null"
+      }),
+    )
+    b.write_string(",\"windows\":" + windows.length().to_string())
+    b.write_string(",\"valid\":" + (if valid { "true" } else { "false" }))
+    b.write_string(",\"invalid_reasons\":[")
+    for i, r in reasons {
+      if i > 0 {
+        b.write_string(",")
+      }
+      b.write_string("\"" + @stager.escape(r) + "\"")
+    }
+    b.write_string("]}")
   }
   b.write_string("\n]")
   println(b.to_string())

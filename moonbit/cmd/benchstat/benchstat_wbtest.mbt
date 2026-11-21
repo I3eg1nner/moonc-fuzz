@@ -12,13 +12,32 @@ test "GNU time decimals parse without a /10 loss" {
 test "window deltas read the coverage fields monitor emits" {
   let path = "/tmp/benchstat_window_test.jsonl"
   let lines = [
-    "{\"coverage_adds\":0,\"new_edges\":0}", "{\"coverage_adds\":3,\"new_edges\":1}",
-    "{\"coverage_adds\":5,\"new_edges\":4}",
+    "{\"elapsed_ms\":0,\"coverage_adds\":0,\"new_edges\":0}",
+    "{\"elapsed_ms\":60000,\"coverage_adds\":3,\"new_edges\":1}",
+    "{\"elapsed_ms\":120000,\"coverage_adds\":5,\"new_edges\":4}",
   ]
   ignore(@stager.write_text(path, lines.join("\n") + "\n"))
-  let w = window_deltas(path)
-  // one window: (3+1-0) + (5+4-3-1) = 9
-  assert_eq(w.length(), 1)
-  assert_eq(w[0], 9L)
+  let (w, fields, time) = window_deltas(path)
+  assert_true(fields)
+  assert_true(time)
+  assert_eq(w.length(), 2)
+  assert_eq(w[0], 4L)
+  assert_eq(w[1], 5L)
+  ignore(@stager.rm_rf(path))
+}
+
+///|
+test "missing elapsed_ms makes window metrics invalid, not zero" {
+  let path = "/tmp/benchstat_no_time.jsonl"
+  ignore(
+    @stager.write_text(
+      path,
+      "{\"coverage_adds\":1,\"new_edges\":2}\n{\"coverage_adds\":3,\"new_edges\":4}\n",
+    ),
+  )
+  let (w, fields, time) = window_deltas(path)
+  assert_true(fields)
+  assert_false(time)
+  assert_eq(w.length(), 0)
   ignore(@stager.rm_rf(path))
 }
