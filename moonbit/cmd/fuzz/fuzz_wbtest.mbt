@@ -1043,7 +1043,12 @@ test "trace delta counts only functions new to the key" {
   let cov = trace_universe_new()
   let feed = feedback_new()
   let task = trace_test_task_stage("s", @trace.T2, false)
-  let tr = trace_test_result_full(["f1", "f2"], @trace.T2, @trace.Accepted, true)
+  let tr = trace_test_result_full(
+    ["f1", "f2"],
+    @trace.T2,
+    @trace.Accepted,
+    true,
+  )
   assert_eq(
     trace_apply_delta(task, tr, @cov.FuncSet::new(["f1", "f2"]), 0, cov, feed),
     2,
@@ -1054,7 +1059,14 @@ test "trace delta counts only functions new to the key" {
     0,
   )
   assert_eq(
-    trace_apply_delta(task, tr, @cov.FuncSet::new(["f1", "f2", "f3"]), 0, cov, feed),
+    trace_apply_delta(
+      task,
+      tr,
+      @cov.FuncSet::new(["f1", "f2", "f3"]),
+      0,
+      cov,
+      feed,
+    ),
     1,
   )
 }

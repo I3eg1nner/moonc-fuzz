@@ -1801,14 +1801,16 @@ fn trace_maybe_settle_baseline(
       cov.by_key.set(k, old.union(v))
     }
     for p in cov.pending {
-      ignore(trace_apply_delta(
-        p.task,
-        p.result,
-        @cov.FuncSet::new(p.result.functions),
-        p.edge_new,
-        cov,
-        feed,
-      ))
+      ignore(
+        trace_apply_delta(
+          p.task,
+          p.result,
+          @cov.FuncSet::new(p.result.functions),
+          p.edge_new,
+          cov,
+          feed,
+        ),
+      )
     }
     cov.pending.clear()
   } else {

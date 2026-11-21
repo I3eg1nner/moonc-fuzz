@@ -5,7 +5,15 @@ test "mismatch evidence keeps source, expected, actual and argv" {
   let out = "/tmp/deepfuzz_evidence_test"
   @stager.rm_rf(out)
   assert_true(
-    save_mismatch(out, 7, "fn main { () }\n", ["a", "b"], "a\nc\n", "wasm-gc", 12),
+    save_mismatch(
+      out,
+      7,
+      "fn main { () }\n",
+      ["a", "b"],
+      "a\nc\n",
+      "wasm-gc",
+      12,
+    ),
   )
   let dir = out + "/mismatch/7"
   assert_eq(@stager.read_text(dir + "/main.mbt"), "fn main { () }\n")

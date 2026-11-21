@@ -280,7 +280,17 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
 /// gate rather than silently restoring the false pass.
 fn self_test(verbose : Bool) -> Bool {
   let mk = fn(target : String, status : String, rc : Int32, out : String) {
-    { target, status, rc, out, err: "", ms: 0L, truncated: false, digest: "", full_len: 0L, }
+    {
+      target,
+      status,
+      rc,
+      out,
+      err: "",
+      ms: 0L,
+      truncated: false,
+      digest: "",
+      full_len: 0L,
+    }
   }
   let checks : Array[(String, Array[Obs], String)] = [
     (

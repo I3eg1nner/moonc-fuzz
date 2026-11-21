@@ -236,12 +236,12 @@ fn output_matches(actual : String, expected : Array[String]) -> Bool {
 /// Preserve one wrong-code candidate before the work dir is removed.
 fn save_mismatch(
   out_dir : String,
-  case_no : Int,
+  case_no : Int32,
   src : String,
   expected : Array[String],
   actual : String,
   target : String,
-  size : Int,
+  size : Int32,
 ) -> Bool {
   let base = join(out_dir, "mismatch")
   // create_dir is not recursive; make the run dir first.

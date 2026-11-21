@@ -25,6 +25,9 @@ test "publishing requires a successful write" {
   ignore(@stager.rm_rf(dir))
   ignore(@fs.create_dir(dir) catch { _ => () })
   assert_eq(publish_reduction(dir, true, "x"), "")
-  assert_eq(publish_reduction("/tmp/min_publish_unverified.mbt", false, "x"), "")
+  assert_eq(
+    publish_reduction("/tmp/min_publish_unverified.mbt", false, "x"),
+    "",
+  )
   @stager.rm_rf(dir)
 }
