@@ -116,6 +116,45 @@ fn save_witness(
 }
 
 ///|
+/// One JSON object, built once: appending `,"triage"` after a closing brace
+/// produced invalid JSON in the first version.
+fn capsule_summary(
+  attempts : Int,
+  ok : Int,
+  failed : Int,
+  crashes : Int,
+  distinct : Int,
+  base_rc : Int32,
+  replay_rc : Int32,
+  ms : UInt64,
+  saved : Int,
+  triage_txt : String,
+) -> String {
+  let b = StringBuilder()
+  b.write_string("{\"attempts\":" + attempts.to_string())
+  b.write_string(",\"ok\":" + ok.to_string())
+  b.write_string(",\"failed\":" + failed.to_string())
+  b.write_string(",\"crashes\":" + crashes.to_string())
+  b.write_string(",\"distinct_crash_lines\":" + distinct.to_string())
+  b.write_string(",\"baseline_rc\":" + base_rc.to_string())
+  b.write_string(",\"replay_rc\":" + replay_rc.to_string())
+  b.write_string(
+    ",\"replay_matches\":" +
+    (if replay_rc == base_rc { "true" } else { "false" }),
+  )
+  b.write_string(",\"ms\":" + ms.to_string())
+  b.write_string(",\"witnesses_saved\":" + saved.to_string())
+  b.write_string(
+    ",\"coverage_skipped\":\"n/a (capsule lane has no coverage budget)\"",
+  )
+  if triage_txt != "" {
+    b.write_string(",\"triage\":" + triage_txt)
+  }
+  b.write_string("}")
+  b.to_string()
+}
+
+///|
 async fn main {
   let args = @env.args()
   let pkg = match arg_value(args, "--pkg") {
@@ -325,19 +364,7 @@ async fn main {
   }
   // Replay consistency: the restored package must build exactly like baseline.
   let replay = @exec.run_isolated(moon, argv, work, 120000, max_output_bytes=65536)
-  let b = StringBuilder()
-  b.write_string("{\"attempts\":" + attempts.to_string())
-  b.write_string(",\"ok\":" + ok.to_string())
-  b.write_string(",\"failed\":" + failed.to_string())
-  b.write_string(",\"crashes\":" + crashes.to_string())
-  b.write_string(",\"distinct_crash_lines\":" + sigs.length().to_string())
-  b.write_string(",\"baseline_rc\":" + base.rc.to_string())
-  b.write_string(",\"replay_rc\":" + replay.rc.to_string())
-  b.write_string(",\"replay_matches\":" +
-    (if replay.rc == base.rc { "true" } else { "false" }))
-  b.write_string(",\"ms\":" + (@env.now() - t0).to_string())
-  b.write_string(",\"coverage_skipped\":\"n/a (capsule lane has no coverage budget)\"")
-  b.write_string("}")
+  let mut triage_txt = ""
   if do_triage {
     let tp = "/data/audit/mbtfuzz/moonbit/_build/native/debug/build/cmd/fuzz/fuzz.exe"
     if @fs.path_exists(tp) {
@@ -347,10 +374,22 @@ async fn main {
         out,
         600000,
       )
-      b.write_string(",\"triage\":" + tr.stdout.trim().to_owned())
+      triage_txt = tr.stdout.trim().to_owned()
       ignore(@stager.write_text(join(out, "triage.json"), tr.stdout))
     }
   }
+  let b = capsule_summary(
+    attempts,
+    ok,
+    failed,
+    crashes,
+    sigs.length(),
+    base.rc,
+    replay.rc,
+    @env.now() - t0,
+    saved,
+    triage_txt,
+  )
   println(b.to_string())
   ignore(@stager.write_text(join(out, "summary.json"), b.to_string()))
 }

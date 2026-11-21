@@ -408,14 +408,37 @@ async fn main {
           let out = join(work, "reduced.mbt")
           let r = @exec.run(
             bin,
-            ["--dir", d, "--file", "main.mbt", "--stage", stage, "--out", out],
+            [
+              "--dir", d, "--file", "main.mbt", "--stage", stage, "--target",
+              "wasm-gc", "--out", out,
+            ],
             work,
             600000,
           )
           minimised = r.rc == 0 && r.stdout.contains("\"published\":true")
           minimise_note = if minimised { "verified" } else { "not published" }
           if minimised {
-            reduced_path = out
+            // The reduced file must still trigger the candidate's fingerprint
+            // under the same stage/config; a published but different failure
+            // is not a reduction of this defect.
+            let vd = join(work, "verify")
+            let reduced_src = @stager.read_text(out)
+            if write_pkg(vd, reduced_src, "mbt") {
+              let (vsig, vrc, verr) = run_signature(vd, stage, relaxed)
+              let still = is_defect_sig(vsig) &&
+                (original == "" || vsig == original) &&
+                vrc != 0
+              if still {
+                reduced_path = out
+              } else {
+                minimised = false
+                minimise_note = "reduced did not reproduce"
+              }
+              ignore(verr)
+            } else {
+              minimised = false
+              minimise_note = "verify write failed"
+            }
           }
         }
       } else {
@@ -429,9 +452,22 @@ async fn main {
     Some(_) => true
     None => false
   }
-  let minimize_required = match minimize {
+  // Only check/build/test have a reducer that can replay the original defect.
+  // t1 maps to syncheck (not minimisable) and capsule packages are not
+  // single-file reducible; neither may become flaky merely because the caller
+  // passed --minimize unconditionally.
+  let minimise_supported = !is_capsule &&
+    (stage == "check" || stage == "build" || stage == "test")
+  let minimize_required = minimise_supported &&
+    (match minimize {
+      Some(_) => true
+      None => false
+    })
+  if !minimise_supported && (match minimize {
     Some(_) => true
     None => false
+  }) {
+    minimise_note = "not supported for stage " + stage
   }
   let status = triage_status(
     is_defect_sig(first),
