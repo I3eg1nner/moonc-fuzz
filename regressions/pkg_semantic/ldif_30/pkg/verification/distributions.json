@@ -1,0 +1,113 @@
+[
+  {
+    "version": "v0.7.3",
+    "source_commit": "e5429fc3669fae09f9441693d2cd5dea0ec7e26d",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.7.3",
+    "archive": "WeiR-h-moonldif-0.7.3.zip",
+    "bytes": 5429726,
+    "sha256": "5d6f1ff2e172c329d54ce79d53acad14955757856189892b7900a69f576155b7",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.7.3/WeiR-h-moonldif-0.7.3.zip",
+    "cli": {
+      "archive": "moonldif-cli-v0.7.3.zip",
+      "bytes": 130828,
+      "sha256": "3884c547cc620af15474d3f197ff1145780b956f79f2d6daf70764da4e450e78",
+      "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.7.3/moonldif-cli-v0.7.3.zip"
+    }
+  },
+  {
+    "version": "v0.7.2",
+    "source_commit": "ee752e311f6fb7ffd5a830a8efc389ff9e6cf424",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.7.2",
+    "archive": "WeiR-h-moonldif-0.7.2.zip",
+    "bytes": 5010729,
+    "sha256": "92d74094d89565ba77fe712956bc5d6a3f493938da4531a67d66cfd3f217f3fa",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.7.2/WeiR-h-moonldif-0.7.2.zip",
+    "cli": {
+      "archive": "moonldif-cli-v0.7.2.zip",
+      "bytes": 130861,
+      "sha256": "e6ced1dfcb28d8fbc8acbcfc30ee79a605f5a5f04763562f6de15e2c6f3c8af8",
+      "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.7.2/moonldif-cli-v0.7.2.zip"
+    }
+  },
+  {
+    "version": "v0.7.1",
+    "source_commit": "bf20584b7f6f626655a8fc6682a1b855c0abf0eb",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.7.1",
+    "archive": "WeiR-h-moonldif-0.7.1.zip",
+    "bytes": 4353600,
+    "sha256": "d01e3bce044d450310a820b0a2c26a30260ed3d72b145996e42e4213127efe66",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.7.1/WeiR-h-moonldif-0.7.1.zip"
+  },
+  {
+    "version": "v0.7.0",
+    "source_commit": "9c25eecd6ed2759b677dfe4698fe02662879a016",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.7.0",
+    "archive": "WeiR-h-moonldif-0.7.0.zip",
+    "bytes": 3803098,
+    "sha256": "b750be931ccc71cc3a4f3b102163b9ce89dbb3a2ea004ce586d0c06419bbab3f",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.7.0/WeiR-h-moonldif-0.7.0.zip"
+  },
+  {
+    "version": "v0.6.0",
+    "source_commit": "96e5516b3bf9858b117a52fb6d4ea74f9663d565",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.6.0",
+    "archive": "WeiR-h-moonldif-0.6.0.zip",
+    "bytes": 3287522,
+    "sha256": "c25924e0fe2c43615a5a2e53900bfd14b3b901b5533a94a2ed23823c030fb555",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.6.0/WeiR-h-moonldif-0.6.0.zip"
+  },
+  {
+    "version": "v0.5.1",
+    "source_commit": "3dbe27b707797f7425895b6c1cc116d3a840f21a",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.5.1",
+    "archive": "WeiR-h-moonldif-0.5.1.zip",
+    "bytes": 2810011,
+    "sha256": "c2810f0071916e87c2767dd9e10701a96694e48c262cc2cf18f2243c23be01d6",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.5.1/WeiR-h-moonldif-0.5.1.zip"
+  },
+  {
+    "version": "v0.5.0",
+    "source_commit": "df2377e64a5f59d7fd7e03301fb83b027f7d0e78",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.5.0",
+    "archive": "WeiR-h-moonldif-0.5.0.zip",
+    "bytes": 2332377,
+    "sha256": "c6b923178363950ddbfac74e9d510632ca2852b19cc376775c151023e49ada5c",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.5.0/WeiR-h-moonldif-0.5.0.zip"
+  },
+  {
+    "version": "v0.4.0",
+    "source_commit": "53c7022acb2b403377ba88810cb7c3c1b9eb5646",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.4.0",
+    "archive": "WeiR-h-moonldif-0.4.0.zip",
+    "bytes": 2069859,
+    "sha256": "088140d236e08d42331c1dfc8de899b6bbfb7c180968ef131c9ca573901d5047",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.4.0/WeiR-h-moonldif-0.4.0.zip"
+  },
+  {
+    "version": "v0.3.0",
+    "source_commit": "eb2a5368d9c204646a31be70d928352816a07e51",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.3.0",
+    "archive": "WeiR-h-moonldif-0.3.0.zip",
+    "bytes": 1868506,
+    "sha256": "7ebf2826c63b6cc2ca18acbec6e37c252ccd85730c919727df1a80d702ddeb54",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.3.0/WeiR-h-moonldif-0.3.0.zip"
+  },
+  {
+    "version": "v0.2.0",
+    "source_commit": "9e0522502cd73982942826d82d5bf7358ae888ec",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.2.0",
+    "archive": "WeiR-h-moonldif-0.2.0.zip",
+    "bytes": 1683643,
+    "sha256": "3a8790ab1cba95b8ab2e84bc5e83c8425ebb57b81da53c5424d1f16088ff5963",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.2.0/WeiR-h-moonldif-0.2.0.zip"
+  },
+  {
+    "version": "v0.1.0",
+    "source_commit": "4d4c19a5ae1c2a78f1f7303e47445ebfc595618f",
+    "github_release": "https://github.com/WeiR-h/moonldif/releases/tag/v0.1.0",
+    "archive": "WeiR-h-moonldif-0.1.0.zip",
+    "bytes": 1662138,
+    "sha256": "1dde26408d48d95015269ca0d8ccc097932b8f2c42682df3fe28ab86d2717537",
+    "download_url": "https://github.com/WeiR-h/moonldif/releases/download/v0.1.0/WeiR-h-moonldif-0.1.0.zip"
+  }
+]

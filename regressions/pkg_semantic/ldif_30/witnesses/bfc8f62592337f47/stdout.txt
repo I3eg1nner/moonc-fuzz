@@ -1,0 +1,4 @@
+[WeiR-h/moonldif] test policy_wbtest.mbt:96 ("risk diagnosis limits fail closed and line numbers survive CRLF and folding") failed: src/policy_wbtest.mbt:113:3-113:36@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+Total tests: 66, passed: 65, failed: 1.

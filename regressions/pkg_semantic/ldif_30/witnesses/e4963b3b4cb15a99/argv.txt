@@ -1,0 +1,1 @@
+/home/user/.moon/bin/moon test --target wasm-gc (cwd=/tmp/pkg30/ldif/1795274071828/pkgwd_1)

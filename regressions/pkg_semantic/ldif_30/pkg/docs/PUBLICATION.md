@@ -1,0 +1,56 @@
+# 当前发行流程（0.7.6）
+
+库包、Node-only CLI 包和网页按同一源码提交发布；SHA256SUMS 覆盖两个 ZIP，Pages 部署前验证公开附件。独立消费验证分别覆盖归档、注册表和公开 CLI 下载。正式状态及证据见 [STATUS](STATUS.md)。Pages 环境逐个登记正式标签；只对检查通过的精确标签增加规则。公开 CLI 和注册表消费工作流须以对应正式标签运行，例如 `gh workflow run cli-consumer.yml --ref v0.7.3`，避免把后续文档提交误当成发行源码。以下保留历史记录。
+
+# 2026-09-21 0.5.1 正式交付
+
+已完成 [GitHub Release](https://github.com/WeiR-h/moonldif/releases/tag/v0.5.1)、[mooncakes](https://mooncakes.io/docs/WeiR-h/moonldif@0.5.1)、Windows / Ubuntu 的 JS / Wasm GC 独立注册表安装，以及同版本 Pages 的公开双浏览器复验。[完整证据](../verification/2026-09-21-v0.5.1/README.md)记录精确源码、包指纹、CI 和实际下载结果。各版本当前源码及 GitHub 发行包指纹见 [发行清单](../verification/distributions.json)。
+
+
+# 2026-09-20 0.5.0 正式交付
+
+已完成 GitHub Release、mooncakes、精确版本双系统独立安装、Pages 与公开浏览器回归。[完整证据](../verification/2026-09-20-v0.5.0/README.md)包含源提交、CI、包指纹及实际输出。账号身份保持 WeiR-h，不改变其他项目的默认 GitHub 登录。下文保留历史记录。
+
+# 2026-09-17 0.4.0 正式交付
+
+迁移前后比较已经完成正式发布、双平台安装及公开网页复验。参见 [0.4.0 证据](../verification/2026-09-17-v0.4.0/README.md)。以下是之前的发布历史。
+
+# 2026-09-16 0.3.0 批量预检交付
+
+已完成批量 CLI / MoonBit API、CI 示例、正式包、双平台指定版本安装和同版本网页复验。实际结果见 [0.3.0 证据](../verification/2026-09-16-v0.3.0/README.md)。以下继续保留此前版本的历史记录，个人验收及最终官方结果仍待确认。
+
+# 2026-09-16 正式交付完成
+
+0.1.0 基线和 0.2.0 增强版均已发布 GitHub / mooncakes。0.2.0 精确提交 b3b19b0c95de8cf2358b9a8f0423d36ac7891e3b 完成双平台、浏览器 CI、注册表独立安装与同版本 Pages 公开复验。发布后补充证据的文档提交不会改变已发布代码。
+
+完整结果、明确限制与首次部署故障见 [0.2.0 证据](../verification/2026-09-16-v0.2.0/README.md)，逐项链接见 [验收对照表](ACCEPTANCE.md)。报名初审已通过，个人验收和组委会最终结果仍待确认。
+
+## 以下为保留的历史记录
+
+# 2026-09-16 正式交付进展
+
+已收到报名初审通过通知，正式发布与增强开发按已批准计划推进。下文是 dev.5 历史检查点，当前状态以 STATUS.md 和 GitHub Releases 为准。
+
+# 三轮收尾与 GitHub 交付
+
+日期：2026-09-15。版本：0.1.0-dev.5。
+
+用户已明确授权将源码、测试、文档、合成示例、验证截图及完整 Git 历史公开到 WeiR-h/moonldif，并运行 CI。仓库已经公开：[WeiR-h/moonldif](https://github.com/WeiR-h/moonldif)。mooncakes 尚未发布。
+
+## 本轮完成内容
+
+1. **批量审阅实用性**：文本报告补充属性名和给定值数量；网页直接显示目标 DN。两个条目修改同一 mail 属性时能区分目标，第二项定位准确；审阅不展开属性值。桌面和手机视口截图、交互记录见 `verification/2026-09-15-dev.5/`。
+2. **独立源码复现**：从提交 `3cf87f7` 的 Git 源码创建不带 dist、node_modules、本机配置和项目缓存的新目录，核心、CLI、场景及浏览器生产构建均通过。只共享已安装工具链及校验过的依赖下载缓存；不是注册表安装，也不是第三方人员试用。
+3. **公开仓库与双平台验证**：已推送完整历史，初次公开提交为 `306b97e9030a1febd489df9bdb268eb33d5c719c`；Windows 与 Ubuntu 均通过 [CI 34963017480](https://github.com/WeiR-h/moonldif/actions/runs/34963017480)。本地保存的远端执行记录见 `verification/2026-09-15-dev.5/github-ci-initial.json`。
+
+远端执行包括格式与类型检查、JS / Wasm GC 各 32 个核心测试、9 组 CLI、三个场景、工作台生产构建、归档公共 API 接入、Python / Java SDK / OpenLDAP / RFC 对照及 moonldap 离线适配。各独立对照的扩展语法、兼容选项和拒绝样例解释仍见对应专题文档；CI 成功表示符合已声明预期，不表示所有输入均接受。
+
+初次 CI 成功但提示旧 Actions 运行时弃用；收尾提交更新官方 Actions 到 Node 24 版本。该后续提交的运行状态应在 [Actions 列表](https://github.com/WeiR-h/moonldif/actions/workflows/ci.yml) 按提交核对，不将初次运行当作后续提交的证明。
+
+## 发布内容与边界
+
+公开前核对了 142 个跟踪文件及 234 个历史文件版本，所检查的令牌和私钥模式未发现匹配；这是有限模式检查。工具链、依赖缓存、本机配置和凭据未纳入源码。后续收尾增加远端 CI 记录及更新文档。
+
+完整研发、规范、SDK、上游数据及浏览器证据按版本保留在 `verification/`；历史失败记录继续保留。
+
+尚未完成：mooncakes 正式发布及注册表干净安装、独立第三方试用、赛事改报与主办方审核。项目不执行真实目录写入，也没有企业采用或获奖证据。

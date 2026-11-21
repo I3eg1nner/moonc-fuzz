@@ -1,0 +1,40 @@
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:157 ("snapshot compatibility and optional source identity are explicit") failed: src/snapshot_wbtest.mbt:166:3-166:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test review_wbtest.mbt:59 ("review preserves deletion policy and shows opaque controls without interpreting them") failed: src/review_wbtest.mbt:66:3-66:34@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test profile_wbtest.mbt:2 ("profile limits apply to all records and safe writer rejects violations") failed: src/profile_wbtest.mbt:12:3-12:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test profile_wbtest.mbt:33 ("profile counts modifications separately and preserves error precedence") failed: src/profile_wbtest.mbt:39:3-39:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test policy_wbtest.mbt:2 ("risk policies distinguish all-value removal from selected and empty byte values") failed: src/policy_wbtest.mbt:19:5-19:44@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test policy_wbtest.mbt:35 ("rename aliases and moves are optional policies") failed: src/policy_wbtest.mbt:43:7-46:8@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test policy_wbtest.mbt:64 ("policies inspect beyond the first 200 review items and preserve partial diagnostics") failed: src/policy_wbtest.mbt:74:3-74:35@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test policy_wbtest.mbt:96 ("risk diagnosis limits fail closed and line numbers survive CRLF and folding") failed: src/policy_wbtest.mbt:102:3-102:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test parser_wbtest.mbt:71 ("strict version and explicit compatibility and delete policy") failed: src/parser_wbtest.mbt:73:3-79:4@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test pagination_wbtest.mbt:56 ("invalid page limits fail without changing session exit code") failed: src/pagination_wbtest.mbt:74:5-74:32@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test names_wbtest.mbt:126 ("explicit legacy separator padding does not trim or rewrite DN values") failed: src/names_wbtest.mbt:130:3-130:39@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test batch_wbtest.mbt:2 ("batch per-file results equal standalone review and share all risk options") failed: src/batch_wbtest.mbt:29:3-29:59@WeiR-h/moonldif FAILED: `[0, 2, 2, 2, 2] != [0, 1, 1, 1, 2]`
+diff:
+[0, -2 +1, -2 +1, -2 +1, 2]
+[WeiR-h/moonldif] test batch_wbtest.mbt:37 ("batch unavailable and later files cannot turn a failure into success") failed: src/batch_wbtest.mbt:57:3-57:53@WeiR-h/moonldif FAILED: `[2, 0, 2] != [2, 0, 1]`
+diff:
+[2, 0, -2 +1]
+Total tests: 66, passed: 53, failed: 13.

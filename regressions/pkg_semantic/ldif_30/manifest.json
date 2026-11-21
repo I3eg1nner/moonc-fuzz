@@ -1,0 +1,366 @@
+[
+  {
+    "witness": "0b836d41574fb1e2",
+    "assertion": "2 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "151f3207203f4734",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "16e8f8167ed26e84",
+    "assertion": "1114111 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "181b5b0ab5a07523",
+    "assertion": "100 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "218c7ef42e6e8f7e",
+    "assertion": "1001 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "247a8bf03197628b",
+    "assertion": "false",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "2bfc691b9560a0e9",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "2c0597fae8bee640",
+    "assertion": "2147483647 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "2efdcf776e87295d",
+    "assertion": "0 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "3455e49c57a1957f",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "371d47d86aeab1e4",
+    "assertion": "100 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "3ca0d7098f2650f1",
+    "assertion": "false",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "3e08b381fc869521",
+    "assertion": "2 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "3e3f66fdfa2780bf",
+    "assertion": "0 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "3e41e81a61b0fa2f",
+    "assertion": "100 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "4b1ec23666eef4ae",
+    "assertion": "\"\" != \"incomplete\"",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "5241d9f0c583504a",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "54ed8c6e9221d55c",
+    "assertion": "\"%.100s\" != \"incomplete\"",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "592f3fa0e4d3fa83",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "5dccebca043f0158",
+    "assertion": "1 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "688560fbad0805bb",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "688a316c12f88870",
+    "assertion": "false",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "69ee89cb6b5222f2",
+    "assertion": "\"$(1)\" != \"incomplete\"",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "70b42b65fdfa94e4",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "8180ba98685e756d",
+    "assertion": "100 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "828444a6dd0fcf2e",
+    "assertion": "\"\udbff\udfff\" != \"incomplete\"",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "87854d3c38b792bf",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "884fbc441dd3b6ac",
+    "assertion": "-2147483648 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "9828e41df48c99a8",
+    "assertion": "\"a\" != \"incomplete\"",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "987daeca8672ae46",
+    "assertion": "1001 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "a1e9d7a74eaeee58",
+    "assertion": "0 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "a703f3888f01a238",
+    "assertion": "100 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "b1c62496879886f9",
+    "assertion": "2 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "b7b85cb23bed778d",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "b8d80dee1b7ff811",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "bdefffda8846abcc",
+    "assertion": "1 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "bfc8f62592337f47",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "c002a4251fcf599a",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "c54444230cab51e6",
+    "assertion": "0 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "c5a0674c7a90486a",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "c794b453b22d2c8c",
+    "assertion": "0 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "cf2f22a3e50e4f51",
+    "assertion": "0 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "cf9fce8d7c7b297f",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "d067f6855d999871",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "dcb7d4ec4c6bbf19",
+    "assertion": "100 != 101",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "e4963b3b4cb15a99",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "ebbab7b7be5fc19a",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "f12f0d52aa889751",
+    "assertion": "2 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "f403b31c9552aa54",
+    "assertion": "2 != 0",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "f69b9abe62f77924",
+    "assertion": "\"\" != \"incomplete\"",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "f9bb87319800a61f",
+    "assertion": "97 != 1",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "fab171c0dcd03799",
+    "assertion": "1 != 2",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  }
+]

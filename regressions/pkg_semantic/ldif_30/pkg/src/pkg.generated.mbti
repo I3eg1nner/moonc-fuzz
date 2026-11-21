@@ -1,0 +1,340 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "WeiR-h/moonldif"
+
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+// Values
+pub fn check(Bytes, options? : Options, legacy_dn_spaces? : Bool, risk_policy? : RiskPolicy) -> Report
+
+pub fn check_text(String, options? : Options, legacy_dn_spaces? : Bool, risk_policy? : RiskPolicy) -> Report
+
+pub fn check_with_profile(Bytes, Profile) -> Report
+
+pub fn compare_snapshots(Bytes, Bytes, allow_missing_version? : Bool, legacy_dn_spaces? : Bool, before_sha256? : String?, after_sha256? : String?, ignored_attributes? : Array[String]) -> SnapshotDiff
+
+pub fn document_json(Document) -> @json.Json
+
+pub fn page_text(@json.Json, markdown? : Bool) -> String
+
+pub fn parse(Bytes, options? : Options) -> Report
+
+pub fn parse_dn(String) -> Result[DistinguishedName, NameError]
+
+pub fn parse_profile(Bytes) -> Profile raise ProfileError
+
+pub fn parse_rdn(String) -> Result[RelativeName, NameError]
+
+pub fn parse_text(String, options? : Options) -> Report
+
+pub fn same_attribute_description(String, String) -> Bool
+
+pub fn validate_profile(Bytes) -> ProfileValidation
+
+pub fn version() -> String
+
+pub fn write(Document) -> String raise WriteError
+
+// Errors
+pub suberror ProfileError {
+  InvalidProfile(String)
+}
+
+pub suberror QueryError {
+  InvalidQuery(String)
+  ExportLimit
+}
+
+#derive(@debug.Debug)
+pub suberror WriteError {
+  InvalidDocument(String)
+}
+pub fn WriteError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+#derive(Eq)
+pub(all) struct Attribute {
+  name : String
+  value : Value
+  span : Span
+}
+pub fn Attribute::equal(Self, Self) -> Bool
+pub fn Attribute::not_equal(Self, Self) -> Bool
+
+pub struct BatchReview {
+  // private fields
+}
+pub fn BatchReview::add_bytes(Self, String, Bytes, String) -> Unit
+pub fn BatchReview::add_unavailable(Self, String) -> Unit
+pub fn BatchReview::exit_code(Self) -> Int32
+pub fn BatchReview::new(options? : Options, risk_policy? : RiskPolicy, legacy_dn_spaces? : Bool) -> Self
+pub fn BatchReview::remaining_bytes(Self) -> Int32
+pub fn BatchReview::to_json(Self) -> @json.Json
+pub fn BatchReview::to_markdown(Self) -> String
+pub fn BatchReview::to_text(Self) -> String
+pub fn BatchReview::with_profile(Profile, profile_source_sha256? : String, profile_effective_sha256? : String) -> Self raise QueryError
+
+#derive(Eq)
+pub(all) enum Body {
+  Entry(Array[Attribute])
+  Add(Array[Attribute])
+  Delete
+  Modify(Array[Modification])
+  Rename(String, Bool, String?)
+}
+pub fn Body::equal(Self, Self) -> Bool
+pub fn Body::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct Control {
+  oid : String
+  critical : Bool
+  value : Value?
+  span : Span
+}
+pub fn Control::equal(Self, Self) -> Bool
+pub fn Control::not_equal(Self, Self) -> Bool
+
+#derive(Eq, @json.ToJson)
+pub(all) struct Diagnostic {
+  code : String
+  severity : String
+  span : Span
+  reason : String
+}
+pub fn Diagnostic::equal(Self, Self) -> Bool
+pub fn Diagnostic::not_equal(Self, Self) -> Bool
+pub fn Diagnostic::to_json(Self) -> @json.Json
+
+#derive(Eq)
+pub(all) struct DistinguishedName {
+  rdns : Array[RelativeName]
+}
+pub fn DistinguishedName::equal(Self, Self) -> Bool
+pub fn DistinguishedName::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct Document {
+  mode : String
+  records : Array[Record]
+}
+pub fn Document::equal(Self, Self) -> Bool
+pub fn Document::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct Modification {
+  operation : String
+  attribute : String
+  values : Array[Attribute]
+  span : Span
+}
+pub fn Modification::equal(Self, Self) -> Bool
+pub fn Modification::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct NameAssertion {
+  attribute : String
+  value : NameValue
+  byte_offset : Int32
+}
+pub fn NameAssertion::equal(Self, Self) -> Bool
+pub fn NameAssertion::not_equal(Self, Self) -> Bool
+
+#derive(Eq, @json.ToJson)
+pub(all) struct NameError {
+  code : String
+  byte_offset : Int32
+  reason : String
+}
+pub fn NameError::equal(Self, Self) -> Bool
+pub fn NameError::not_equal(Self, Self) -> Bool
+pub fn NameError::to_json(Self) -> @json.Json
+
+#derive(Eq)
+pub(all) enum NameValue {
+  Text(Bytes)
+  Ber(Bytes)
+}
+pub fn NameValue::equal(Self, Self) -> Bool
+pub fn NameValue::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct Options {
+  allow_missing_version : Bool
+  deny_delete : Bool
+}
+pub fn Options::default() -> Self
+pub fn Options::equal(Self, Self) -> Bool
+pub fn Options::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct PageQuery {
+  offset : Int32
+  limit : Int32
+  query : String
+  kind : String
+}
+pub fn PageQuery::default() -> Self
+pub fn PageQuery::equal(Self, Self) -> Bool
+pub fn PageQuery::not_equal(Self, Self) -> Bool
+
+pub struct Profile {
+  // private fields
+}
+pub fn Profile::canonical(Self) -> String
+pub fn Profile::effective_json(Self, String) -> @json.Json raise ProfileError
+pub fn Profile::to_json(Self) -> @json.Json
+
+#derive(Eq, @debug.Debug, @json.ToJson)
+pub(all) struct ProfileIssue {
+  code : String
+  path : String
+  message : String
+}
+pub fn ProfileIssue::equal(Self, Self) -> Bool
+pub fn ProfileIssue::not_equal(Self, Self) -> Bool
+pub fn ProfileIssue::to_json(Self) -> @json.Json
+pub fn ProfileIssue::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ProfileValidation {
+  Valid(Profile)
+  Invalid(ProfileIssue)
+}
+
+#derive(Eq)
+pub(all) struct Record {
+  dn : String
+  controls : Array[Control]
+  body : Body
+  span : Span
+}
+pub fn Record::equal(Self, Self) -> Bool
+pub fn Record::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct RelativeName {
+  assertions : Array[NameAssertion]
+}
+pub fn RelativeName::equal(Self, Self) -> Bool
+pub fn RelativeName::not_equal(Self, Self) -> Bool
+
+pub(all) struct Report {
+  document : Document
+  diagnostics : Array[Diagnostic]
+  names_checked : Bool
+}
+pub fn Report::exit_code(Self) -> Int32
+pub fn Report::format(Self) -> String raise WriteError
+pub fn Report::not_checked(Self) -> Array[String]
+pub fn Report::review(Self) -> Review
+pub fn Report::review_json(Self, ReviewMetadata) -> @json.Json
+pub fn Report::review_markdown(Self, ReviewMetadata) -> String
+pub fn Report::status(Self) -> String
+pub fn Report::to_json(Self, include_records? : Bool, include_review? : Bool) -> @json.Json
+pub fn Report::to_text(Self, include_records? : Bool) -> String
+
+pub struct ReportCursor {
+  // private fields
+}
+pub fn ReportCursor::next(Self) -> String? raise QueryError
+
+#derive(Eq)
+pub(all) struct Review {
+  items : Array[ReviewItem]
+  total_items : Int32
+  truncated : Bool
+  analysis_complete : Bool
+  input_exit_code : Int32
+  record_count : Int32
+}
+pub fn Review::equal(Self, Self) -> Bool
+pub fn Review::not_equal(Self, Self) -> Bool
+pub fn Review::to_json(Self) -> @json.Json
+pub fn Review::to_text(Self) -> String
+
+#derive(Eq)
+pub(all) struct ReviewItem {
+  code : String
+  level : String
+  record_index : Int32
+  dn : String
+  attribute : String?
+  value_count : Int32
+  span : Span
+  title : String
+  reason : String
+  action : String
+}
+pub fn ReviewItem::equal(Self, Self) -> Bool
+pub fn ReviewItem::not_equal(Self, Self) -> Bool
+
+#derive(Eq)
+pub(all) struct ReviewMetadata {
+  input_sha256 : String
+  input_byte_length : Int32
+  options : Options
+  legacy_dn_spaces : Bool
+  risk_policy : RiskPolicy
+}
+pub fn ReviewMetadata::equal(Self, Self) -> Bool
+pub fn ReviewMetadata::not_equal(Self, Self) -> Bool
+
+pub struct ReviewSession {
+  // private fields
+}
+pub fn ReviewSession::exit_code(Self) -> Int32
+pub fn ReviewSession::format(Self) -> String raise WriteError
+pub fn ReviewSession::new(Bytes, options? : Options, legacy_dn_spaces? : Bool, risk_policy? : RiskPolicy, sha256? : String) -> Self raise QueryError
+pub fn ReviewSession::page(Self, PageQuery) -> @json.Json raise QueryError
+pub fn ReviewSession::report(Self, String) -> ReportCursor raise QueryError
+pub fn ReviewSession::with_profile(Bytes, Profile, sha256? : String, profile_source_sha256? : String, profile_effective_sha256? : String) -> Self raise QueryError
+
+#derive(Eq, @json.ToJson)
+pub(all) struct RiskPolicy {
+  deny_clear : Bool
+  deny_rename : Bool
+}
+pub fn RiskPolicy::default() -> Self
+pub fn RiskPolicy::equal(Self, Self) -> Bool
+pub fn RiskPolicy::not_equal(Self, Self) -> Bool
+pub fn RiskPolicy::to_json(Self) -> @json.Json
+
+pub struct SnapshotDiff {
+  // private fields
+}
+pub fn SnapshotDiff::exit_code(Self) -> Int32
+pub fn SnapshotDiff::to_json(Self) -> @json.Json
+pub fn SnapshotDiff::to_markdown(Self) -> String
+pub fn SnapshotDiff::to_text(Self) -> String
+
+pub struct SnapshotSession {
+  // private fields
+}
+pub fn SnapshotSession::exit_code(Self) -> Int32
+pub fn SnapshotSession::new(Bytes, Bytes, allow_missing_version? : Bool, legacy_dn_spaces? : Bool, before_sha256? : String?, after_sha256? : String?, ignored_attributes? : Array[String]) -> Self
+pub fn SnapshotSession::page(Self, PageQuery) -> @json.Json raise QueryError
+pub fn SnapshotSession::report(Self, String) -> ReportCursor raise QueryError
+pub fn SnapshotSession::with_profile(Bytes, Bytes, Profile, before_sha256? : String?, after_sha256? : String?, profile_source_sha256? : String, profile_effective_sha256? : String) -> Self raise QueryError
+
+#derive(Eq, @json.ToJson)
+pub(all) struct Span {
+  line : Int32
+  end_line : Int32
+}
+pub fn Span::equal(Self, Self) -> Bool
+pub fn Span::not_equal(Self, Self) -> Bool
+pub fn Span::to_json(Self) -> @json.Json
+
+#derive(Eq)
+pub(all) enum Value {
+  Inline(Bytes)
+  External(String)
+}
+pub fn Value::equal(Self, Self) -> Bool
+pub fn Value::not_equal(Self, Self) -> Bool
+
+// Type aliases
+
+// Traits

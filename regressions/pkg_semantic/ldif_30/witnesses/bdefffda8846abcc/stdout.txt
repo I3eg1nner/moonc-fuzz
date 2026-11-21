@@ -1,0 +1,13 @@
+[WeiR-h/moonldif] test policy_wbtest.mbt:35 ("rename aliases and moves are optional policies") failed: src/policy_wbtest.mbt:50:3-53:4@WeiR-h/moonldif FAILED: `1 != 0`
+diff:
+-1 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:20 ("all base change types and modification ordering") failed: src/parser_wbtest.mbt:24:3-24:30@WeiR-h/moonldif FAILED: `1 != 0`
+diff:
+-1 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:39 ("controls preserve missing and explicitly empty values") failed: src/parser_wbtest.mbt:43:3-43:30@WeiR-h/moonldif FAILED: `1 != 0`
+diff:
+-1 +0
+[WeiR-h/moonldif] test pagination_wbtest.mbt:2 ("paged library works on JS and Wasm GC and does not expose session state") failed: src/pagination_wbtest.mbt:17:3-17:36@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+Total tests: 66, passed: 62, failed: 4.

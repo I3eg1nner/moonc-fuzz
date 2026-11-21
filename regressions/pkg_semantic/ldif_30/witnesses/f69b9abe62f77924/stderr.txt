@@ -1,0 +1,14 @@
+Warning: [0067]
+     ╭─[ /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/model.mbt:154:1 ]
+     │
+ 154 │ async fn __af() -> Unit { () }
+     │ ──┬──  
+     │   ╰──── Warning (unused_async): This `async` annotation is useless.
+─────╯
+Warning: [0024]
+     ╭─[ /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/model.mbt:155:25 ]
+     │
+ 155 │ fn __bf() -> Unit raise Failure { () }
+     │                         ───┬───  
+     │                            ╰───── Warning (unused_error_type): The error type of this function is never used.
+─────╯

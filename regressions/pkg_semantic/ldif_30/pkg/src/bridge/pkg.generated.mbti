@@ -1,0 +1,66 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "WeiR-h/moonldif/bridge"
+
+import {
+  "WeiR-h/moonldif",
+}
+
+// Values
+pub fn analyse(String, String, String, Bool, Bool, Bool) -> String
+
+pub fn analyse_v2(String, String, String, Bool, Bool, Bool, Bool, Bool, String) -> String
+
+pub fn batch_add(@moonldif.BatchReview, String, String, String) -> Unit
+
+pub fn batch_finish(@moonldif.BatchReview, String) -> String
+
+pub fn batch_remaining_bytes(@moonldif.BatchReview) -> Int32
+
+pub fn batch_start(Bool, Bool, Bool, Bool, Bool) -> @moonldif.BatchReview
+
+pub fn batch_unavailable(@moonldif.BatchReview, String) -> Unit
+
+pub fn cli_plan(String) -> String
+
+pub fn compare_exports(String, String, String, String, Bool, Bool, String) -> String
+
+pub fn compare_exports_v2(String, String, String, String, Bool, Bool, String, String) -> String
+
+pub fn host_error(String, String) -> String
+
+pub fn paged_exit_code(PagingSession) -> Int32
+
+pub fn paged_page(PagingSession, String, String) -> String
+
+pub fn paged_report_next(PagingCursor) -> String
+
+pub fn paged_report_start(PagingSession, String) -> PagingCursor
+
+pub fn paged_start(String, String, String, String) -> PagingSession
+
+pub fn paged_write(PagingSession) -> String
+
+pub fn profile_batch_start(String, String, String) -> @moonldif.BatchReview?
+
+pub fn profile_validate(String) -> String
+
+pub fn profile_validate_detailed(String) -> String
+
+pub fn workbench(String, Bool, Bool, Bool, Bool) -> String
+
+// Errors
+
+// Types and methods
+pub struct PagingCursor {
+  // private fields
+}
+
+pub enum PagingSession {
+  Review(@moonldif.ReviewSession)
+  Snapshot(@moonldif.SnapshotSession)
+  Failed
+}
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,4 @@
+{
+  "f8_30": {"file": "repro/repro.mbt", "test_argv": "test --target js"},
+  "ldif_30": {"file": "src/model.mbt", "test_argv": "test --target wasm-gc"}
+}

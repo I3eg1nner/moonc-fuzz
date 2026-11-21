@@ -1,0 +1,7 @@
+[WeiR-h/moonldif] test robustness_wbtest.mbt:35 ("resource limits and repeated small folds") failed: src/robustness_wbtest.mbt:53:3-53:51@WeiR-h/moonldif FAILED: `1001 != 101`
+diff:
+-1001 +101
+[WeiR-h/moonldif] test policy_wbtest.mbt:96 ("risk diagnosis limits fail closed and line numbers survive CRLF and folding") failed: src/policy_wbtest.mbt:113:3-113:36@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+Total tests: 66, passed: 64, failed: 2.

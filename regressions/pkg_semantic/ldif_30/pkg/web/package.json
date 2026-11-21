@@ -1,0 +1,20 @@
+{
+  "name": "moonldif-workbench",
+  "version": "0.7.6",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "node ../scripts/build.mjs && node scripts/clean.mjs && vite build && node scripts/licenses.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 4178 --strictPort"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1",
+    "vite": "8.3.0"
+  }
+}

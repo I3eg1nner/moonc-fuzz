@@ -1,0 +1,54 @@
+[WeiR-h/moonldif] test writer_wbtest.mbt:2 ("semantic round trip preserves binary, leading/trailing spaces and folding") failed: src/writer_wbtest.mbt:8:3-8:30@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test writer_wbtest.mbt:20 ("change serialization keeps order and control optional value") failed: WeiR-h/moonldif.WriteError.InvalidDocument
+[WeiR-h/moonldif] test writer_wbtest.mbt:63 ("ordinary control attribute in a content record is not an operation control") failed: src/writer_wbtest.mbt:65:3-65:30@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test robustness_wbtest.mbt:2 ("every byte survives supported writer and reader without lossy conversion") failed: WeiR-h/moonldif.WriteError.InvalidDocument
+[WeiR-h/moonldif] test robustness_wbtest.mbt:35 ("resource limits and repeated small folds") failed: src/robustness_wbtest.mbt:38:3-38:30@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test review_wbtest.mbt:40 ("review distinguishes add selected delete whole delete and empty replace in order") failed: src/review_wbtest.mbt:54:3-54:35@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test review_report_wbtest.mbt:2 ("review exports metadata and safely escapes untrusted names without attribute bytes") failed: src/review_report_wbtest.mbt:6:3-6:35@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test policy_wbtest.mbt:2 ("risk policies distinguish all-value removal from selected and empty byte values") failed: src/policy_wbtest.mbt:14:5-14:59@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test policy_wbtest.mbt:35 ("rename aliases and moves are optional policies") failed: src/policy_wbtest.mbt:42:7-42:51@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test performance_regression_wbtest.mbt:2 ("plain and lazily folded lines preserve Unicode and physical spans") failed: src/performance_regression_wbtest.mbt:9:5-9:32@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:20 ("all base change types and modification ordering") failed: src/parser_wbtest.mbt:24:3-24:30@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:39 ("controls preserve missing and explicitly empty values") failed: src/parser_wbtest.mbt:43:3-43:30@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:71 ("strict version and explicit compatibility and delete policy") failed: src/parser_wbtest.mbt:73:3-79:4@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:91 ("root DN, encoded rename and unordered attribute options") failed: src/parser_wbtest.mbt:95:3-95:30@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test pagination_wbtest.mbt:2 ("paged library works on JS and Wasm GC and does not expose session state") failed: src/pagination_wbtest.mbt:17:3-17:36@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test names_wbtest.mbt:96 ("structural parser and preflight explicitly report their different scopes") failed: src/names_wbtest.mbt:98:3-98:46@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test names_wbtest.mbt:126 ("explicit legacy separator padding does not trim or rewrite DN values") failed: src/names_wbtest.mbt:130:3-130:39@WeiR-h/moonldif FAILED: `1114111 != 0`
+diff:
+-1114111 +0
+[WeiR-h/moonldif] test batch_wbtest.mbt:2 ("batch per-file results equal standalone review and share all risk options") failed: src/batch_wbtest.mbt:29:3-29:59@WeiR-h/moonldif FAILED: `[1114111, 1, 1, 1, 2] != [0, 1, 1, 1, 2]`
+diff:
+[-1114111 +0, 1, 1, 1, 2]
+[WeiR-h/moonldif] test batch_wbtest.mbt:37 ("batch unavailable and later files cannot turn a failure into success") failed: src/batch_wbtest.mbt:57:3-57:53@WeiR-h/moonldif FAILED: `[2, 1114111, 1] != [2, 0, 1]`
+diff:
+[2, -1114111 +0, 1]
+Total tests: 66, passed: 47, failed: 19.

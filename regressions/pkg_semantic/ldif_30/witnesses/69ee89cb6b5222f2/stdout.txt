@@ -1,0 +1,10 @@
+[WeiR-h/moonldif] test robustness_wbtest.mbt:57 ("unsupported-only input stays incomplete and invalid UTF8 DN is rejected") failed: src/robustness_wbtest.mbt:58:3-61:4@WeiR-h/moonldif FAILED: `"$(1)" != "incomplete"`
+diff:
+-"$(1)" +"incomplete"
+[WeiR-h/moonldif] test parser_wbtest.mbt:51 ("invalid syntax and unsupported structures never pass") failed: src/parser_wbtest.mbt:64:3-64:38@WeiR-h/moonldif FAILED: `"$(1)" != "incomplete"`
+diff:
+-"$(1)" +"incomplete"
+[WeiR-h/moonldif] test parser_wbtest.mbt:106 ("whole control encoding is explicitly incomplete and never silently dropped") failed: src/parser_wbtest.mbt:110:3-110:38@WeiR-h/moonldif FAILED: `"$(1)" != "incomplete"`
+diff:
+-"$(1)" +"incomplete"
+Total tests: 66, passed: 63, failed: 3.

@@ -1,0 +1,7 @@
+Warning: [0002]
+     ╭─[ /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/model.mbt:111:7 ]
+     │
+ 111 │   let x = 1 + 2
+     │       ┬  
+     │       ╰── Warning (unused_value): Unused variable 'x'
+─────╯

@@ -1,0 +1,44 @@
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:56 ("incomplete snapshots cannot manufacture entry deletions") failed: src/snapshot_wbtest.mbt:66:7-66:34@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:157 ("snapshot compatibility and optional source identity are explicit") failed: src/snapshot_wbtest.mbt:159:3-159:52@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:262 ("excluded attributes do not hide malformed external or ambiguous snapshots") failed: src/snapshot_wbtest.mbt:270:5-270:32@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test robustness_wbtest.mbt:23 ("bounded arbitrary byte corpus returns structured status instead of panicking") failed: src/robustness_wbtest.mbt:29:5-29:32@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test robustness_wbtest.mbt:35 ("resource limits and repeated small folds") failed: src/robustness_wbtest.mbt:47:3-47:37@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test robustness_wbtest.mbt:57 ("unsupported-only input stays incomplete and invalid UTF8 DN is rejected") failed: src/robustness_wbtest.mbt:63:3-63:36@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test review_report_wbtest.mbt:26 ("report export retains invalid status and diagnostic truncation") failed: src/review_report_wbtest.mbt:35:3-37:4@WeiR-h/moonldif FAILED: `false` is not true
+[WeiR-h/moonldif] test profile_wbtest.mbt:33 ("profile counts modifications separately and preserves error precedence") failed: src/profile_wbtest.mbt:43:3-43:32@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test policy_wbtest.mbt:96 ("risk diagnosis limits fail closed and line numbers survive CRLF and folding") failed: src/policy_wbtest.mbt:113:3-113:36@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+[WeiR-h/moonldif] test performance_regression_wbtest.mbt:47 ("unfolded limit and invalid continuation retain exact error locations") failed: src/performance_regression_wbtest.mbt:51:3-51:30@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test parser_wbtest.mbt:51 ("invalid syntax and unsupported structures never pass") failed: src/parser_wbtest.mbt:58:5-58:48@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test parser_wbtest.mbt:71 ("strict version and explicit compatibility and delete policy") failed: src/parser_wbtest.mbt:72:3-72:57@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test names_wbtest.mbt:69 ("name diagnostics locate folded rename fields and preserve policy errors") failed: src/names_wbtest.mbt:73:3-73:30@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test names_wbtest.mbt:96 ("structural parser and preflight explicitly report their different scopes") failed: src/names_wbtest.mbt:100:3-100:46@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test names_wbtest.mbt:126 ("explicit legacy separator padding does not trim or rewrite DN values") failed: src/names_wbtest.mbt:128:3-128:47@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+Total tests: 66, passed: 51, failed: 15.

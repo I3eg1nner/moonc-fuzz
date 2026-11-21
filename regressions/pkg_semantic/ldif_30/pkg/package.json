@@ -1,0 +1,20 @@
+{
+  "name": "moonldif",
+  "version": "0.7.6",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "node scripts/moon.mjs check --target js",
+    "test:moon": "node scripts/moon.mjs test --target js",
+    "build": "node scripts/build.mjs",
+    "test:cli": "node --test tests/*.test.mjs",
+    "test": "npm run test:moon && npm run build && npm run test:cli",
+    "verify": "node scripts/verify.mjs",
+    "demo": "node scripts/demo.mjs",
+    "test:moonldap": "node scripts/test-moonldap.mjs"
+  }
+}

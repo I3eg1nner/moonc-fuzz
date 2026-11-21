@@ -1,0 +1,32 @@
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:56 ("incomplete snapshots cannot manufacture entry deletions") failed: src/snapshot_wbtest.mbt:66:7-66:34@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:262 ("excluded attributes do not hide malformed external or ambiguous snapshots") failed: src/snapshot_wbtest.mbt:270:5-270:32@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test robustness_wbtest.mbt:57 ("unsupported-only input stays incomplete and invalid UTF8 DN is rejected") failed: src/robustness_wbtest.mbt:58:3-61:4@WeiR-h/moonldif FAILED: `"complete" != "incomplete"`
+diff:
+-"complete" +"incomplete"
+[WeiR-h/moonldif] test review_wbtest.mbt:16 ("unsupported modifications never masquerade as replace or clear") failed: src/review_wbtest.mbt:27:7-27:39@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test review_wbtest.mbt:72 ("review labels partial inputs and truncation rather than claiming no further changes") failed: src/review_wbtest.mbt:77:3-77:42@WeiR-h/moonldif FAILED: `false` is not true
+[WeiR-h/moonldif] test policy_wbtest.mbt:64 ("policies inspect beyond the first 200 review items and preserve partial diagnostics") failed: src/policy_wbtest.mbt:82:5-82:38@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+[WeiR-h/moonldif] test performance_regression_wbtest.mbt:28 ("late intent counting preserves controls modifications and policy diagnostics") failed: src/performance_regression_wbtest.mbt:40:3-40:30@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+[WeiR-h/moonldif] test parser_wbtest.mbt:51 ("invalid syntax and unsupported structures never pass") failed: src/parser_wbtest.mbt:64:3-64:38@WeiR-h/moonldif FAILED: `"complete" != "incomplete"`
+diff:
+-"complete" +"incomplete"
+[WeiR-h/moonldif] test parser_wbtest.mbt:71 ("strict version and explicit compatibility and delete policy") failed: src/parser_wbtest.mbt:80:3-80:69@WeiR-h/moonldif FAILED: `0 != 2`
+diff:
+-0 +2
+[WeiR-h/moonldif] test parser_wbtest.mbt:106 ("whole control encoding is explicitly incomplete and never silently dropped") failed: src/parser_wbtest.mbt:110:3-110:38@WeiR-h/moonldif FAILED: `"complete" != "incomplete"`
+diff:
+-"complete" +"incomplete"
+[WeiR-h/moonldif] test batch_wbtest.mbt:2 ("batch per-file results equal standalone review and share all risk options") failed: src/batch_wbtest.mbt:28:3-28:34@WeiR-h/moonldif FAILED: `1 != 2`
+diff:
+-1 +2
+Total tests: 66, passed: 55, failed: 11.

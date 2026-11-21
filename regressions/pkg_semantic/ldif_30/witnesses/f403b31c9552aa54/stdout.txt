@@ -1,0 +1,113 @@
+[WeiR-h/moonldif] test writer_wbtest.mbt:2 ("semantic round trip preserves binary, leading/trailing spaces and folding") failed: src/writer_wbtest.mbt:8:3-8:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test writer_wbtest.mbt:20 ("change serialization keeps order and control optional value") failed: WeiR-h/moonldif.WriteError.InvalidDocument
+[WeiR-h/moonldif] test writer_wbtest.mbt:63 ("ordinary control attribute in a content record is not an operation control") failed: src/writer_wbtest.mbt:65:3-65:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:2 ("snapshot ignores representation and ordering but compares bytes") failed: src/snapshot_wbtest.mbt:6:3-6:33@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:17 ("snapshot classifies changes and preserves value multiplicity") failed: src/snapshot_wbtest.mbt:21:3-21:35@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:77 ("duplicate exact DNs are excluded but other changes survive") failed: src/snapshot_wbtest.mbt:82:3-90:4@WeiR-h/moonldif FAILED: `false` is not true
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:95 ("DN case or escaping differences are not silently normalized") failed: src/snapshot_wbtest.mbt:99:3-99:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:112 ("snapshot limits findings but keeps complete totals") failed: src/snapshot_wbtest.mbt:126:3-126:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:157 ("snapshot compatibility and optional source identity are explicit") failed: src/snapshot_wbtest.mbt:166:3-166:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:186 ("snapshot exclusions are explicit exact descriptions with complete counts") failed: src/snapshot_wbtest.mbt:192:3-192:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:225 ("snapshot exclusion validation fails closed and does not expose supplied invalid text") failed: src/snapshot_wbtest.mbt:255:3-258:4@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:262 ("excluded attributes do not hide malformed external or ambiguous snapshots") failed: src/snapshot_wbtest.mbt:276:3-276:36@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:284 ("snapshot result JSON is detached from reusable report") failed: Error
+    at @moonbitlang/core/array.Array::at[@moonbitlang/core/json.Json] /home/user/.moon/lib/core/builtin/array.mbt:1059 (wasm://wasm/0025da9a:wasm-function[751]:0x28a42)
+    at @WeiR-h/moonldif.__test_736e617073686f745f7762746573742e6d6274_10 /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/snapshot_wbtest.mbt:293 (wasm://wasm/0025da9a:wasm-function[260]:0x10ff2)
+    at @WeiR-h/moonldif.__test_736e617073686f745f7762746573742e6d6274_10.dyncall (wasm://wasm/0025da9a:wasm-function[15]:0x47f8)
+    at @WeiR-h/moonldif.moonbit_test_driver_internal_catch_error /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/__generated_driver_for_whitebox_test.mbt:469 (wasm://wasm/0025da9a:wasm-function[94]:0x4f1f)
+    at impl @WeiR-h/moonldif.MoonBit_Test_Driver for @WeiR-h/moonldif.MoonBit_Test_Driver_Internal_No_Args with run_test /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/__generated_driver_for_whitebox_test.mbt:604 (wasm://wasm/0025da9a:wasm-function[91]:0x4e76)
+    at @WeiR-h/moonldif.moonbit_test_driver_internal_do_execute /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/__generated_driver_for_whitebox_test.mbt:774 (wasm://wasm/0025da9a:wasm-function[87]:0x4a2c)
+    at @WeiR-h/moonldif.moonbit_test_driver_internal_execute /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/__generated_driver_for_whitebox_test.mbt:710 (wasm://wasm/0025da9a:wasm-function[86]:0x49d0)
+    at @WeiR-h/moonldif.moonbit_test_driver_internal_execute.wrapper /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/__generated_driver_for_whitebox_test.mbt:729 (wasm://wasm/0025da9a:wasm-function[85]:0x49aa)
+[WeiR-h/moonldif] test snapshot_wbtest.mbt:305 ("snapshot options deduplicate many canonical attribute options") failed: src/snapshot_wbtest.mbt:319:3-319:52@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test robustness_wbtest.mbt:2 ("every byte survives supported writer and reader without lossy conversion") failed: WeiR-h/moonldif.WriteError.InvalidDocument
+[WeiR-h/moonldif] test robustness_wbtest.mbt:35 ("resource limits and repeated small folds") failed: src/robustness_wbtest.mbt:38:3-38:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test review_wbtest.mbt:40 ("review distinguishes add selected delete whole delete and empty replace in order") failed: src/review_wbtest.mbt:53:3-53:35@WeiR-h/moonldif FAILED: `false` is not true
+[WeiR-h/moonldif] test review_wbtest.mbt:59 ("review preserves deletion policy and shows opaque controls without interpreting them") failed: src/review_wbtest.mbt:66:3-66:34@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test review_report_wbtest.mbt:2 ("review exports metadata and safely escapes untrusted names without attribute bytes") failed: src/review_report_wbtest.mbt:6:3-6:35@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test profile_wbtest.mbt:2 ("profile limits apply to all records and safe writer rejects violations") failed: src/profile_wbtest.mbt:12:3-12:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test profile_wbtest.mbt:33 ("profile counts modifications separately and preserves error precedence") failed: src/profile_wbtest.mbt:39:3-39:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test profile_wbtest.mbt:80 ("profile snapshot and batch share validated configuration") failed: src/profile_wbtest.mbt:87:3-87:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test policy_wbtest.mbt:2 ("risk policies distinguish all-value removal from selected and empty byte values") failed: src/policy_wbtest.mbt:14:5-14:59@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test policy_wbtest.mbt:35 ("rename aliases and moves are optional policies") failed: src/policy_wbtest.mbt:42:7-42:51@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test policy_wbtest.mbt:64 ("policies inspect beyond the first 200 review items and preserve partial diagnostics") failed: src/policy_wbtest.mbt:74:3-74:35@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test policy_wbtest.mbt:96 ("risk diagnosis limits fail closed and line numbers survive CRLF and folding") failed: src/policy_wbtest.mbt:102:3-102:30@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test performance_regression_wbtest.mbt:2 ("plain and lazily folded lines preserve Unicode and physical spans") failed: src/performance_regression_wbtest.mbt:9:5-9:32@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:2 ("content values, comments and spans") failed: src/parser_wbtest.mbt:6:3-6:36@WeiR-h/moonldif FAILED: `"􏿿" != "complete"`
+diff:
+-"􏿿" +"complete"
+[WeiR-h/moonldif] test parser_wbtest.mbt:20 ("all base change types and modification ordering") failed: src/parser_wbtest.mbt:24:3-24:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:39 ("controls preserve missing and explicitly empty values") failed: src/parser_wbtest.mbt:43:3-43:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:71 ("strict version and explicit compatibility and delete policy") failed: src/parser_wbtest.mbt:73:3-79:4@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test parser_wbtest.mbt:91 ("root DN, encoded rename and unordered attribute options") failed: src/parser_wbtest.mbt:95:3-95:30@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test pagination_wbtest.mbt:2 ("paged library works on JS and Wasm GC and does not expose session state") failed: src/pagination_wbtest.mbt:17:3-17:36@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test pagination_wbtest.mbt:56 ("invalid page limits fail without changing session exit code") failed: src/pagination_wbtest.mbt:74:5-74:32@WeiR-h/moonldif FAILED: `2 != 1`
+diff:
+-2 +1
+[WeiR-h/moonldif] test names_wbtest.mbt:96 ("structural parser and preflight explicitly report their different scopes") failed: src/names_wbtest.mbt:98:3-98:46@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test names_wbtest.mbt:126 ("explicit legacy separator padding does not trim or rewrite DN values") failed: src/names_wbtest.mbt:130:3-130:39@WeiR-h/moonldif FAILED: `2 != 0`
+diff:
+-2 +0
+[WeiR-h/moonldif] test batch_wbtest.mbt:2 ("batch per-file results equal standalone review and share all risk options") failed: src/batch_wbtest.mbt:29:3-29:59@WeiR-h/moonldif FAILED: `[2, 2, 2, 2, 2] != [0, 1, 1, 1, 2]`
+diff:
+[-2 +0, -2 +1, -2 +1, -2 +1, 2]
+[WeiR-h/moonldif] test batch_wbtest.mbt:37 ("batch unavailable and later files cannot turn a failure into success") failed: src/batch_wbtest.mbt:57:3-57:53@WeiR-h/moonldif FAILED: `[2, 2, 2] != [2, 0, 1]`
+diff:
+[2, -2 +0, -2 +1]
+Total tests: 66, passed: 28, failed: 38.

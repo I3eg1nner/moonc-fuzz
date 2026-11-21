@@ -1,0 +1,219 @@
+[
+  {
+    "witness": "015f3512deece24d",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "03299dc44acc2988",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "0c346fd441048c1f",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "1f72ed1e4cc4464a",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "30ef1df1f4f0ce8f",
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: repro/repro.mbt:3:3-3:21@example/ice-repro FAILED: \udbff\udfff",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "3aa7f58f30520dd0",
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: x",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "40b9a1df4f44b5e8",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "594054b43deb7a74",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "5f44bff24e983de3",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "6ad69ea257b5c659",
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: x",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "75fd61e0cb2e6d78",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "76093e8bb686d72c",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "85b22a592559d556",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "8e27cf108886c11a",
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: x",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "9025529acdf43046",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "9d4249c59250d9d8",
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: x",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "a9972241f3dff8e1",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "b0b1f033288da419",
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: x",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "b2e535d260fed245",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "b691488deb89fe36",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "ba1fcb7e0d97206c",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "bbdae55eb4d4bedc",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "bfb08b9479646e22",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "bfdd607c2efb681e",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "cc0e45b12fd69849",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "cfd1a702a23f2499",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "d3fcd78e9be97949",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "d75982ae81e3c05d",
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: x",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "ea6794c0c4e9ff88",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "ec9fb8846b3e9342",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "f1b369813f71e92a",
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  }
+]

@@ -1,0 +1,9 @@
+Warning: [0012]
+     ╭─[ /tmp/pkg30/ldif/1795274071828/pkgwd_0/src/model.mbt:126:3 ]
+     │
+ 126 │ ╭─▶   if ds.length() < 100 {
+     ┆ ┆   
+ 135 │ ├─▶   }
+     │ │         
+     │ ╰───────── Warning (unreachable_code): Unreachable code
+─────╯
