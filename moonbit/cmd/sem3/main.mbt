@@ -263,6 +263,8 @@ async fn main {
   for f in families { counts.set(f, (0, 0, 0, 0)) }
   let mut cases = 0
   let mut unique_programs = 0
+  let mut oracle_candidates = 0
+  let witness_hashes : Map[String, Unit] = Map([])
   let seen : Map[String, Unit] = Map([])
   while @env.now() < deadline && cases < limit {
     cases += 1
@@ -271,11 +273,17 @@ async fn main {
       family,
       0x9e3779b97f4a7c15UL * cases.to_uint64() + seed_off.to_uint64() * 131UL,
     )
+    // MoonBit core documents min/-1 (either operator) as having no portable
+    // result ("may abort or get an arbitrary value"); backend divergence here
+    // is allowed, so it is excluded_domain rather than a witness.
+    let excluded = c.excluded ||
+      ((family == "boundary_i32" || family == "boundary_i64") &&
+        (c.src.contains("/ -1") || c.src.contains("% -1")))
     let (at, wi, ex, inc) = counts.get(family).unwrap()
     counts.set(family, (at + 1, wi, ex, inc))
     let h = @corpus.sha1_hex(c.src)
     if !seen.contains(h) { seen.set(h, ()); unique_programs += 1 }
-    if c.excluded {
+    if excluded {
       // Float formatting: policy-excluded, only counted.
       counts.set(family, (at + 1, wi, ex + 1, inc))
       continue
@@ -319,18 +327,34 @@ async fn main {
         for o in obs { if o.class != "ok" { verdict = "inconclusive" } }
       }
       if verdict == "pass" {
-        for i, o in obs {
-          let want : Array[String] = []
-          for x in c.expected { want.push(if inject != "" && targets[i] == inject { x + "9" } else { x }) }
-          let got : Array[String] = []
-          for l in o.out.split("\n") { if l != "" { got.push(l.to_owned()) } }
-          if got.length() != want.length() { verdict = "witness" } else {
-            for j, w in want { if got[j] != w { verdict = "witness" } }
-          }
+        let outs : Array[String] = []
+        for o in obs { outs.push(o.out) }
+        let mut same_out = true
+        for i in 1..<outs.length() { if outs[i] != outs[0] { same_out = false } }
+        let want : Array[String] = []
+        for x in c.expected { want.push(if inject != "" { x + "9" } else { x }) }
+        let got : Array[String] = []
+        for l in outs[0].split("\n") { if l != "" { got.push(l.to_owned()) } }
+        let mut matches = got.length() == want.length()
+        if matches {
+          for j, w in want { if got[j] != w { matches = false } }
+        }
+        if same_out && !matches {
+          verdict = "oracle"
+        } else if !same_out {
+          verdict = "witness"
         }
       }
     }
-    if verdict != "pass" {
+    if verdict == "oracle" {
+      oracle_candidates += 1
+      let ev = join(join(out, "oracle_candidate"), cases.to_string())
+      let saved = save_case(ev, verdict, c.src, c.expected, actual + "\n" + classes, argv)
+      if !saved {
+        println("{\"ok\":false,\"error\":\"oracle save failed\"}")
+        @env.exit(2)
+      }
+    } else if verdict != "pass" {
       let ev = join(join(out, if verdict == "witness" { "witness" } else { "inconclusive" }), cases.to_string())
       let saved = save_case(ev, verdict, c.src, c.expected, actual + "\n" + classes, argv)
       if !saved {
@@ -340,6 +364,7 @@ async fn main {
       // Count only after the evidence is durable.
       if verdict == "witness" {
         counts.set(family, (at + 1, wi + 1, ex, inc))
+        witness_hashes.set(h, ())
       } else {
         counts.set(family, (at + 1, wi, ex, inc + 1))
       }
@@ -348,6 +373,8 @@ async fn main {
   let b = StringBuilder()
   b.write_string("{\"cases\":" + cases.to_string())
   b.write_string(",\"unique_programs\":" + unique_programs.to_string())
+  b.write_string(",\"unique_witness\":" + witness_hashes.length().to_string())
+  b.write_string(",\"oracle_candidates\":" + oracle_candidates.to_string())
   b.write_string(",\"families\":{")
   let mut first = true
   for f in families {
@@ -423,12 +450,13 @@ fn te_eval(t : TE, bits : Int32) -> Int64 {
     BOr(a, b) => te_eval(a, bits) | te_eval(b, bits)
     BXor(a, b) => te_eval(a, bits) ^ te_eval(b, bits)
     Shl(a, b) => {
-      let sh = te_eval(b, bits) & (if bits == 32 { 31L } else { 63L })
+      // Shift counts are Int (32-bit) at the source level even for Int64.
+      let sh = te_eval(b, 32) & (if bits == 32 { 31L } else { 63L })
       let v = te_eval(a, bits) << sh.to_int()
       if bits == 32 { te_wrap32(v) } else { v }
     }
     Shr(a, b) => {
-      let sh = te_eval(b, bits) & (if bits == 32 { 31L } else { 63L })
+      let sh = te_eval(b, 32) & (if bits == 32 { 31L } else { 63L })
       te_eval(a, bits) >> sh.to_int()
     }
   }

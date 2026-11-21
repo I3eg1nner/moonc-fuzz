@@ -95,3 +95,11 @@ expr_i64 全后端一致但 expected 不同的问题消失）。
 - "未观察到稳定收益" ≠ "已证明无差异"；
 - "窄域三后端差分能力已建立" ≠ "几千个完备 case 通过"：cases 有重复
   （unique 832/1,602），域仍窄，且本轮修掉了自己的 render/oracle bug。
+
+
+## 更正：min/-1 不是 compiler inconsistency
+
+先前把 `min / -1`（Int32/Int64）记为 witness。查 `moonbitlang/core` int 文档后，
+规范明确该情形"no portable result… may abort or get an arbitrary value"，
+因此归类为 **allowed_impl_divergence**，sem3 的 boundary 族已标
+`excluded_domain`。详见 `findings/int_min_divergence.md`。
