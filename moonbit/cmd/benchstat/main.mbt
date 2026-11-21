@@ -337,7 +337,8 @@ fn main {
     }
     let completed = num_field(summary, "trace_completed")
     let failed = num_field(summary, "trace_failed")
-    let deferred = num_field(summary, "trace_deferred")
+    let deferred = num_field(summary, "trace_deferred") +
+      num_field(summary, "trace_deferred_close")
     if !completion_ok(completed, failed, deferred) {
       reasons.push(
         "trace completion " +

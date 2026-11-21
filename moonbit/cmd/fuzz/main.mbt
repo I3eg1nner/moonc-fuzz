@@ -600,6 +600,9 @@ struct TraceQueue {
   mut deferred : Int32
   mut deferred_queue_full : Int32
   mut deferred_timeout : Int32
+  mut deferred_close : Int32
+  mut draining : Bool
+  mut drain_deadline : UInt64
   mut q_len_sum : Int64
   mut q_len_samples : Int32
   mut baseline_expected : Int32
@@ -657,6 +660,9 @@ fn trace_queue_new() -> TraceQueue {
     deferred: 0,
     deferred_queue_full: 0,
     deferred_timeout: 0,
+    deferred_close: 0,
+    draining: false,
+    drain_deadline: 0UL,
     q_len_sum: 0L,
     q_len_samples: 0,
     baseline_expected: 0,
@@ -2154,7 +2160,9 @@ fn trace_drop_remaining(q : TraceQueue) -> Unit {
     }
     trace_cleanup_core(t)
   }
-  q.dropped += q.tasks.length()
+  // Close-time abandonment is its own counter; `dropped` stays the
+  // capacity/refusal metric so acceptance can require dropped ~ 0.
+  q.deferred_close += q.tasks.length()
   q.tasks.clear()
 }
 
@@ -2174,7 +2182,14 @@ async fn trace_worker(
   @corpus.ensure_dir(wd)
   let start = @async.now()
   let budget = if cfg.trace_cpu_pct > 0 {
-    let b = cfg.duration_s.to_int64() * cfg.trace_cpu_pct.to_int64() * 10L
+    // Budget is campaign-wide trace CPU: duration * pct * trace workers.
+    // The old duration*10*pct was per-worker and ignored the worker count, so
+    // the 25% budget exhausted after a fraction of the wall-clock window.
+    let b = cfg.duration_s.to_int64() *
+      1000L *
+      cfg.trace_cpu_pct.to_int64() /
+      100L *
+      cfg.trace_workers.to_int64()
     if b < 2000L {
       2000L
     } else {
@@ -2183,8 +2198,13 @@ async fn trace_worker(
   } else {
     0L
   }
-  let deadline = start + cfg.duration_s.to_int64() * 1000L + 10000L
+  let deadline = start + cfg.duration_s.to_int64() * 1000L + 300000L
   while @async.now() < deadline {
+    if q.draining &&
+      (q.tasks.length() == 0 || @env.now() >= q.drain_deadline) {
+      q.closed = true
+      break
+    }
     let task = match trace_pop(q) {
       Ready(t) => t
       Wait => {
@@ -3143,7 +3163,13 @@ async fn worker(
   prog.done += 1
   q.fast_done += 1
   if q.fast_done >= cfg.workers {
-    q.closed = true
+    // Do not abandon the trace backlog: enter a bounded drain phase.  Trace
+    // workers keep consuming and close the queue when it is empty or the
+    // grace deadline passes.
+    q.draining = true
+    // Each trace takes seconds; 60 s left most of the backlog abandoned
+    // (deferred_close 65-68).  Four minutes lets the queue actually drain.
+    q.drain_deadline = @env.now() + 240000UL
   }
   s
 }
@@ -3516,6 +3542,8 @@ async fn monitor(
       q.deferred_queue_full.to_string() +
       ",\"trace_deferred_timeout\":" +
       q.deferred_timeout.to_string() +
+      ",\"trace_deferred_close\":" +
+      q.deferred_close.to_string() +
       ",\"trace_queue_avg_x100\":" +
       (if q.q_len_samples > 0 { q.q_len_sum * 100L / q.q_len_samples.to_int64() } else { 0L }).to_string() +
       "}"
@@ -4262,6 +4290,8 @@ async fn main {
     q.deferred_queue_full.to_string() +
     ",\"trace_deferred_timeout\":" +
     q.deferred_timeout.to_string() +
+    ",\"trace_deferred_close\":" +
+    q.deferred_close.to_string() +
     ",\"trace_queue_avg_x100\":" +
     (if q.q_len_samples > 0 { q.q_len_sum * 100L / q.q_len_samples.to_int64() } else { 0L }).to_string() +
     ",\"trace_ms\":" +
