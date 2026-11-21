@@ -23,9 +23,15 @@ struct Obs {
   target : String
   status : String
   rc : Int32
+  /// Capped stdout (64 KiB).  `digest` and `full_len` describe the *full*
+  /// output, which is why a truncated observation can never be compared as if
+  /// its prefix were the whole thing.
   out : String
   err : String
   ms : Int64
+  truncated : Bool
+  digest : String
+  full_len : Int64
 }
 
 ///|
@@ -116,11 +122,26 @@ fn compare(obs : Array[Obs]) -> String {
     if o.status != ST_COMPLETE {
       return "INCONCLUSIVE"
     }
+    // A capped prefix is not the output.  Equality of the first 64 KiB says
+    // nothing about the suffix, so truncation is INCONCLUSIVE even when the
+    // prefixes match.
+    if o.truncated {
+      return "INCONCLUSIVE"
+    }
   }
   let first = obs[0]
   for i, o in obs {
-    if i > 0 && (o.rc != first.rc || o.out != first.out) {
-      return "MISMATCH"
+    if i > 0 {
+      if o.rc != first.rc {
+        return "MISMATCH"
+      }
+      if first.digest != "" && o.digest != "" {
+        if o.digest != first.digest || o.full_len != first.full_len {
+          return "MISMATCH"
+        }
+      } else if o.out != first.out {
+        return "MISMATCH"
+      }
     }
   }
   "ALL_EQUAL"
@@ -203,6 +224,9 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
       out: "",
       err: "build timed out",
       ms: elapsed(),
+      truncated: false,
+      digest: "",
+      full_len: 0L,
     }
   }
   if b.rc != 0 {
@@ -217,6 +241,9 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
       out: "",
       err: error_excerpt(b.stderr),
       ms: elapsed(),
+      truncated: b.stdout_truncated,
+      digest: b.stdout_digest,
+      full_len: b.stdout_full_len,
     }
   }
   let r = @exec.run_isolated(
@@ -241,6 +268,9 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
     out: r.stdout.trim_end().to_owned(),
     err: error_excerpt(r.stderr),
     ms: elapsed(),
+    truncated: r.stdout_truncated,
+    digest: r.stdout_digest,
+    full_len: r.stdout_full_len,
   }
 }
 
@@ -250,7 +280,7 @@ async fn run_one(dir : String, target : String, timeout_ms : Int32) -> Obs {
 /// gate rather than silently restoring the false pass.
 fn self_test(verbose : Bool) -> Bool {
   let mk = fn(target : String, status : String, rc : Int32, out : String) {
-    { target, status, rc, out, err: "", ms: 0L, }
+    { target, status, rc, out, err: "", ms: 0L, truncated: false, digest: "", full_len: 0L, }
   }
   let checks : Array[(String, Array[Obs], String)] = [
     (

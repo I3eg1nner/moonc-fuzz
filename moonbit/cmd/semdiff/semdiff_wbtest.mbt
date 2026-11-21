@@ -6,7 +6,38 @@
 
 ///|
 fn obs(t : String, status : String, rc : Int32, out : String) -> Obs {
-  { target: t, status, rc, out, err: "", ms: 0L, }
+  {
+    target: t,
+    status,
+    rc,
+    out,
+    err: "",
+    ms: 0L,
+    truncated: false,
+    digest: "",
+    full_len: 0L,
+  }
+}
+
+///|
+fn obs_full(
+  t : String,
+  out : String,
+  truncated : Bool,
+  digest : String,
+  full_len : Int64,
+) -> Obs {
+  {
+    target: t,
+    status: ST_COMPLETE,
+    rc: 0,
+    out,
+    err: "",
+    ms: 0L,
+    truncated,
+    digest,
+    full_len,
+  }
 }
 
 ///|
@@ -126,4 +157,28 @@ test "hint: reports an rc difference instead of an empty line diff" {
 test "first_diff_line: a missing line shows up as an empty line" {
   assert_eq(first_diff_line("a\nb\n", "a\n"), "line 2: `b` vs ``")
   assert_eq(first_diff_line("a\nb", "a\nc"), "line 2: `b` vs `c`")
+}
+
+///|
+/// The truncation false pass: two outputs that share the first 64 KiB but
+/// differ afterwards used to compare equal because only the prefix was kept.
+test "truncated output is never ALL_EQUAL" {
+  let a = obs_full("wasm-gc", "prefix", true, "digest-a", 70000L)
+  let b = obs_full("native", "prefix", true, "digest-b", 70000L)
+  assert_eq(compare([a, b]), "INCONCLUSIVE")
+  // Even with the same digest, a capped observation is not a complete one.
+  let a2 = obs_full("wasm-gc", "prefix", true, "same", 70000L)
+  let b2 = obs_full("native", "prefix", true, "same", 70000L)
+  assert_eq(compare([a2, b2]), "INCONCLUSIVE")
+}
+
+///|
+test "full digests decide equality when nothing is truncated" {
+  let a = obs_full("wasm-gc", "prefix", false, "d1", 70000L)
+  let b = obs_full("native", "prefix", false, "d1", 70000L)
+  assert_eq(compare([a, b]), "ALL_EQUAL")
+  let c = obs_full("native", "prefix", false, "d2", 70000L)
+  assert_eq(compare([a, c]), "MISMATCH")
+  let d = obs_full("native", "prefix", false, "d1", 70001L)
+  assert_eq(compare([a, d]), "MISMATCH")
 }

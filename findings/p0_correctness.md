@@ -90,3 +90,24 @@ accept                                见提交前的 19/19 输出
 - `judge` 接入只改了分类与保存标签，候选的自动复验/归约流水线仍未接线
   （P1-3），`confirmed_witnesses` 目前恒为 0 是诚实值而不是遗漏。
 - `--only` 不匹配现在是非零退出；依赖旧行为的脚本需要显式检查 case 数。
+
+## 第二轮复核补修（2026-11-21）
+
+### 截断输出不得判一致
+
+`run_isolated` 的 64 KiB cap 曾经只保留 stdout 前缀，`Obs` 也没有 digest /
+truncated；两个程序只要前 64 KiB 相同，后缀不同也会判 `ALL_EQUAL`。
+现在 `Obs` 带 `truncated`、`digest`、`full_len`：
+
+- 任一目标 `truncated` → `INCONCLUSIVE`（截断的前缀不是输出）；
+- 未截断时用完整 stdout 的 SHA-1 与长度比较，digest 缺失才回落到文本。
+
+测试：`truncated output is never ALL_EQUAL`（同前缀不同 digest、同 digest 但
+截断）、`full digests decide equality`（digest 相同/不同/长度不同）。
+
+### wall 不是 CPU
+
+`stager.observation_of` 曾把 `r.ms` 同时填给 `wall_ms` 和 `cpu_ms`，
+`judge` 的 busy 判据是 `cpu*2 >= wall`，于是所有超时都被判 `BusyHang`。
+现在适配器明确传 `cpu_ms=0`（未知），超时落到 `timeout_plain`；测试
+`timeout without CPU accounting is timeout_plain, not busy_hang`。
