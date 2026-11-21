@@ -207,9 +207,9 @@ test "json_escape handles tabs, CR and control bytes" {
 
 ///|
 test "finding dir names are filesystem-safe and collision-resistant" {
-  let a = dir_slug("crash|ICE|Invalid_argument(\"Char.chr\")")
-  let b = dir_slug("crash|ICE|Invalid_argument(\"Char.chr\")")
-  let c = dir_slug("crash|ICE|Invalid_argument(\"Other.exn\")")
+  let a = @corpus.dir_slug("crash|ICE|Invalid_argument(\"Char.chr\")")
+  let b = @corpus.dir_slug("crash|ICE|Invalid_argument(\"Char.chr\")")
+  let c = @corpus.dir_slug("crash|ICE|Invalid_argument(\"Other.exn\")")
   assert_eq(a, b)
   assert_true(a != c)
   assert_false(a.contains("\""))
@@ -217,5 +217,5 @@ test "finding dir names are filesystem-safe and collision-resistant" {
   assert_false(a.contains("|"))
   assert_false(a.contains(" "))
   assert_true(a.length() <= 81 + 16)
-  assert_eq(dir_slug(""), "sig-" + short_hash(""))
+  assert_eq(@corpus.dir_slug(""), "sig-" + @corpus.short_hash(""))
 }
