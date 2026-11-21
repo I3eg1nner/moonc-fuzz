@@ -137,6 +137,8 @@ struct Config {
   mut pkg_file : String
   mut pkg_argv : String
   mut pkg_run_argv : String
+  mut pkg_run_argv_b : String
+  mut pkg_run_cmd_b : String
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -170,6 +172,9 @@ struct Stats {
   mut pkg_t3_ok : Int32
   mut pkg_t3_fail : Int32
   mut pkg_t3_distinct : Int32
+  mut backend_attempts : Int32
+  mut backend_witnesses : Int32
+  mut backend_excluded : Int32
   mut t3_compiler_abort : Int32
   mut diff_attempts : Int32
   mut diff_nonempty : Int32
@@ -223,6 +228,9 @@ fn stats_new() -> Stats {
     pkg_t3_ok: 0,
     pkg_t3_fail: 0,
     pkg_t3_distinct: 0,
+    backend_attempts: 0,
+    backend_witnesses: 0,
+    backend_excluded: 0,
     t3_compiler_abort: 0,
     diff_attempts: 0,
     diff_nonempty: 0,
@@ -2396,6 +2404,25 @@ fn lines_equal(a : String, expected : Array[String]) -> Bool {
 }
 
 ///|
+/// Cross-backend difference classification.  Only semantic domains are
+/// compared; known backend artefacts are excluded rather than reported.
+fn backend_diff_class(a : String, b : String, rc_a : Int32, rc_b : Int32) -> String {
+  if rc_a == rc_b && a.trim() == b.trim() {
+    return "none"
+  }
+  let diff = a + "\n" + b
+  for tok in [
+    "Float", "Double", "Int64", "UInt64", "nan", "inf", "undefined",
+    "timing", "GC", "debug", "elapsed", "ms)",
+  ] {
+    if diff.contains(tok) {
+      return "excluded"
+    }
+  }
+  "witness"
+}
+
+///|
 fn split_spaces(s : String) -> Array[String] {
   let out : Array[String] = []
   let b = StringBuilder()
@@ -2534,7 +2561,67 @@ async fn worker(
                 pkg_t3_seen.set(h, ())
                 ps.pkg_t3_distinct += 1
               }
-            } else {
+            }
+            if cfg.pkg_run_argv_b != "" || cfg.pkg_run_cmd_b != "" {
+              ps.backend_attempts += 1
+              let rb = if cfg.pkg_run_cmd_b != "" {
+                @exec.run(
+                  "/bin/sh",
+                  ["-c", cfg.pkg_run_cmd_b],
+                  wd,
+                  cfg.t2_timeout,
+                  max_output_bytes=1048576,
+                )
+              } else {
+                @exec.run_isolated(
+                  moon,
+                  split_spaces(cfg.pkg_run_argv_b),
+                  wd,
+                  cfg.t2_timeout,
+                  max_output_bytes=1048576,
+                  mem_mb=6144,
+                )
+              }
+              let verdict = backend_diff_class(
+                rr.stdout, rb.stdout, rr.rc, rb.rc,
+              )
+              if verdict == "witness" {
+                ps.backend_witnesses += 1
+                let bd = join(
+                  join(cfg.out, "backend_diff"),
+                  @corpus.short_hash(src),
+                )
+                @corpus.ensure_dir(bd)
+                ignore(@stager.write_text(join(bd, "source.mbt"), src))
+                ignore(@stager.write_text(join(bd, "baseline.mbt"), baseline))
+                ignore(@stager.write_text(join(bd, "argv_a.txt"), cfg.pkg_run_argv))
+                ignore(
+                  @stager.write_text(
+                    join(bd, "argv_b.txt"),
+                    if cfg.pkg_run_cmd_b != "" {
+                      cfg.pkg_run_cmd_b
+                    } else {
+                      cfg.pkg_run_argv_b
+                    },
+                  ),
+                )
+                ignore(@stager.write_text(join(bd, "out_a.txt"), rr.stdout))
+                ignore(@stager.write_text(join(bd, "out_b.txt"), rb.stdout))
+                ignore(
+                  @stager.write_text(
+                    join(bd, "rc.txt"),
+                    "a=" +
+                    rr.rc.to_string() +
+                    " b=" +
+                    rb.rc.to_string() +
+                    "\n",
+                  ),
+                )
+              } else if verdict == "excluded" {
+                ps.backend_excluded += 1
+              }
+            }
+            if rr.rc != 0 {
               ps.pkg_t3_fail += 1
               let ev = join(
                 join(cfg.out, "pkg_mismatch"),
@@ -2589,6 +2676,12 @@ async fn worker(
     }
     @stager.rm_rf(wd)
     prog.done += 1
+    // Package lanes submit no traces; close the queue once all workers are
+    // done so idle trace workers do not wait for the full drain grace.
+    q.fast_done += 1
+    if q.fast_done >= cfg.workers {
+      q.closed = true
+    }
     return ps
   }
   let s = stats_new()
@@ -3689,6 +3782,8 @@ async fn main {
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
     pkg_run_argv: "",
+    pkg_run_argv_b: "",
+    pkg_run_cmd_b: "",
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -3817,6 +3912,12 @@ async fn main {
       i += 2
     } else if a == "--pkg-run-argv" && i + 1 < args.length() {
       cfg.pkg_run_argv = args[i + 1]
+      i += 2
+    } else if a == "--pkg-run-argv-b" && i + 1 < args.length() {
+      cfg.pkg_run_argv_b = args[i + 1]
+      i += 2
+    } else if a == "--pkg-run-cmd-b" && i + 1 < args.length() {
+      cfg.pkg_run_cmd_b = args[i + 1]
       i += 2
     } else if a == "--coverage-state" && i + 1 < args.length() {
       cfg.coverage_state = args[i + 1]
@@ -4111,6 +4212,9 @@ async fn main {
     total.pkg_t3_ok += r.pkg_t3_ok
     total.pkg_t3_fail += r.pkg_t3_fail
     total.pkg_t3_distinct += r.pkg_t3_distinct
+    total.backend_attempts += r.backend_attempts
+    total.backend_witnesses += r.backend_witnesses
+    total.backend_excluded += r.backend_excluded
     total.t3_diff += r.t3_diff
     total.t3_runtime += r.t3_runtime
     total.t3_inconclusive += r.t3_inconclusive
@@ -4227,6 +4331,12 @@ async fn main {
     total.pkg_t3_fail.to_string() +
     ",\"pkg_t3_distinct\":" +
     total.pkg_t3_distinct.to_string() +
+    ",\"backend_attempts\":" +
+    total.backend_attempts.to_string() +
+    ",\"backend_witnesses\":" +
+    total.backend_witnesses.to_string() +
+    ",\"backend_excluded\":" +
+    total.backend_excluded.to_string() +
     ",\"t3_diff\":" +
     total.t3_diff.to_string() +
     ",\"t3_runtime\":" +

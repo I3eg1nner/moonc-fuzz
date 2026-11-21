@@ -130,6 +130,8 @@ fn trace_test_cfg() -> Config {
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
     pkg_run_argv: "",
+    pkg_run_argv_b: "",
+    pkg_run_cmd_b: "",
     t1_timeout: 1000,
     t2_timeout: 1000,
   }
@@ -1243,4 +1245,12 @@ async test "backpressure deadline ends the wait without a consumer" {
   let ok = trace_submit(cfg, q, @trace.T1, "b", "b", "in.mbt", "", false, "cfg")
   assert_false(ok)
   assert_eq(q.deferred_timeout, 1)
+}
+
+///|
+test "backend diff classifier: none, witness, excluded" {
+  assert_eq(backend_diff_class("Total tests: 1, passed: 1.", "Total tests: 1, passed: 1.", 0, 0), "none")
+  assert_eq(backend_diff_class("passed: 1", "passed: 0", 0, 1), "witness")
+  assert_eq(backend_diff_class("Float nan", "Float 0.0", 0, 0), "excluded")
+  assert_eq(backend_diff_class("Int64 9223...", "Int64 42", 0, 0), "excluded")
 }
