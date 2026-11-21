@@ -113,3 +113,34 @@ test "copy_pkg: copies sources and skips _build" {
   rm_rf(src)
   rm_rf(dst)
 }
+
+///|
+/// Adapter regression: wall time is not CPU time.  A timeout observed through
+/// `observation_of` must not be reported as a busy hang (unknown CPU), and a
+/// normal exit must stay clean.
+test "timeout without CPU accounting is timeout_plain, not busy_hang" {
+  let timeout : @exec.RunResult = {
+    rc: -999,
+    stdout: "",
+    stderr: "",
+    ms: 3000L,
+    timed_out: true,
+    stdout_digest: "",
+    stdout_full_len: 0L,
+    stdout_truncated: false,
+  }
+  let obs = observation_of("build", timeout)
+  assert_eq(obs.cpu_ms, 0L)
+  let mut buses = 0
+  let mut plains = 0
+  for f in findings("build", timeout) {
+    if f.oracle == "busy_hang" {
+      buses += 1
+    }
+    if f.oracle == "timeout_plain" {
+      plains += 1
+    }
+  }
+  assert_eq(buses, 0)
+  assert_eq(plains, 1)
+}

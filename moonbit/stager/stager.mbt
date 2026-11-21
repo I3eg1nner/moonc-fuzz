@@ -247,7 +247,11 @@ pub fn observation_of(
     r.rc,
     r.timed_out,
     r.ms,
-    r.ms,
+    // This adapter has no child CPU accounting (RunResult carries wall time
+    // only).  Reporting r.ms as cpu_ms made every timeout satisfy
+    // cpu*2 >= wall and be classified BusyHang; unknown CPU must instead fall
+    // through to timeout_plain.
+    0L,
     0,
     false,
     false,
