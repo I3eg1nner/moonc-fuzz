@@ -1,0 +1,4 @@
+[example/ice-repro] test repro/repro_test.mbt:1 ("repro") failed: repro/repro_test.mbt:2:3-2:76@example/ice-repro FAILED: `None != Some(1)`
+diff:
+-None +Some(1)
+Total tests: 1, passed: 0, failed: 1.

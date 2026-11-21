@@ -42,7 +42,7 @@ for i in $(seq 1 "$EPOCHS"); do
     "$BIN" --root "$ROOT" --out "$run" --workers "$WORKERS" --duration "$SECS" \
       "${state_args[@]}" \
       --mode mbt --body-only --seed-dir "$POOL" \
-      --trace-t1 "$TRACE_T1" --trace-t2 "$TRACE_T2" --trace-t3 0 \
+      --trace-t1 "$TRACE_T1" --trace-t2 "$TRACE_T2" --trace-t3 0 --trace-cpu 25 \
       --trace-workers 3 --trace-queue 32 --trace-max-mb 64 \
       --baseline-trace-max-mb 256 \
       --coverage-cap 200 --persist-cap 400 --parent-cap 2000 --edge-cap 50000 \

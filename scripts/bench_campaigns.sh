@@ -37,8 +37,8 @@ run_arm() {
 }
 
 run_arm behavior --trace-t1 0 --trace-t2 0 --trace-t3 0
-run_arm function --trace-t1 2 --trace-t2 5 --no-edge-reward
-run_arm func-edge --trace-t1 2 --trace-t2 5
+run_arm function --trace-t1 2 --trace-t2 5 --trace-cpu 25 --no-edge-reward
+run_arm func-edge --trace-t1 2 --trace-t2 5 --trace-cpu 25
 
 BENCHSTAT="$ROOT/moonbit/_build/native/debug/build/cmd/benchstat/benchstat.exe"
 [ -x "$BENCHSTAT" ] || { echo "build benchstat first" >&2; exit 2; }

@@ -1,0 +1,103 @@
+[
+  {
+    "witness": "0c346fd441048c1f",
+    "mutation": [
+      "  select('\\u{10FFFF}')"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "1f72ed1e4cc4464a",
+    "mutation": [
+      "  select(-1)"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "3aa7f58f30520dd0",
+    "mutation": [
+      "  raise Failure(\"x\")",
+      "  select(1)"
+    ],
+    "assertion": "[example/ice-repro] test repro/repro_test.mbt:1 (\"repro\") failed: x",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "40b9a1df4f44b5e8",
+    "mutation": [
+      "  select('a')"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "85b22a592559d556",
+    "mutation": [
+      "  select('\\u{0}')"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "9025529acdf43046",
+    "mutation": [
+      "  select(-2147483648)"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "b2e535d260fed245",
+    "mutation": [
+      "  select('a')"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "ba1fcb7e0d97206c",
+    "mutation": [
+      "  select('\\u{10FFFF}')"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "bfb08b9479646e22",
+    "mutation": [
+      "  select(0)"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  },
+  {
+    "witness": "cfd1a702a23f2499",
+    "mutation": [
+      "  select(-2147483648)"
+    ],
+    "assertion": "None != Some(1)",
+    "verdict": "real",
+    "scope": "user-code semantic change",
+    "moonc_defect": false
+  }
+]

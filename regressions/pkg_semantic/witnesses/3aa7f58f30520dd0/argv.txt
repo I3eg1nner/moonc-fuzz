@@ -1,0 +1,1 @@
+/home/user/.moon/bin/moon test --target js (cwd=/tmp/pkgt3b/1795255761646/pkgwd_1)

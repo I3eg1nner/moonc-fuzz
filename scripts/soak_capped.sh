@@ -33,7 +33,7 @@ prlimit --as=$((AS_MB * 1024 * 1024)) -- "$BIN" \
   --root "$ROOT" --out "$OUT" --workers "$WORKERS" --duration "$DUR" \
   --mode mbt --body-only --seed "$SEED" --trace-max-mb 64 \
   --baseline-trace-max-mb "${BASELINE_MB:-256}" \
-  --trace-t1 "$TRACE_T1" --trace-t2 "$TRACE_T2" --trace-t3 0 \
+  --trace-t1 "$TRACE_T1" --trace-t2 "$TRACE_T2" --trace-t3 0 --trace-cpu 25 \
   --trace-workers 1 --trace-queue 8 \
   --coverage-cap 200 --persist-cap 400 --parent-cap 2000 --edge-cap 50000 \
   --rss-limit-mb "$RSS_MB" --qemu "$QEMU" > "$OUT/run.log" 2>&1 &

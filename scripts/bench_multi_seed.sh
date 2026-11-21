@@ -29,9 +29,9 @@ run_arm_seed() {
   local extra=()
   case "$arm" in
     behavior)  extra=(--trace-t1 0 --trace-t2 0 --trace-t3 0) ;;
-    function)  extra=(--trace-t1 5 --trace-t2 5 --trace-t3 0 --no-edge-reward) ;;
-    func-edge) extra=(--trace-t1 5 --trace-t2 5 --trace-t3 0) ;;
-    deep-edge) extra=(--trace-t1 5 --trace-t2 5 --trace-t3 0 --deep-p 30) ;;
+    function)  extra=(--trace-t1 5 --trace-t2 5 --trace-t3 0 --trace-cpu 25 --no-edge-reward) ;;
+    func-edge) extra=(--trace-t1 5 --trace-t2 5 --trace-t3 0 --trace-cpu 25) ;;
+    deep-edge) extra=(--trace-t1 5 --trace-t2 5 --trace-t3 0 --trace-cpu 25 --deep-p 30) ;;
   esac
   /usr/bin/time -q -o "$dir.time" -f "%M" \
     "$BIN" --root "$ROOT" --out "$dir" --workers "$WORKERS" --duration "$SECS" \
