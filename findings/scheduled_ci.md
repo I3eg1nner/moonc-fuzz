@@ -14,6 +14,7 @@ Date: 2026-11-21. 依据：本轮第 5 项。工具链 pin 未改。
 - 工具链：v0.1.0 release 附件，sha256 校验；
 - seed：仓库内 `seeds_min.tar.gz`（25 个模板 + dict），sha256 校验；
 - QEMU：`qemu-user-static`，`qemu-x86_64-static --version` 写入 artifact；
+  若设置了 `QEMU_VERSION_PREFIX` 则要求版本前缀匹配，否则只记录不失败；
 - 运行：240 s、2 workers、T1/T2 20%、`baseline-trace-max-mb 256`、
   `--seed-dir` 解包目录；
 - 断言：`baseline_state=complete`、`baseline_done==expected`、
@@ -34,7 +35,9 @@ scheduled job 用 240 s 并断言 baseline 而非迭代数的原因。
 
 ## 边界
 
-- QEMU 版本没有真正 pin：distro 包会漂移，只能记录版本并对照 trace 数；
+- QEMU 版本没有真正 pin：distro 包会漂移（本机实测 5.2.50），只能记录版本并
+  对照 trace 数；workflow 提供 `QEMU_VERSION_PREFIX` 可选的严格校验，默认
+  不因此让每日任务红掉；
 - cron 只在默认分支运行，PR 不触发；
 - artifact 保留期用 GitHub 默认值，仓库不承诺长期归档；
 - seed 归档是 25 个模板，不是完整语料；它只保证 baseline 可完成，不代表

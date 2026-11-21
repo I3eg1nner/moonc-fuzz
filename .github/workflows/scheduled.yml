@@ -43,7 +43,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-user-static
+          test -x "$QEMU"
           $QEMU --version | tee qemu-version.txt
+          # QEMU is a distro package and can drift; the version is recorded and
+          # compared against trace counts.  Set QEMU_VERSION_PREFIX to make a
+          # mismatch fatal instead of informational.
+          if [ -n "${QEMU_VERSION_PREFIX:-}" ]; then
+            grep -q "$QEMU_VERSION_PREFIX" qemu-version.txt || {
+              echo "qemu version does not match QEMU_VERSION_PREFIX=$QEMU_VERSION_PREFIX" >&2
+              exit 1
+            }
+          fi
 
       - name: Restore the frozen toolchain
         run: |

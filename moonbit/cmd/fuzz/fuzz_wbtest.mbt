@@ -1033,5 +1033,7 @@ test "quoted cluster signatures are escaped in meta.json" {
   let m = meta_json("build", "ICE", "", r, sig, 1)
   // The signature must be escaped, not embedded raw.
   assert_true(m.contains("\\\"Char.chr\\\""))
-  assert_false(m.contains("\"signature\":\"crash|ICE|Invalid_argument(\"Char.chr\")"))
+  assert_false(
+    m.contains("\"signature\":\"crash|ICE|Invalid_argument(\"Char.chr\")"),
+  )
 }

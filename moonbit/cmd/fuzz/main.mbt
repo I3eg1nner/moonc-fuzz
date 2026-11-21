@@ -2364,9 +2364,9 @@ async fn worker(
         )
         if rr.rc != 0 {
           let detail = @exec.ice_detail(rr)
-          let sig = @corpus.short_hash(
-            "fmt|" + detail + "|" + @corpus.short_hash(src),
-          )
+          // Bucket by the *reparse* failure, not by the source: the same
+          // formatter bug in three inputs must be one directory.
+          let sig = @cluster.formatter_signature(rr.rc, rr.stderr, rr.stdout)
           let meta = "{\"stage\":\"fmt\",\"kind\":\"REPARSE\",\"fmt_rc\":" +
             fr.rc.to_string() +
             ",\"reparse_rc\":" +
@@ -2788,7 +2788,10 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
     if line.contains("\"key\":") {
       let key = json_str_field(line.to_owned(), "key")
       if key != "" {
-        cov.by_key.set(key, @cov.FuncSet::new(json_str_array_field(line.to_owned(), "funcs")))
+        cov.by_key.set(
+          key,
+          @cov.FuncSet::new(json_str_array_field(line.to_owned(), "funcs")),
+        )
         keys += 1
       }
     } else if line.contains("\"edges\":") {
@@ -2820,7 +2823,12 @@ fn save_coverage_state(cov : TraceUniverse, out : String) -> Unit {
   }
   edges.sort()
   lines.push("{\"edges\":" + @trace.json_string_array(edges) + "}")
-  ignore(@stager.write_text(join(out, "coverage_state.jsonl"), lines.join("\n") + "\n"))
+  ignore(
+    @stager.write_text(
+      join(out, "coverage_state.jsonl"),
+      lines.join("\n") + "\n",
+    ),
+  )
 }
 
 ///|
@@ -2844,7 +2852,12 @@ async fn triage_one(cfg : Config, dir : String) -> (String, String) {
   let mut defects = 0
   let mut first_err = ""
   for k in 0..<3 {
-    let (sig, err, _) = triage_run_once(cfg, src, stage, join(work, "r" + k.to_string()))
+    let (sig, err, _) = triage_run_once(
+      cfg,
+      src,
+      stage,
+      join(work, "r" + k.to_string()),
+    )
     if sig.contains("crash|") {
       defects += 1
     }
@@ -2872,7 +2885,13 @@ async fn triage_one(cfg : Config, dir : String) -> (String, String) {
       let r = @exec.run(
         bin,
         [
-          "--dir", join(work, "min"), "--file", "main.mbt", "--stage", stage, "--out",
+          "--dir",
+          join(work, "min"),
+          "--file",
+          "main.mbt",
+          "--stage",
+          stage,
+          "--out",
           out,
         ],
         work,
@@ -3578,7 +3597,9 @@ async fn main {
         reg.push(line.to_owned())
       }
     }
-    ignore(@stager.write_text(join(out, "regression.txt"), reg.join("\n") + "\n"))
+    ignore(
+      @stager.write_text(join(out, "regression.txt"), reg.join("\n") + "\n"),
+    )
     (checked, confirmed, known, flaky, inconclusive)
   } else {
     (0, 0, 0, 0, 0)

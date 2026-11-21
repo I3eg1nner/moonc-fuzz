@@ -1,0 +1,15 @@
+// Probe: run the real formatter and print the cluster signature it maps to.
+import {
+  "moonbitlang/core/async",
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "I3eg1nner/mbtfuzz/cluster",
+  "I3eg1nner/mbtfuzz/exec",
+  "I3eg1nner/mbtfuzz/stager",
+}
+
+options(
+  "allow-experimental-packages": [ "moonbitlang/core/async" ],
+)
+
+pkgtype(kind: "executable")

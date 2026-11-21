@@ -447,8 +447,24 @@ async fn main {
     root,
     300000,
   )
-  let tce_ok = tce.rc == 0 && tce.stdout.contains("triage campaign selftest: ok")
+  let tce_ok = tce.rc == 0 &&
+    tce.stdout.contains("triage campaign selftest: ok")
   results.push(check("triage_campaign", tce_ok, tce.stdout.trim().to_owned()))
+
+  // 2g6. Formatter clustering end to end: three sources with the same
+  // formatter failure must produce exactly one REPARSE directory.  The old
+  // signature hashed the source, so this was three.
+  let fmtc = @exec.run(
+    "/bin/bash",
+    [
+      join(root, "scripts/fmt_cluster_selftest.sh"),
+      "/tmp/mbtfuzz_accept_fmt_" + tag,
+    ],
+    root,
+    180000,
+  )
+  let fmtc_ok = fmtc.rc == 0 && fmtc.stdout.contains("fmt cluster selftest: ok")
+  results.push(check("fmt_cluster", fmtc_ok, fmtc.stdout.trim().to_owned()))
 
   // 3. Trace gates: exact JSON on a frozen trace, then real end-to-end QEMU
   // parity against a Python-golden function set.  These two need host tools
