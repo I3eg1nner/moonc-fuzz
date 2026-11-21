@@ -3008,7 +3008,12 @@ async fn triage_tree(
 }
 
 ///|
-async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
+async fn monitor(
+  cfg : Config,
+  prog : Progress,
+  cov : TraceUniverse,
+  out : String,
+) -> Stats {
   while prog.done < cfg.workers {
     @async.sleep(2000)
     if cfg.rss_limit_mb > 0 && prog.stop_reason == "" {
@@ -3051,6 +3056,10 @@ async fn monitor(cfg : Config, prog : Progress, out : String) -> Stats {
       prog.trace_completed.to_string() +
       ",\"trace_failed\":" +
       prog.trace_failed.to_string() +
+      ",\"coverage_adds\":" +
+      cov.coverage_adds.to_string() +
+      ",\"new_edges\":" +
+      cov.new_edges.to_string() +
       ",\"trace_dropped\":" +
       prog.trace_dropped.to_string() +
       "}"
@@ -3538,7 +3547,7 @@ async fn main {
     let w = id
     tasks.push(() => trace_worker(cfg, w, q, feed, cov, covctx, prog))
   }
-  tasks.push(() => monitor(cfg, prog, out))
+  tasks.push(() => monitor(cfg, prog, cov, out))
   let results = @conc.all_limited(tasks, cfg.workers + cfg.trace_workers + 1)
   let total = stats_new()
   for r in results {

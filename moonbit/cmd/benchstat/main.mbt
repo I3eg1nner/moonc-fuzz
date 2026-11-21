@@ -62,6 +62,48 @@ fn num_field(text : String, key : String) -> Int64 {
 }
 
 ///|
+/// Parse a decimal seconds value scaled by 100 ("814.39" -> 81439).
+fn parse_x100(s : String) -> Int64 {
+  let mut i = 0
+  let mut n = 0L
+  let mut frac = 0L
+  let mut frac_digits = 0
+  while i < s.length() && s.get_char(i) != Some('.') {
+    match s.get_char(i) {
+      Some(c) =>
+        if c >= '0' && c <= '9' {
+          n = n * 10L + (c.to_int() - '0'.to_int()).to_int64()
+        } else {
+          return 0L
+        }
+      None => break
+    }
+    i += 1
+  }
+  if i < s.length() && s.get_char(i) == Some('.') {
+    i += 1
+    while i < s.length() && frac_digits < 2 {
+      match s.get_char(i) {
+        Some(c) =>
+          if c >= '0' && c <= '9' {
+            frac = frac * 10L + (c.to_int() - '0'.to_int()).to_int64()
+            frac_digits += 1
+          } else {
+            break
+          }
+        None => break
+      }
+      i += 1
+    }
+  }
+  while frac_digits < 2 {
+    frac = frac * 10L
+    frac_digits += 1
+  }
+  n * 100L + frac
+}
+
+///|
 fn read(path : String) -> String {
   @stager.read_text(path)
 }
@@ -163,10 +205,12 @@ fn main {
         parts.push(p.trim().to_owned())
       }
     }
-    let mut cpu_tenths = 0L
+    // GNU time prints seconds with decimals ("814.39"); integer parsing and a
+    // /10 at the end under-reported CPU by roughly 10x.
+    let mut cpu_x100 = 0L
     for i in 0..<2 {
       if i < parts.length() {
-        cpu_tenths += num_field("{\"v\":" + parts[i] + "}", "v")
+        cpu_x100 += parse_x100(parts[i])
       }
     }
     let rss_kb = if parts.length() >= 3 {
@@ -195,7 +239,7 @@ fn main {
     b.write_string(
       ",\"failed\":" + num_field(summary, "trace_failed").to_string(),
     )
-    b.write_string(",\"cpu_s\":" + (cpu_tenths.to_double() / 10.0).to_string())
+    b.write_string(",\"cpu_s\":" + (cpu_x100.to_double() / 100.0).to_string())
     b.write_string(",\"rss_mb\":" + (rss_kb / 1024L).to_string())
     b.write_string(",\"median_window\":" + median(windows).to_string())
     b.write_string(",\"windows\":" + windows.length().to_string() + "}")
