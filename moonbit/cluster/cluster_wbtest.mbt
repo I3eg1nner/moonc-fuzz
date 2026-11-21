@@ -90,8 +90,7 @@ test "formatter signature ignores the source" {
 
 ///|
 test "signature fields with escaped quotes are read back intact" {
-  let meta =
-    "{\"stage\":\"build\",\"signature\":\"crash|ICE|Invalid_argument(\\\"Char.chr\\\")|known=F2\"}"
+  let meta = "{\"stage\":\"build\",\"signature\":\"crash|ICE|Invalid_argument(\\\"Char.chr\\\")|known=F2\"}"
   assert_eq(
     json_get_string(meta, "signature"),
     "crash|ICE|Invalid_argument(\"Char.chr\")|known=F2",

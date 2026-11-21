@@ -2735,6 +2735,7 @@ fn triage_stage_of(dir : String) -> String {
 }
 
 ///|
+
 ///|
 /// Extract the value of `"<key>":"<value>"` from one JSON line.
 fn json_str_field(line : String, key : String) -> String {
@@ -2784,7 +2785,9 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let text = @stager.read_text(cfg.coverage_state)
   // A state file without its checksum, or with a mismatch, is not trusted:
   // the campaign starts from an empty universe rather than from half state.
-  let expected = @stager.read_text(cfg.coverage_state + ".sha256").trim().to_owned()
+  let expected = @stager.read_text(cfg.coverage_state + ".sha256")
+    .trim()
+    .to_owned()
   if expected != "" && @corpus.sha1_hex(text) != expected {
     return (0, 0)
   }
@@ -2865,8 +2868,14 @@ async fn triage_one(cfg : Config, dir : String) -> (String, String) {
   let r = @exec.run(
     triage,
     [
-      "--case", dir, "--stage", triage_stage_of(dir), "--timeout-ms",
-      cfg.t2_timeout.to_string(), "--minimize", minimize,
+      "--case",
+      dir,
+      "--stage",
+      triage_stage_of(dir),
+      "--timeout-ms",
+      cfg.t2_timeout.to_string(),
+      "--minimize",
+      minimize,
     ],
     cfg.root,
     600000,
@@ -2875,12 +2884,21 @@ async fn triage_one(cfg : Config, dir : String) -> (String, String) {
   let status = json_str_field(out, "status")
   let known = json_str_field(out, "known")
   (
-    if status == "" { "inconclusive" } else { status },
-    if known == "null" { "" } else { known },
+    if status == "" {
+      "inconclusive"
+    } else {
+      status
+    },
+    if known == "null" {
+      ""
+    } else {
+      known
+    },
   )
 }
 
 ///|
+
 ///|
 /// Walk `<root>/findings/<stage>/<kind>/<sig>` and triage each.  Writes one
 /// JSON line per case and returns counts (checked, confirmed, known, flaky,
@@ -3288,16 +3306,21 @@ async fn main {
       @stager.join(cfg.root, "poc/f2_lex_escape_ice/cmd/main.mbt"),
     )
     let sig = @cluster.crash_signature(
-      "ICE",
-      199,
-      "Error: Invalid_argument(\"Char.chr\")\n",
-      "",
+      "ICE", 199, "Error: Invalid_argument(\"Char.chr\")\n", "",
     )
     let meta = "{\"stage\":\"build\",\"kind\":\"ICE\",\"status\":\"candidate\",\"signature\":\"" +
       @stager.escape(sig) +
       "\"}"
     ignore(
-      @corpus.save_finding(cfg.emit_finding, "build", "ICE", sig, src, meta, "in.mbt"),
+      @corpus.save_finding(
+        cfg.emit_finding,
+        "build",
+        "ICE",
+        sig,
+        src,
+        meta,
+        "in.mbt",
+      ),
     )
     println("{\"emitted\":\"" + @stager.escape(sig) + "\"}")
     return

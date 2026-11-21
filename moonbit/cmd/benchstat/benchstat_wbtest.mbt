@@ -12,8 +12,7 @@ test "GNU time decimals parse without a /10 loss" {
 test "window deltas read the coverage fields monitor emits" {
   let path = "/tmp/benchstat_window_test.jsonl"
   let lines = [
-    "{\"coverage_adds\":0,\"new_edges\":0}",
-    "{\"coverage_adds\":3,\"new_edges\":1}",
+    "{\"coverage_adds\":0,\"new_edges\":0}", "{\"coverage_adds\":3,\"new_edges\":1}",
     "{\"coverage_adds\":5,\"new_edges\":4}",
   ]
   ignore(@stager.write_text(path, lines.join("\n") + "\n"))

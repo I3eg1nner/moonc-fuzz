@@ -290,18 +290,10 @@ async fn main {
     // A clean control must actually complete (rc 0), avoid a crash signature
     // and carry no compiler diagnostic.
     let ctl_obs = @judge.observation(
-      stage,
-      ctl_rc,
-      false,
-      0L,
-      0L,
-      0,
-      false,
-      false,
-      "",
-      ctl_err,
+      stage, ctl_rc, false, 0L, 0L, 0, false, false, "", ctl_err,
     )
-    control_clean = ctl_rc == 0 && !is_defect_sig(ctl_sig) &&
+    control_clean = ctl_rc == 0 &&
+      !is_defect_sig(ctl_sig) &&
       !@judge.has_diagnostic(ctl_obs)
   }
   // Optional minimise: only "published" counts.

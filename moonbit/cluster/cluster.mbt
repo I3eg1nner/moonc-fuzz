@@ -142,11 +142,7 @@ pub fn crash_signature(
   let known = known_id(text)
   let raw = cause_token(text)
   // Drop the diagnostic prefix so the stored signature is the cause itself.
-  let token = if raw.has_prefix("Error: ") {
-    raw[7:].to_owned()
-  } else {
-    raw
-  }
+  let token = if raw.has_prefix("Error: ") { raw[7:].to_owned() } else { raw }
   let head = if token == "" {
     "crash|" + kind + "|rc=" + rc.to_string()
   } else {
