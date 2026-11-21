@@ -128,6 +128,7 @@ fn trace_test_cfg() -> Config {
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
+    pkg_run_argv: "",
     t1_timeout: 1000,
     t2_timeout: 1000,
   }

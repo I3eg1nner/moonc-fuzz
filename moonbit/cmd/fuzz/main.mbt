@@ -135,6 +135,7 @@ struct Config {
   mut pkg_seed : String
   mut pkg_file : String
   mut pkg_argv : String
+  mut pkg_run_argv : String
   t1_timeout : Int32
   t2_timeout : Int32
 }
@@ -164,6 +165,10 @@ struct Stats {
   /// Size accounting for the T1-cost question: mutated bytes vs parent bytes.
   mut bytes_src : Int64
   mut bytes_parent : Int64
+  mut pkg_t3_attempts : Int32
+  mut pkg_t3_ok : Int32
+  mut pkg_t3_fail : Int32
+  mut pkg_t3_distinct : Int32
   mut t3_compiler_abort : Int32
   mut diff_attempts : Int32
   mut diff_nonempty : Int32
@@ -213,6 +218,10 @@ fn stats_new() -> Stats {
     ms_t2: 0L,
     bytes_src: 0L,
     bytes_parent: 0L,
+    pkg_t3_attempts: 0,
+    pkg_t3_ok: 0,
+    pkg_t3_fail: 0,
+    pkg_t3_distinct: 0,
     t3_compiler_abort: 0,
     diff_attempts: 0,
     diff_nonempty: 0,
@@ -575,6 +584,11 @@ struct TraceQueue {
   mut rejected : Int32
   mut aborts : Int32
   mut failed : Int32
+  mut fail_timeout : Int32
+  mut fail_too_large : Int32
+  mut fail_empty : Int32
+  mut fail_collector : Int32
+  mut fail_other : Int32
   mut baseline_expected : Int32
   mut baseline_done : Int32
   mut baseline_failed : Int32
@@ -618,6 +632,11 @@ fn trace_queue_new() -> TraceQueue {
     rejected: 0,
     aborts: 0,
     failed: 0,
+    fail_timeout: 0,
+    fail_too_large: 0,
+    fail_empty: 0,
+    fail_collector: 0,
+    fail_other: 0,
     baseline_expected: 0,
     baseline_done: 0,
     baseline_failed: 0,
@@ -2177,6 +2196,19 @@ async fn trace_worker(
     }
     if q.failed > failed_before {
       prog.trace_failed += 1
+      let f = tr.failure
+      if f.has_prefix("timeout") {
+        q.fail_timeout += 1
+      } else if f.has_prefix("trace_too_large") {
+        q.fail_too_large += 1
+      } else if f.has_prefix("empty_trace") {
+        q.fail_empty += 1
+      } else if f.has_prefix("collector_exit") ||
+        f.has_prefix("unclassified_exit") {
+        q.fail_collector += 1
+      } else {
+        q.fail_other += 1
+      }
     }
     prog.trace_dropped = q.dropped
   }
@@ -2385,6 +2417,7 @@ async fn worker(
       let baseline = @stager.read_text(file)
       let argv = split_spaces(cfg.pkg_argv)
       let moon = @stager.moon_path()
+      let pkg_t3_seen : Map[String, Unit] = Map([])
       let deadline = @env.now() + cfg.duration_s.to_uint64() * 1000UL
       let mut i = 0
       while @env.now() < deadline && prog.stop_reason == "" && baseline != "" {
@@ -2411,6 +2444,54 @@ async fn worker(
         if r.rc == 0 && !r.timed_out {
           ps.t2_ok += 1
           prog.t2_ok += 1
+          if cfg.pkg_run_argv != "" {
+            ps.pkg_t3_attempts += 1
+            let rr = @exec.run_isolated(
+              moon,
+              split_spaces(cfg.pkg_run_argv),
+              wd,
+              cfg.t2_timeout,
+              max_output_bytes=1048576,
+              mem_mb=6144,
+            )
+            if rr.rc == 0 && !rr.timed_out {
+              ps.pkg_t3_ok += 1
+              let h = @corpus.sha1_hex(src)
+              if !pkg_t3_seen.contains(h) {
+                pkg_t3_seen.set(h, ())
+                ps.pkg_t3_distinct += 1
+              }
+            } else {
+              ps.pkg_t3_fail += 1
+              let ev = join(
+                join(cfg.out, "pkg_mismatch"),
+                @corpus.short_hash(src),
+              )
+              @corpus.ensure_dir(ev)
+              ignore(@stager.write_text(join(ev, "source.mbt"), src))
+              ignore(@stager.write_text(join(ev, "baseline.mbt"), baseline))
+              ignore(@stager.write_text(join(ev, "stdout.txt"), rr.stdout))
+              ignore(@stager.write_text(join(ev, "stderr.txt"), rr.stderr))
+              ignore(
+                @stager.write_text(
+                  join(ev, "argv.txt"),
+                  moon + " " + cfg.pkg_run_argv + " (cwd=" + wd + ")\n",
+                ),
+              )
+              // Semantic (test) failures also enter the save -> triage chain;
+              // they are not crash-class, so triage must keep them
+              // inconclusive rather than promote them.
+              let tsig = @cluster.crash_signature(
+                "TEST_FAIL", rr.rc, rr.stderr, rr.stdout,
+              )
+              ignore(
+                save_pkg_witness(
+                  cfg, moon, tsig, "TEST_FAIL", src, baseline, cfg.pkg_seed,
+                  cfg.pkg_file,
+                ),
+              )
+            }
+          }
         } else {
           ps.crashes += 1
           prog.crashes += 1
@@ -3506,6 +3587,7 @@ async fn main {
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
+    pkg_run_argv: "",
     t1_timeout: 8000,
     t2_timeout: 25000,
   }
@@ -3628,6 +3710,9 @@ async fn main {
       i += 2
     } else if a == "--pkg-argv" && i + 1 < args.length() {
       cfg.pkg_argv = args[i + 1]
+      i += 2
+    } else if a == "--pkg-run-argv" && i + 1 < args.length() {
+      cfg.pkg_run_argv = args[i + 1]
       i += 2
     } else if a == "--coverage-state" && i + 1 < args.length() {
       cfg.coverage_state = args[i + 1]
@@ -3917,6 +4002,10 @@ async fn main {
     total.ms_t2 += r.ms_t2
     total.bytes_src += r.bytes_src
     total.bytes_parent += r.bytes_parent
+    total.pkg_t3_attempts += r.pkg_t3_attempts
+    total.pkg_t3_ok += r.pkg_t3_ok
+    total.pkg_t3_fail += r.pkg_t3_fail
+    total.pkg_t3_distinct += r.pkg_t3_distinct
     total.t3_diff += r.t3_diff
     total.t3_runtime += r.t3_runtime
     total.t3_inconclusive += r.t3_inconclusive
@@ -4025,6 +4114,14 @@ async fn main {
     total.bytes_src.to_string() +
     ",\"bytes_parent\":" +
     total.bytes_parent.to_string() +
+    ",\"pkg_t3_attempts\":" +
+    total.pkg_t3_attempts.to_string() +
+    ",\"pkg_t3_ok\":" +
+    total.pkg_t3_ok.to_string() +
+    ",\"pkg_t3_fail\":" +
+    total.pkg_t3_fail.to_string() +
+    ",\"pkg_t3_distinct\":" +
+    total.pkg_t3_distinct.to_string() +
     ",\"t3_diff\":" +
     total.t3_diff.to_string() +
     ",\"t3_runtime\":" +
@@ -4068,6 +4165,16 @@ async fn main {
     q.completed.to_string() +
     ",\"trace_failed\":" +
     q.failed.to_string() +
+    ",\"trace_fail_timeout\":" +
+    q.fail_timeout.to_string() +
+    ",\"trace_fail_too_large\":" +
+    q.fail_too_large.to_string() +
+    ",\"trace_fail_empty\":" +
+    q.fail_empty.to_string() +
+    ",\"trace_fail_collector\":" +
+    q.fail_collector.to_string() +
+    ",\"trace_fail_other\":" +
+    q.fail_other.to_string() +
     ",\"trace_accepted\":" +
     q.accepted.to_string() +
     ",\"trace_rejected\":" +
