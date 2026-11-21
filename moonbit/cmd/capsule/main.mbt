@@ -89,6 +89,7 @@ async fn main {
   let duration = num_arg(args, "--duration", 0)
   let max_iters = num_arg(args, "--iterations", 200)
   let seed0 = num_arg(args, "--seed", 1).to_uint64()
+  let release = args.contains("--release")
   let out = match arg_value(args, "--out") {
     Some(s) => s
     None => "/tmp/mbtfuzz_capsule"
@@ -123,15 +124,28 @@ async fn main {
   } else {
     ["build", "--target", target]
   }
+  if release {
+    argv.push("--release")
+  }
   let moon = @stager.moon_path()
   let t0 = @env.now()
   let base = @exec.run_isolated(moon, argv, work, 120000, max_output_bytes=65536)
+  // The package's moon.pkg may live next to the mutated file (f8: repro/),
+  // not at the module root; record the one that actually governs the build.
+  let pkg_pkg_path = {
+    let next_to = join(@corpus.dirname(file), "moon.pkg")
+    if @fs.path_exists(join(pkg, next_to)) {
+      next_to
+    } else {
+      "moon.pkg"
+    }
+  }
   let av = StringBuilder()
   for i, a in argv {
     if i > 0 {
       av.write_string(",")
     }
-    av.write_string(@corpus.json_escape("\"" + a + "\""))
+    av.write_string("\"" + @stager.escape(a) + "\"")
   }
   let capsule = "{\"pkg\":\"" +
     @stager.escape(pkg) +
@@ -142,13 +156,15 @@ async fn main {
     "\",\"stage\":\"" +
     stage +
     "\",\"argv\":[" +
-    @corpus.json_escape("\"" + moon + "\"") +
+    "\"" + @stager.escape(moon) + "\"" +
     "," +
     av.to_string() +
     "],\"moon_mod_sha1\":\"" +
     @corpus.sha1_hex(@stager.read_text(join(pkg, "moon.mod"))) +
+    "\",\"moon_pkg_path\":\"" +
+    @stager.escape(pkg_pkg_path) +
     "\",\"moon_pkg_sha1\":\"" +
-    @corpus.sha1_hex(@stager.read_text(join(pkg, "moon.pkg"))) +
+    @corpus.sha1_hex(@stager.read_text(join(pkg, pkg_pkg_path))) +
     "\",\"baseline_rc\":" +
     base.rc.to_string() +
     "}"

@@ -38,16 +38,48 @@ repro.mbt,repro_test.mbt}`，依赖 `moonbitlang/async@0.22.9`），把触发 F8
 
 `capsule.json` 已记录 argv 与两个 sha1；同一包的 replay 可直接复查。
 
-## 步骤 c（5 分钟）
+## 步骤 c（5 分钟，f8 包）
 
-见下方更新；coverage_skipped 在 capsule lane 里没有覆盖预算，报告为
-`n/a`，不冒充 fuzz 的计数器。
+```json
+{"attempts":192,"ok":8,"failed":184,"crashes":0,"distinct_crash_lines":0,
+ "baseline_rc":0,"replay_rc":0,"replay_matches":true,"ms":17562,
+ "coverage_skipped":"n/a (capsule lane has no coverage budget)"}
+```
+
+- **T2 成功率 8/192 = 4.2%**：变异后的包绝大多数被编译器拒绝（4.2% 仍可构建），
+  说明变异确实落在包上下文里；
+- **crashes=0**：没有触发 ICE，因此本轮没有可 triage 的 witness；triage 未运行，
+  不伪造计数；
+- `coverage_skipped` 为 `n/a`：capsule lane 没有接 fuzz 的覆盖预算，不能与
+  campaign 的 `coverage_skipped` 混用；
+- replay 仍与 baseline 一致（restore 后 rc=0）。
+
+## 步骤 d（扩到 3 个包）：阻塞
+
+| 候选 | baseline | 结论 |
+|---|---|---|
+| f8 整包（去掉触发） | rc=0 | 可用 |
+| f9（`--release`，2 文件 + stub） | rc=0 | 可用 |
+| f6_min（foreign_library） | link 失败（缺 stub） | 不可用 |
+| moonldif（多文件 + bridge） | link 失败（bridge C 依赖） | 不可用 |
+
+本仓库只有 `poc/` 下这几个多文件包；`seeds/*` 是 core 模块内的包，没有自己的
+`moon.mod`，整包复制后无法独立解析模块。**3 个可构建包做不到，没有拿单文件
+包凑数**。f9 的 5 分钟数字：
+
+```json
+{"attempts":195,"ok":5,"failed":190,"crashes":0,"distinct_crash_lines":0,
+ "baseline_rc":0,"replay_rc":0,"replay_matches":true,"ms":18124}
+```
+
+**T2 成功率 5/195 = 2.6%**，同样 0 崩溃、无 triage witness；两个包的 replay
+都一致。30 分钟扩测没有跑：只有 2 个可用包，且本轮上下文不足。
 
 ## 边界
 
 - 未接入主 campaign 的 seed 源：主 fuzz 的 `--seed-dir` 只加载单文件，
   接整包需要 cargo/capsule 队列与 stage 调度，本轮未做；
-- 只有 1 个包；扩到 3 个需要 3 个 baseline 可构建的多文件包（f8 去掉触发、
-  f6_min、另一个待找），未做；
+- 只有 2 个可用包（f8 夹具、f9 release）；第 3 个候选 f6_min/moonldif
+  baseline 链接失败，已记录原因，没有拿单文件包凑数；
 - 变异用的是现有文本变异，不是类型保持变异；
 - 未保存 crash witness 路径（crashes=0 时无需），接 triage 前要补。
