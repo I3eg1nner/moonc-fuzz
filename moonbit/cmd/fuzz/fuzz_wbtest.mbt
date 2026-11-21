@@ -600,24 +600,24 @@ test "edge universe dedups, caps, and saturates without evicting" {
   let cov = trace_universe_new()
   cov.edge_cap = 2
   let mut added_total = 0
-  added_total += edge_universe_add(cov, ["1,2"])
-  added_total += edge_universe_add(cov, ["1,2"])
+  added_total += edge_universe_add_scoped(cov, "b|c|m", ["1,2"])
+  added_total += edge_universe_add_scoped(cov, "b|c|m", ["1,2"])
   assert_eq(added_total, 1)
-  added_total += edge_universe_add(cov, ["2,3", "2,3"])
+  added_total += edge_universe_add_scoped(cov, "b|c|m", ["2,3", "2,3"])
   assert_eq(added_total, 2)
   assert_eq(cov.edge_seen.length(), 2)
   // Exactly at capacity but nothing has been refused yet.
   assert_false(cov.edge_saturated)
   // The next genuinely new key would exceed the cap: refuse, record, and stop.
-  added_total += edge_universe_add(cov, ["3,4"])
+  added_total += edge_universe_add_scoped(cov, "b|c|m", ["3,4"])
   assert_true(cov.edge_saturated)
   assert_eq(added_total, 2)
   // Saturation is sticky; later calls cannot add and still report zero.
-  added_total += edge_universe_add(cov, ["5,6"])
+  added_total += edge_universe_add_scoped(cov, "b|c|m", ["5,6"])
   assert_eq(cov.edge_seen.length(), 2)
   assert_eq(added_total, 2)
   // Keys already retained are still recognized after saturation.
-  assert_eq(edge_universe_add(cov, ["1,2"]), 0)
+  assert_eq(edge_universe_add_scoped(cov, "b|c|m", ["1,2"]), 0)
 }
 
 ///|
@@ -1111,15 +1111,15 @@ test "replacing a full parent registers the newcomer's features" {
 test "edge axis: new keys counted until the cap, then explicitly degraded" {
   let cov = trace_universe_new()
   cov.edge_cap = 4
-  assert_eq(edge_universe_add(cov, ["a", "b"]), 2)
+  assert_eq(edge_universe_add_scoped(cov, "b|c|m", ["a", "b"]), 2)
   assert_false(cov.edge_saturated)
   // B shares b and adds c,d -> 2 new, universe full at the cap.
-  assert_eq(edge_universe_add(cov, ["b", "c", "d"]), 2)
+  assert_eq(edge_universe_add_scoped(cov, "b|c|m", ["b", "c", "d"]), 2)
   assert_eq(cov.edge_seen.length(), 4)
   assert_false(cov.edge_saturated)
   // The first refused edge flips the explicit degraded state; that is the
   // signal the summary reports instead of a silent zero.
-  assert_eq(edge_universe_add(cov, ["e"]), 0)
+  assert_eq(edge_universe_add_scoped(cov, "b|c|m", ["e"]), 0)
   assert_true(cov.edge_saturated)
   // A candidate that carries genuinely new edges still earns the edge bonus
   // while the universe has room.
@@ -1155,4 +1155,26 @@ async test "coverage state roundtrip, checksum and atomic file" {
   assert_eq(k3, 0)
   assert_eq(e3, 0)
   @stager.rm_rf(out)
+}
+
+///|
+/// Four-part control for the identity-scoped edge space:
+/// baseline A counts; candidate B counts and rewards; the same raw pair under
+/// another identity is not new; the cap reports an explicit degraded status.
+test "edge identity: baseline, candidate, cross-config, cap" {
+  let cov = trace_universe_new()
+  cov.edge_cap = 8
+  let bin1 = "bin1|cfg1|mbt"
+  // A: baseline edges.
+  assert_eq(edge_universe_add_scoped(cov, bin1, ["p1,p2", "p2,p3"]), 2)
+  // B: candidate adds new edges in the same identity namespace.
+  assert_eq(edge_universe_add_scoped(cov, bin1, ["p3,p4"]), 1)
+  // Same raw pair under a different config is NOT the same feature.
+  assert_eq(edge_universe_add_scoped(cov, "bin1|cfg2|mbt", ["p3,p4"]), 1)
+  assert_true(cov.edge_collisions >= 1)
+  // Fill to the cap, then require an explicit degraded status, not a silent 0.
+  let _ = edge_universe_add_scoped(cov, bin1, ["q1,q2", "q2,q3", "q3,q4", "q4,q5"])
+  let _ = edge_universe_add_scoped(cov, bin1, ["r1,r2"])
+  assert_true(cov.edge_saturated)
+  assert_eq(edge_status(cov), "degraded_cap")
 }

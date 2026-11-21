@@ -920,6 +920,11 @@ struct TraceUniverse {
   mut edge_at_settle : Int32
   /// Edges offered after the universe was already saturated (all refused).
   mut edge_refused : Int32
+  /// Edge keys are namespaced by (binary, config, mode).  A raw key seen under
+  /// two identities is a collision the old global namespace silently merged.
+  edge_raw_owner : Map[String, String]
+  edge_collided : Map[String, Unit]
+  mut edge_collisions : Int32
   /// Shared budget for full-input evidence on disk (`--persist-cap`).  It is
   /// campaign-wide, so every worker and every trace path uses this object.
   persist : PersistBudget
@@ -946,6 +951,9 @@ fn trace_universe_new() -> TraceUniverse {
     edge_new_t3: 0,
     edge_at_settle: 0,
     edge_refused: 0,
+    edge_raw_owner: Map([]),
+    edge_collided: Map([]),
+    edge_collisions: 0,
     persist: persist_budget_new(PERSIST_CAP_DEFAULT, 4000),
   }
 }
@@ -964,12 +972,33 @@ fn trace_universe_new() -> TraceUniverse {
 /// only accumulates deltas from non-baseline traces (see `trace_apply`), so
 /// baseline keys for U0 seed the universe without inflating the scheduler
 /// novelty counter.
-fn edge_universe_add(cov : TraceUniverse, keys : Array[String]) -> Int32 {
+///|
+/// Edge novelty in an identity-scoped namespace.  `identity` should contain
+/// the compiler binary hash, the config id and the mode; the raw TB pair is
+/// only unique inside that namespace.
+fn edge_universe_add_scoped(
+  cov : TraceUniverse,
+  identity : String,
+  keys : Array[String],
+) -> Int32 {
+  let mut added = 0
+  for raw in keys {
+    // Collision accounting first, even when the scoped key is new: this is
+    // what the old one-namespace map was hiding.
+    match cov.edge_raw_owner.get(raw) {
+      Some(prev) =>
+        if prev != identity && !cov.edge_collided.contains(raw) {
+          cov.edge_collided.set(raw, ())
+          cov.edge_collisions += 1
+        }
+      None => cov.edge_raw_owner.set(raw, identity)
+    }
+  }
   if cov.edge_saturated {
     return 0
   }
-  let mut added = 0
-  for k in keys {
+  for raw in keys {
+    let k = identity + "@" + raw
     if cov.edge_seen.contains(k) {
       continue
     }
@@ -981,6 +1010,15 @@ fn edge_universe_add(cov : TraceUniverse, keys : Array[String]) -> Int32 {
     added += 1
   }
   added
+}
+
+///|
+fn edge_status(cov : TraceUniverse) -> String {
+  if cov.edge_saturated {
+    "degraded_cap"
+  } else {
+    "ok"
+  }
 }
 
 ///|
@@ -1911,7 +1949,8 @@ fn trace_apply(
   // Edge keys live in the wider all-mapped scope.  Update the campaign
   // universe for every complete trace (baseline or candidate) exactly once,
   // and remember the delta so a deferred reward uses the same number.
-  let edge_new = edge_universe_add(cov, tr.edge_keys)
+  let identity = cfg.mode + "|" + tr.config_hash
+  let edge_new = edge_universe_add_scoped(cov, identity, tr.edge_keys)
   if task.baseline {
     cov.edge_new_baseline += edge_new
   } else if task.stage == @trace.T1 {
@@ -3097,6 +3136,10 @@ async fn monitor(
       cov.edge_at_settle.to_string() +
       ",\"edge_refused\":" +
       cov.edge_refused.to_string() +
+      ",\"edge_status\":\"" +
+      edge_status(cov) + "\"" +
+      ",\"edge_collisions\":" +
+      cov.edge_collisions.to_string() +
       ",\"trace_dropped\":" +
       prog.trace_dropped.to_string() +
       "}"
@@ -3810,6 +3853,10 @@ async fn main {
     cov.edge_at_settle.to_string() +
     ",\"edge_refused\":" +
     cov.edge_refused.to_string() +
+    ",\"edge_status\":\"" +
+    edge_status(cov) + "\"" +
+    ",\"edge_collisions\":" +
+    cov.edge_collisions.to_string() +
     ",\"t1_dry\":" +
     q.t1_dry.to_string() +
     ",\"t1_trace_off\":" +
