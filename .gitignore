@@ -6,6 +6,8 @@ seeds_real/
 seeds_real2/
 assets/
 *.tar.gz
+# The scheduled CI needs a pinned seed archive; it is small and tracked.
+!seeds_min.tar.gz
 *.zip
 
 # Python

@@ -9,7 +9,7 @@
 # cli.moonbitlang.com serves only `latest`, and every versioned path answers
 # 403.  That is why the toolchain is archived (findings/toolchain_archive.md).
 #
-# The pinned job runs `--profile core` (17 of 20 gates).  The three trace gates
+# The pinned job runs `--profile core` (18 of 21 gates).  The three trace gates
 # need `afl-qemu-trace` and a symbol table of the pinned `moonc`; they run
 # locally, and the JSON names them under `skipped` instead of dropping them.
 name: CI

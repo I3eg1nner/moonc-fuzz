@@ -1,0 +1,117 @@
+# Scheduled soak: the pinned toolchain + a pinned seed archive + a real QEMU
+# trace, on a schedule rather than on push.
+#
+# The per-push CI runs the acceptance gates but skips the trace gates
+# (`--profile core`) and never runs a campaign.  This job is the opposite: one
+# short campaign on the pinned toolchain, asserting that
+#
+#   - the baseline completes (U0 is not silently partial),
+#   - at least one trace is collected through a real QEMU binary,
+#   - the run wrote a summary at all,
+#
+# and keeping the whole run directory as an artifact.
+#
+# Pins:
+#   toolchain: v0.1.0 release asset (sha256 checked)
+#   seeds:     seeds_min.tar.gz in the repository (sha256 checked)
+#   qemu:      qemu-user-static from the distro; its --version is recorded in
+#              summary-qemu.txt because the distro does not expose a stable
+#              pin.  A change in trace counts should be read against it.
+name: Scheduled soak
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    env:
+      TOOLCHAIN_SHA256: 4b1aee737cb004df8a220ae6d8fab69646a8a153d72ab969e56735cbae4bee4f
+      TOOLCHAIN_ASSET: moonbit-0.1.20261104-linux-x86_64.tar.gz
+      SEEDS_SHA256: 0a520a1c4a3dfc7bdb9f27ab6d7c1bc15e3ae81c798f47859a7af9b7994916c7
+      QEMU: /usr/bin/qemu-x86_64-static
+      DURATION: "240"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install QEMU user-mode
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static
+          $QEMU --version | tee qemu-version.txt
+
+      - name: Restore the frozen toolchain
+        run: |
+          set -euo pipefail
+          url="https://github.com/I3eg1nner/moonc-fuzz/releases/download/v0.1.0/$TOOLCHAIN_ASSET"
+          curl -fsSL -o "$RUNNER_TEMP/toolchain.tar.gz" "$url"
+          echo "$TOOLCHAIN_SHA256  $RUNNER_TEMP/toolchain.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/moonbit-pin"
+          tar -xzf "$RUNNER_TEMP/toolchain.tar.gz" -C "$RUNNER_TEMP/moonbit-pin" --strip-components=1
+          echo "MOON_HOME=$RUNNER_TEMP/moonbit-pin" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/moonbit-pin/bin" >> "$GITHUB_PATH"
+
+      - name: Verify the seed archive
+        run: |
+          set -euo pipefail
+          echo "$SEEDS_SHA256  seeds_min.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/seeds"
+          tar -xzf seeds_min.tar.gz -C "$RUNNER_TEMP/seeds"
+          ls "$RUNNER_TEMP/seeds" | head
+
+      - name: Build the harness
+        working-directory: moonbit
+        run: moon build --target native
+
+      - name: Short traced campaign
+        run: |
+          set -euo pipefail
+          ./moonbit/_build/native/debug/build/cmd/fuzz/fuzz.exe \
+            --root "$GITHUB_WORKSPACE" --out out/soak \
+            --workers 2 --duration "$DURATION" \
+            --mode mbt --body-only --seed-dir "$RUNNER_TEMP/seeds" \
+            --trace-t1 20 --trace-t2 20 --trace-t3 0 \
+            --trace-workers 2 --trace-queue 32 --trace-max-mb 64 \
+            --baseline-trace-max-mb 256 \
+            --coverage-cap 100 --persist-cap 200 --parent-cap 200 \
+            --edge-cap 20000 --qemu "$QEMU" | tee out/soak.log
+
+      - name: Assert baseline and trace coverage
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, json
+
+          summary = sorted(glob.glob("out/soak/*/summary.json"))[-1]
+          d = json.load(open(summary))
+          print("summary:", summary)
+          for k in ("it", "trace_completed", "trace_failed", "coverage_records",
+                    "baseline_state", "baseline_done", "baseline_expected", "rss_mb"):
+              print(f"  {k}: {d.get(k)}")
+          problems = []
+          if d.get("baseline_state") != "complete":
+              problems.append(f"baseline_state={d.get('baseline_state')}")
+          if (d.get("baseline_done") or 0) < (d.get("baseline_expected") or 0):
+              problems.append("baseline incomplete")
+          if (d.get("trace_completed") or 0) < 1:
+              problems.append("no trace collected")
+          if (d.get("coverage_records") or 0) < 1:
+              problems.append("no coverage record written")
+          if problems:
+              raise SystemExit("scheduled soak failed: " + ", ".join(problems))
+          PY
+
+      - name: Upload soak artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduled-soak
+          path: |
+            out/
+            qemu-version.txt
+          if-no-files-found: warn

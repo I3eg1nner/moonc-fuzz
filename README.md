@@ -77,10 +77,10 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ./examples/trace2funcs.sh
 ```
 
-`cmd/accept` 依次检查（20 项）：工具链 pin、`moon build`、`moon test`、
+`cmd/accept` 依次检查（21 项）：工具链 pin、`moon build`、`moon test`、
 `moon check`、13 例编译器缺陷回归、6 例 LSP 缺陷回归、LSP 负样本
 （3 会话 × 7 请求，且探针必须能看见 F11 触发）、oracle 灵敏度、真实编译
-语料上的误报回归、归约 witness、种子复现、F7 边界、语义差分、语义差分反例自检、深层漏斗（类型有效 IR 的 T2/T3 队列）、合成 trace
+语料上的误报回归、归约 witness、种子复现、F7 边界、语义差分、语义差分反例自检、深层漏斗（类型有效 IR 的 T2/T3 队列）、triage 正负控、合成 trace
 精确输出、真实 QEMU trace 的 599 函数集合、覆盖并集、25 个模板的
 wasm/js 差分、负控制。任一项失败即非零退出。
 
@@ -273,7 +273,7 @@ moon run cmd/lspregress
   `regress`、`f6matrix`、`accept`、`optdiff`、`irprobe`、`featfuzz`、
   `asyncfuzz`、`verify`、`xdiff`、`lspfuzz`、`lspregress`、`lspneg`、
   `seedfuzz`、`scriptfuzz`、`scalefuzz`、`semdiff`、`minimize`、
-  `oracleaudit`、`oraclestat`、`deepfuzz`、`benchstat`；
+  `oracleaudit`、`oraclestat`、`deepfuzz`、`benchstat`、`triage`、`spawnprobe`；
 - `featuregen/`、`asyncgen/`：特性定向源生成器（native 布局矩阵、async 状态机矩阵）；
 - `lsp/`：LSP 帧/请求模型与结果分类（纯函数，29 个测试）。
 
@@ -281,7 +281,7 @@ moon run cmd/lspregress
 上跑两个 job：`latest-canary` 用上游最新的工具链跑
 `moon check`/`build`/`test`/`fmt --check` 和最小示例；`pinned-evidence`
 下载 v0.1.0 的冻结工具链、校验 sha256，然后跑 `accept --profile core`
-的 17 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 例缺陷（含 F3 的第二 witness）；
+的 18 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 例缺陷（含 F3 的第二 witness）；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。
@@ -344,7 +344,7 @@ cd moonbit && moon build --target native
 ./_build/native/debug/build/cmd/accept/accept.exe "$PWD/.." --profile core
 ```
 
-`--profile core` 跑 20 项中的 17 项，跳过需要 `afl-qemu-trace` 与 `moonc`
+`--profile core` 跑 21 项中的 18 项，跳过需要 `afl-qemu-trace` 与 `moonc`
 符号表的三项 trace 检查；JSON 的 `skipped` 会列出它们。公开 CI 的
 `pinned-evidence` job 走的就是这条路径，`latest-canary` job 继续盯前向兼容。
 
@@ -414,6 +414,11 @@ moon test --target native
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
 | `findings/deep_funnel.md` | 类型有效 IR 的 T2/T3 专用队列；30 分钟 11,451 例全部与解释器一致 |
 | `findings/baseline_fix.md` | baseline 完整性修复：U0 complete、coverage_adds=2,439 |
+| `findings/deep_entrypoint.md` | deep 队列接线：99.2% T2 成功率（修复后） |
+| `findings/triage_pipeline.md` | candidate → confirmed 的规则与正负控 |
+| `findings/clustering.md` | 根因签名：F1b/F2b/F4b 合并、F7/F8/F9 不合并 |
+| `scripts/triage_selftest.sh` | triage 正负控 |
+| `.github/workflows/scheduled.yml` | 每日 soak：pin 工具链 + seed 归档 + QEMU trace |
 | `findings/rss_diagnosis.md` | RSS 组件二分、spawnprobe、进程 epoch 缓解 |
 | `scripts/bench_multi_seed.sh` | 4 臂 × 3 seed 并行 A/B（含 deep 队列臂） |
 | `scripts/soak_epochs.sh` | 进程 epoch + 语料接力的有界长跑 |
