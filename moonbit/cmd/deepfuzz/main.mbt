@@ -426,7 +426,13 @@ async fn main {
         mem_mb=2048,
       )
       run_ms += r.ms
+      // A non-zero exit is not a completed run, even when it is a plain
+      // positive code; only rc==0 counts as t3_complete.
       if r.timed_out || r.rc < 0 {
+        t3_nonzero += 1
+        continue
+      }
+      if r.rc != 0 {
         t3_nonzero += 1
         continue
       }
@@ -436,10 +442,6 @@ async fn main {
           Some(s) => s.ran += 1
           None => ()
         }
-      }
-      if r.rc != 0 {
-        t3_nonzero += 1
-        continue
       }
       if r.stdout.trim().length() == 0 {
         empty_output += 1

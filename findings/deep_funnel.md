@@ -90,3 +90,9 @@ IR 之外增加一个类型有效的 MoonBit 子集生成器；两者都要先�
 写到 `<out>/mismatch/<case>/`，测试
 `mismatch evidence keeps source, expected, actual and argv` 固定这一行为。
 本轮 0 mismatch 的历史批次不受影响，但以后发现不会丢现场。
+
+### t3_complete 只数 rc==0
+
+原先 `t3_ok` 在排除负信号后立即自增，正数非零退出随后才被记入 `t3_nonzero`
+并 `continue`，于是同一进程既算完成又算失败。现在只有 `rc==0` 进入
+`t3_complete`；`t3_matched` 仍要求与解释器逐行一致。
