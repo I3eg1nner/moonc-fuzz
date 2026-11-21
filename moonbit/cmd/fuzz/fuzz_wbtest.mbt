@@ -1211,3 +1211,36 @@ async test "coverage state without checksum is rejected; edges respect the cap" 
   assert_true(c3.edge_saturated)
   @stager.rm_rf(out)
 }
+
+///|
+async test "backpressure wait returns immediately on stop with a full queue" {
+  let cfg = trace_test_cfg()
+  cfg.trace_queue = 1
+  cfg.trace_wait_ms = 30000
+  let q = trace_queue_new()
+  q.deadline = @env.now() + 30000UL
+  assert_true(
+    trace_submit(cfg, q, @trace.T1, "one", "one", "in.mbt", "", false, "cfg1"),
+  )
+  q.stop = true
+  let t0 = @env.now()
+  let ok = trace_submit(cfg, q, @trace.T1, "two", "two", "in.mbt", "", false, "cfg2")
+  let elapsed = @env.now() - t0
+  assert_false(ok)
+  assert_true(elapsed < 2000UL)
+  assert_eq(q.deferred_timeout, 1)
+}
+
+///|
+async test "backpressure deadline ends the wait without a consumer" {
+  let cfg = trace_test_cfg()
+  cfg.trace_queue = 1
+  cfg.trace_wait_ms = 30000
+  let q = trace_queue_new()
+  q.deadline = @env.now() + 30000UL
+  ignore(trace_submit(cfg, q, @trace.T1, "a", "a", "in.mbt", "", false, "cfg"))
+  q.deadline = @env.now()
+  let ok = trace_submit(cfg, q, @trace.T1, "b", "b", "in.mbt", "", false, "cfg")
+  assert_false(ok)
+  assert_eq(q.deferred_timeout, 1)
+}

@@ -2216,7 +2216,10 @@ async fn trace_worker(
       }
       Closed => break
     }
-    if !task.baseline && budget > 0L && q.trace_ms - q.baseline_ms >= budget {
+    // The candidate budget must never cut baseline collection: baseline is
+    // the U0 and its cost is separate.
+    if !task.baseline && q.baseline_complete && budget > 0L &&
+      q.trace_ms - q.baseline_ms >= budget {
       trace_release(q, task)
       trace_cleanup_core(task)
       q.dropped += 1
@@ -3470,6 +3473,11 @@ async fn monitor(
       }
     }
     q.stop = prog.stop_reason != ""
+    // Even with zero trace workers (or all of them stuck), the drain deadline
+    // closes the queue; shutdown must never depend on a consumer existing.
+    if q.draining && @env.now() >= q.drain_deadline {
+      q.closed = true
+    }
     let line = "{\"elapsed_ms\":" +
       (@env.now() - mon_start).to_string() +
       ",\"run_id\":\"" +
