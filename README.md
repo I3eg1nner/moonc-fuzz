@@ -412,6 +412,7 @@ moon test --target native
 | 文件 | 内容 |
 |---|---|
 | `findings/defect_inventory.md` | 全部缺陷的根因归类、2026-11-22 逐项复核与记录修正 |
+| `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |
 | `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
 | `findings/deep_funnel.md` | 类型有效 IR 的 T2/T3 专用队列；30 分钟 11,451 例全部与解释器一致 |
