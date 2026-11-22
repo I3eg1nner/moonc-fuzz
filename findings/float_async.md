@@ -35,4 +35,26 @@ Date: 2026-11-22. 工具链 pin 未改。
 
 ## 30 分钟结果
 
-见下。
+## 浮点 30 分钟（seed 7）
+
+```
+cases=4,417  unique_programs=3,016  witness=0  oracle_candidate=0
+float_bits: attempts=170, witness=0, excluded=0, inconclusive=0
+float_cmp : attempts=169, witness=0, excluded=0, inconclusive=0
+float_format: attempts=169, excluded=169（策略排除）
+```
+
+在本轮覆盖的算子里（+ - * /、sqrt、floor/ceil/round/trunc、min/max、比较，
+IEEE-754 默认 round-to-nearest，非 NaN），三后端位型与 node DataView 一致，
+未发现分歧。NaN payload/signaling NaN 未生成（排除域，不能据此说 NaN 行为
+一致）。Float（f32）没有可用的 `to_bits`/reinterpret API，本批只覆盖
+Double，能力表如实标注。
+
+## async
+
+固定 10 个顺序 case + 1 个异常传播 case；`--inject-node` 24/24 witness。
+node 参考为 Promise/await；`wasm-gc` 对 async test 报 `Total tests: 0`，
+按 unsupported 跳过，不参与比较。异常文本按 `ASEM:E=` 前缀归一化，不比较
+`Failure(boom)` vs `boom` 的 Display。
+
+（30 分钟结果见下。）
