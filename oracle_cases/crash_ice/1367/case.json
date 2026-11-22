@@ -6,11 +6,15 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1367",
   "category": "crash_ice",
-  "expected": "101 B moon.pkg 在显式 moonc syncheck 下 SIGSEGV",
-  "actual": "rc 139",
   "backends": "any",
   "command": "moonc syncheck moon.pkg",
   "status": "reproduced",
   "notes": "",
-  "evidence": "rc -11 (SIGSEGV); no output"
+  "evidence": "rc -11 (SIGSEGV); no output",
+  "bug_symptom": "moonc syncheck moon.pkg gets SIGSEGV, shell rc 139",
+  "pin_observed": "same: SIGSEGV, shell rc 139",
+  "assertion": {
+    "kind": "signal",
+    "signal": 11
+  }
 }

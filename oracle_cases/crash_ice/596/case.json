@@ -6,11 +6,16 @@
   "closedAt": "2025-04-01T02:16:11Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/596",
   "category": "crash_ice",
-  "expected": "derive(Default) + 未解析 @lib 字段触发 Unresolved_type_variable",
-  "actual": "clean error expected",
   "backends": "all",
   "command": "moon run main.mbt --target wasm-gc",
   "status": "fixed",
   "notes": "",
-  "evidence": "rc1; Cannot use @lib / package not imported, no Unresolved_type_variable ICE"
+  "evidence": "rc1; Cannot use @lib / package not imported, no Unresolved_type_variable ICE",
+  "bug_symptom": "issue says derive(Default) with unresolved @lib field triggers Unresolved_type_variable ICE",
+  "pin_observed": "rc 1, Cannot use @lib: package lib is not imported; no Unresolved_type_variable",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "Cannot use `@lib`"
+  }
 }

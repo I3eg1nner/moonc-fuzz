@@ -6,11 +6,15 @@
   "closedAt": "2024-09-23T01:53:52Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/197",
   "category": "formatter",
-  "expected": "缩进注释被移入 impl，期望移到下一个 impl 前",
-  "actual": "comment position preserved at top level",
   "backends": "all",
-  "command": "moonfmt main.mbt -o f.mbt; moonfmt f.mbt -o f2.mbt",
+  "command": "moonfmt main.mbt -o f.mbt; moonfmt f.mbt -o f2.mbt; cmp -s f.mbt f2.mbt; echo idem=$?; moonc syncheck f.mbt",
   "status": "fixed",
   "notes": "",
-  "evidence": "fmt rc0, second fmt identical (idem=0), reparse rc0; comment moved to top level before Bool impl"
+  "evidence": "fmt rc0, second fmt identical (idem=0), reparse rc0; comment moved to top level before Bool impl",
+  "bug_symptom": "issue says indented comment is moved into the wrong impl body",
+  "pin_observed": "fmt twice byte-identical, reparse rc0; comment sits at top level before the Bool impl",
+  "assertion": {
+    "kind": "formatter_idempotent_reparse",
+    "value": true
+  }
 }

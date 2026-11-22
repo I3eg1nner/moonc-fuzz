@@ -17,6 +17,7 @@
 |---|---|---|---|
 | 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
 | 13 个回归 case（F1–F6 家族 12 个 + P1；F7–F12 另有专项门禁） | `p0_evidence.md`, `f8f9_trigger_surface.md`, `defect_inventory.md` | `poc/`, `cmd/regress` | `regressions_13`, `f7_boundary`, `reduce_witness`, `lsp_regress_6` |
+| 26 条 issue 派生 oracle（A/B） | `issue_oracle_a_b.md`, `issue_oracle_c.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress` |
 | semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
 | triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
 | formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
@@ -86,9 +87,9 @@ moon version --all            # 期望包含 0.1.20261104 / 0.10.20+65efd5b93
 cd moonbit
 moon test --target native     # 期望 Total tests: 385, passed: 385, failed: 0
 
-# 完整验收（24 门）
+# 完整验收（25 门）
 ./_build/native/debug/build/cmd/accept/accept.exe /data/audit/mbtfuzz
-# 期望 {"ok":true,"checks":[...24...]}
+# 期望 {"ok":true,"checks":[...25...]}
 
 # 短 campaign（示例）
 ./_build/native/debug/build/cmd/fuzz/fuzz.exe --root /data/audit/mbtfuzz \
@@ -126,6 +127,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 - 不要声称 async 时序、异常 Display 已比较。
 - 不要声称 cgroup 聚合资源已实测。
 - 不要发上游 issue/评论；不要改 pin。
+- 不要声称主分支完全没有 `.py`：有 20 个已跟踪例外（15 vendored、3 PoC replay、2 scratch probe），MoonBit/accept 路径没有；见 `python_inventory.md`。
 
 ## 8. 最终检查
 
@@ -134,7 +136,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 
 ```
 moon test   385 / 385（Total tests: 385, passed: 385, failed: 0）
-accept      24 / 24（ok=true, checks=24, 无失败）
+accept      25 / 25（ok=true, checks=25, 无失败）
 git         已提交并推送，worktree clean
 pin         未改动
 ```

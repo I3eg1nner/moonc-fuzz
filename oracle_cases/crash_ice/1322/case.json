@@ -6,11 +6,16 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1322",
   "category": "crash_ice",
-  "expected": "native debug #valtype 数组 push 触发 lower_array_make",
-  "actual": "rc 1 ICE",
   "backends": "native",
   "command": "moon run repro.mbt --target native",
   "status": "reproduced",
   "notes": "",
-  "evidence": "rc 1; lower_array_make; uninitialized non-null GC ref arrays are not lowered"
+  "evidence": "rc 1; lower_array_make; uninitialized non-null GC ref arrays are not lowered",
+  "bug_symptom": "native debug Array::push of #valtype record with enum hits lower_array_make",
+  "pin_observed": "same: rc 1, lower_array_make",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "lower_array_make"
+  }
 }

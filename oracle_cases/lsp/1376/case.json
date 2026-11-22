@@ -6,11 +6,15 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1376",
   "category": "lsp",
-  "expected": "解码异常逃出 LSP read，后续请求不被读取（F11/F12）",
-  "actual": "no response, 0% CPU, alive",
   "backends": "lsp",
   "command": "python3 \"$ROOT/poc/f12_lsp_frame_wedge/replay.py\" array",
   "status": "reproduced",
   "notes": "",
-  "evidence": "WEDGED; id2/id3 unanswered; stderr Internal error"
+  "evidence": "WEDGED; id2/id3 unanswered; stderr Internal error",
+  "bug_symptom": "one malformed frame wedges the LSP input loop; later complete requests unanswered",
+  "pin_observed": "same: WEDGED, id2/id3 unanswered, stderr Internal error",
+  "assertion": {
+    "kind": "stdout_contains",
+    "contains": "WEDGED"
+  }
 }

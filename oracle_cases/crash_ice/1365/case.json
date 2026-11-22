@@ -6,11 +6,16 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1365",
   "category": "crash_ice",
-  "expected": "字符串转义 `\\` + 非 Latin-1 触发 Invalid_argument(\"Char.chr\")",
-  "actual": "rc 199 ICE",
   "backends": "wasm",
   "command": "moon check",
   "status": "reproduced",
   "notes": "",
-  "evidence": "rc 1; Error: Invalid_argument(\"Char.chr\")"
+  "evidence": "rc 1; Error: Invalid_argument(\"Char.chr\")",
+  "bug_symptom": "moon check exits 1 with ICE Invalid_argument(\"Char.chr\")",
+  "pin_observed": "same: rc 1, Invalid_argument(\"Char.chr\")",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "Invalid_argument(\"Char.chr\")"
+  }
 }

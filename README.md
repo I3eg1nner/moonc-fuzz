@@ -76,7 +76,7 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ./examples/trace2funcs.sh
 ```
 
-`cmd/accept` 依次检查（24 项）：工具链 pin、`moon build`、`moon test`、
+`cmd/accept` 依次检查（25 项）：工具链 pin、`moon build`、`moon test`、
 `moon check`、13 个缺陷回归 case（F1–F6 家族 + P1）、6 例 LSP 回归
 （3 缺陷 + 3 控制）、LSP 负样本
 （3 会话 × 7 请求，且探针必须能看见 F11 触发）、oracle 灵敏度、真实编译
@@ -288,8 +288,8 @@ moon run cmd/lspregress
 上跑两个 job：`latest-canary` 用上游最新的工具链跑
 `moon check`/`build`/`test`/`fmt --check` 和最小示例；`pinned-evidence`
 下载 v0.1.0 的冻结工具链、校验 sha256，然后跑 `accept --profile core`
-的 21 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 个回归 case（F1–F6 家族 12 个 + P1；含 F3 的第二 witness）；
-`cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
+的 22 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 个回归 case（F1–F6 家族 12 个 + P1；含 F3 的第二 witness）；
+`cmd/accept` 是迁移验收门禁。MoonBit 实现与 accept 路径不含 `.py`；仓库仍有 20 个已跟踪 `.py`，仅限 vendored/复现/PoC 脚本，清单见 `findings/python_inventory.md`；新门禁/harness 不再新增 `.py`。独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。
 
@@ -351,7 +351,7 @@ cd moonbit && moon build --target native
 ./_build/native/debug/build/cmd/accept/accept.exe "$PWD/.." --profile core
 ```
 
-`--profile core` 跑 24 项中的 21 项，跳过需要 `afl-qemu-trace` 与 `moonc`
+`--profile core` 跑 25 项中的 22 项，跳过需要 `afl-qemu-trace` 与 `moonc`
 符号表的三项 trace 检查；JSON 的 `skipped` 会列出它们。公开 CI 的
 `pinned-evidence` job 走的就是这条路径，`latest-canary` job 继续盯前向兼容。
 
@@ -419,6 +419,9 @@ moon test --target native
 |---|---|
 | `findings/defect_inventory.md` | 全部缺陷的根因归类、2026-11-22 逐项复核与记录修正 |
 | `findings/issue_oracle_a_b.md` | 历史 issue 采集/归一/复现：561→292→172→26，11 reproduced / 10 fixed |
+| `findings/issue_oracle_c.md` | L1 100%、L2 3/11、fixed 门禁、172 triage、.py 例外 |
+| `findings/python_inventory.md` | 20 个已跟踪 .py 的分类与更正后的不变量 |
+| `issues/triage_172.md` | 172 条粗筛 keep/drop 理由 |
 | `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |
 | `findings/fmt_nested_minus.md` | F13 候选：`moonfmt` 嵌套一元负号生成越界字面量 |
 | `findings/float32_nan_pilot.md` | Float32/qNaN 位型 pilot：API 更正、437 checks/后端、0 candidate、JS sNaN allowed |

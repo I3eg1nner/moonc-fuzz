@@ -6,11 +6,16 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1364",
   "category": "crash_ice",
-  "expected": ".mbt.md 非法 UTF-8 触发 Basic_utf8_decode.MalFormed",
-  "actual": "rc 199 ICE",
   "backends": "all",
   "command": "moonc syncheck doc.mbt.md",
   "status": "reproduced",
   "notes": "",
-  "evidence": "rc 199; Error: Moonc.Basic_utf8_decode.MalFormed"
+  "evidence": "rc 199; Error: Moonc.Basic_utf8_decode.MalFormed",
+  "bug_symptom": "moonc syncheck doc.mbt.md exits 199 with Basic_utf8_decode.MalFormed",
+  "pin_observed": "same: rc 199, Basic_utf8_decode.MalFormed",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 199,
+    "contains": "Basic_utf8_decode.MalFormed"
+  }
 }

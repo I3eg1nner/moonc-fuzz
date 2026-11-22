@@ -6,11 +6,16 @@
   "closedAt": "2026-06-24T04:44:31Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/968",
   "category": "typecheck",
-  "expected": "UInt 大整数字面量未正确报越界",
-  "actual": "E4095 expected",
   "backends": "all",
-  "command": "moon test main.mbtx --target wasm-gc",
+  "command": "moon test main.mbt --target wasm-gc",
   "status": "fixed",
   "notes": "",
-  "evidence": "rc1; E4095 Integer literal 12345678912 is out of range (correct diagnostic)"
+  "evidence": "rc1; E4095 Integer literal 12345678912 is out of range (correct diagnostic)",
+  "bug_symptom": "issue says UInt literal 12345678912 is accepted/silently wrong instead of out-of-range",
+  "pin_observed": "rc 1, E4095 Integer literal 12345678912 is out of range",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "Integer literal 12345678912 is out of range"
+  }
 }

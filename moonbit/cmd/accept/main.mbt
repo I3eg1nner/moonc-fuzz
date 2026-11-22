@@ -185,6 +185,37 @@ async fn main {
   }
   results.push(check("regressions_13", reg_ok, reg_detail))
 
+  // 2a. Issue-derived oracle gate (L1).  The normal run must pass; a tampered
+  // assertion must fail.  This is the positive control for `issuecheck`.
+  let ic = @exec.run(
+    "bash",
+    [join(root, "scripts/issuecheck.sh"), root,
+     "/tmp/mbtfuzz_accept_issuecheck_" + tag + ".jsonl",
+     "/tmp/mbtfuzz_accept_issuecheck_" + tag + ".json"],
+    root,
+    180000,
+  )
+  let ic_sum = read_text("/tmp/mbtfuzz_accept_issuecheck_" + tag + ".json")
+  let ict = @exec.run(
+    "bash",
+    [join(root, "scripts/issuecheck.sh"), root,
+     "/tmp/mbtfuzz_accept_issuecheck_tamper_" + tag + ".jsonl",
+     "/tmp/mbtfuzz_accept_issuecheck_tamper_" + tag + ".json",
+     "--tamper"],
+    root,
+    180000,
+  )
+  let issue_ok = ic.rc == 0 && ic_sum.contains("\"sensitivity\": 1") &&
+    ict.rc != 0
+  results.push(
+    check(
+      "issue_regress",
+      issue_ok,
+      "normal_rc=" + ic.rc.to_string() + " tamper_rc=" +
+      ict.rc.to_string() + " " + ic_sum.trim().to_owned(),
+    ),
+  )
+
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
   // rather than quietly changing `regressions_13`.  Six serial cases with one

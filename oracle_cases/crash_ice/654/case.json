@@ -6,11 +6,16 @@
   "closedAt": "2025-05-15T10:07:03Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/654",
   "category": "crash_ice",
-  "expected": "&Eq trait object 类型定义触发 ICE",
-  "actual": "clean diagnostic expected",
   "backends": "wasm-gc",
   "command": "moon run main.mbt --target wasm-gc",
   "status": "fixed",
   "notes": "",
-  "evidence": "rc1; [4038] Trait object for Eq is not allowed, clean diagnostic"
+  "evidence": "rc1; [4038] Trait object for Eq is not allowed, clean diagnostic",
+  "bug_symptom": "issue says struct field &Eq triggers assertion-failed ICE",
+  "pin_observed": "rc 1, [4038] Trait object for Eq is not allowed",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "[4038]"
+  }
 }

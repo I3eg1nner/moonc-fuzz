@@ -1,12 +1,12 @@
 {
   "issue": 968,
   "category": "typecheck",
-  "command": "moon test main.mbtx --target wasm-gc",
+  "command": "moon test main.mbt --target wasm-gc",
   "rc": 1,
   "timed_out": false,
   "ms": 76,
   "stdout_tail": "",
-  "stderr_tail": "   │\n 6 │   let data : UInt = 12345678912\n   │                     ─────┬─────  \n   │                          ╰─────── Integer literal 12345678912 is out of range.\n───╯\nWarning: [0020]\n    ╭─[ /data/audit/mbtfuzz/oracle_cases/typecheck/968/main.mbtx:11:21 ]\n    │\n 11 │   let data : UInt = @uint.max_value\n    │                     ───────┬───────  \n    │                            ╰───────── Warning (deprecated): Use `MAX_VALUE` instead\n────╯",
+  "stderr_tail": "Warning: Standalone `.mbt` files are deprecated. Use `.mbtx` for scripts and declare imports in front matter.\nError: [4095]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/typecheck/968/main.mbt:2:21 ]\n   │\n 2 │   let data : UInt = 12345678912\n   │                     ─────┬─────  \n   │                          ╰─────── Integer literal 12345678912 is out of range.\n───╯",
   "status": "fixed",
   "evidence": "rc1; E4095 Integer literal 12345678912 is out of range (correct diagnostic)"
 }

@@ -6,11 +6,15 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1372",
   "category": "lsp",
-  "expected": "format-nth 末块无换行时 100% CPU 挂死",
-  "actual": "no response, 100% CPU",
   "backends": "lsp",
   "command": "python3 \"$ROOT/poc/f10_lsp_format_nth_hang/replay.py\" hang.json",
   "status": "reproduced",
   "notes": "",
-  "evidence": "HUNG (no response in 10s); init ok"
+  "evidence": "HUNG (no response in 10s); init ok",
+  "bug_symptom": "format-nth on a final block without trailing newline never responds; server at ~100% CPU",
+  "pin_observed": "same: HUNG, no response in 10 s, init ok",
+  "assertion": {
+    "kind": "stdout_contains",
+    "contains": "HUNG"
+  }
 }

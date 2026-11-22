@@ -6,11 +6,16 @@
   "closedAt": "2025-10-14T01:33:32Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1006",
   "category": "miscompile",
-  "expected": "模式 [.., ch] 绑定错了字符",
-  "actual": "ch should be c",
   "backends": "all",
   "command": "moon test main.mbt --target wasm-gc",
   "status": "fixed",
   "notes": "",
-  "evidence": "moon test rc0; Total tests 1 passed 1 failed 0"
+  "evidence": "moon test rc0; Total tests 1 passed 1 failed 0",
+  "bug_symptom": "issue says [.., ch] binds the first char; test fails 'a' != 'c'",
+  "pin_observed": "moon test passes: Total tests 1, passed 1, failed 0",
+  "assertion": {
+    "kind": "test_summary",
+    "passed": 1,
+    "failed": 0
+  }
 }

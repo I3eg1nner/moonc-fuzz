@@ -54,7 +54,7 @@ repro 文件；不搬运完整 issue 正文。索引：`issues/curated.json`。
 | 654 | closed | crash_ice | **fixed** | rc 1; `[4038] Trait object for Eq is not allowed` |
 | 596 | closed | crash_ice | **fixed** | rc 1; `Cannot use @lib`（无 `Unresolved_type_variable`） |
 | 573 | closed | crash_ice | **fixed** | rc 1; `[0044] invalid_inline_wasm`（无 `Key_not_found`） |
-| 1328 | open | miscompile | **fixed** | `wasm-gc` rc 0；`(nz+0.0)` bits = `0`，不再是 `8000000000000000` |
+| 1328 | open | miscompile | **fixed** | `wasm-gc` rc 0；stdout lines 5/6/7 = `0 / 0 / 8000000000000000`；assertion：stdout line 2（source line 6，`nz + 0.0`）== `0` |
 | 1326 | open | miscompile | **fixed** | `native --release` rc 0；`80000001 / 2147483649 / 40000000` |
 | 1006 | closed | miscompile | **fixed** | `moon test` rc 0；1 passed / 0 failed |
 | 448 | closed | miscompile | **unclear** | rc 255 `not in a Moon project`；缺包 + C stub，无法判定 |

@@ -6,11 +6,16 @@
   "closedAt": "2025-07-03T07:45:54Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/861",
   "category": "crash_ice",
-  "expected": ".mbt 非法 UTF-8 触发 Basic_utf8.MalFormed",
-  "actual": "E3001 expected, no ICE",
   "backends": "wasm-gc",
   "command": "moon run main.mbt --target wasm-gc",
   "status": "fixed",
   "notes": "",
-  "evidence": "rc1; [3001] invalid UTF-8 streams, no Basic_utf8.MalFormed ICE"
+  "evidence": "rc1; [3001] invalid UTF-8 streams, no Basic_utf8.MalFormed ICE",
+  "bug_symptom": "issue says malformed .mbt reaches Basic_utf8.MalFormed ICE",
+  "pin_observed": "rc 1, [3001] invalid UTF-8 streams; no MalFormed exception",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "[3001]"
+  }
 }

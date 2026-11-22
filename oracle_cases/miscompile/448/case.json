@@ -6,11 +6,15 @@
   "closedAt": "2025-02-11T03:36:32Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/448",
   "category": "miscompile",
-  "expected": "ExternRef 数组 native codegen 用 int32 分配",
-  "actual": "int64/pointer array expected",
   "backends": "native",
   "command": "moon build --target native (needs C stub)",
   "status": "unclear",
   "notes": "",
-  "evidence": "rc255 not in a Moon project; case needs a package + C stub not supplied"
+  "evidence": "rc255 not in a Moon project; case needs a package + C stub not supplied",
+  "bug_symptom": "issue says native ExternRef array is allocated with int32 instead of pointer/int64 width",
+  "pin_observed": "not run: no Moon project / C stub supplied",
+  "assertion": {
+    "kind": "skip",
+    "reason": "unclear: needs package + C stub"
+  }
 }

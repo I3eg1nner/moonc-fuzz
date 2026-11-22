@@ -6,11 +6,16 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1344",
   "category": "crash_ice",
-  "expected": "native debug extern C V128 参数触发 finish_stub_wrapper_shell",
-  "actual": "rc 1 ICE",
   "backends": "native",
   "command": "moon test --target native",
   "status": "reproduced",
   "notes": "",
-  "evidence": "rc 1; finish_stub_wrapper_shell; aggregate stub wrapper arguments are not lowered"
+  "evidence": "rc 1; finish_stub_wrapper_shell; aggregate stub wrapper arguments are not lowered",
+  "bug_symptom": "native debug test link hits finish_stub_wrapper_shell for a V128 stub parameter",
+  "pin_observed": "same: rc 1, finish_stub_wrapper_shell",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "finish_stub_wrapper_shell"
+  }
 }

@@ -6,7 +6,7 @@
   "timed_out": false,
   "ms": 127,
   "stdout_tail": "0\n0\n8000000000000000",
-  "stderr_tail": "\n----\nimport {\n  \"path/to/package1\",\n  \"path/to/package2\",\n}\n----\n\nfn main {\n  ...\n}\n───╯",
+  "stderr_tail": "",
   "status": "fixed",
-  "evidence": "wasm-gc rc0; (nz+0.0) bits = 0, expected +0; no longer 8000000000000000"
+  "evidence": "wasm-gc rc0; stdout lines 5/6/7 = 0 / 0 / 8000000000000000; assertion: line 6 == 0"
 }

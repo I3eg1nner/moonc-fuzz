@@ -6,11 +6,15 @@
   "closedAt": "2025-07-22T02:14:30Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/860",
   "category": "miscompile",
-  "expected": "WASM type error while frontend accepts",
-  "actual": "wasm validation error",
   "backends": "wasm-gc",
   "command": "moon run (needs @utils.List)",
   "status": "unclear",
   "notes": "",
-  "evidence": "rc1 Cannot use @utils: package utils is not imported; full List package not included"
+  "evidence": "rc1 Cannot use @utils: package utils is not imported; full List package not included",
+  "bug_symptom": "issue says frontend accepts code whose wasm fails validation",
+  "pin_observed": "not run: @utils.List package not supplied",
+  "assertion": {
+    "kind": "skip",
+    "reason": "unclear: needs @utils.List package"
+  }
 }

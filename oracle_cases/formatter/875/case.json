@@ -6,11 +6,15 @@
   "closedAt": "2026-06-24T04:43:20Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/875",
   "category": "formatter",
-  "expected": "类型名 Option 被 moonfmt 改成 Int?，重解析失败",
-  "actual": "keep Option[Int]",
   "backends": "all",
   "command": "moonfmt main.mbt -o f.mbt; moonc syncheck f.mbt",
   "status": "not_reproducible",
   "notes": "",
-  "evidence": "source now rejected: [E4003] \"Option\" is a reserved type name; cannot reconstruct valid original"
+  "evidence": "source now rejected: [E4003] \"Option\" is a reserved type name; cannot reconstruct valid original",
+  "bug_symptom": "issue says enum Option formatting changes Option[Int] to Int? and fails",
+  "pin_observed": "source is now rejected by [E4003] reserved type name; original valid precondition unavailable",
+  "assertion": {
+    "kind": "skip",
+    "reason": "not_reproducible: Option is a reserved type name"
+  }
 }

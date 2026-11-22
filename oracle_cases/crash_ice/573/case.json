@@ -6,11 +6,16 @@
   "closedAt": "2025-04-29T00:28:16Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/573",
   "category": "crash_ice",
-  "expected": "无 extern 的 intrinsic 字符串触发 Key_not_found ICE",
-  "actual": "clean error expected",
   "backends": "wasm-gc",
   "command": "moon test main.mbt --target wasm-gc",
   "status": "fixed",
   "notes": "",
-  "evidence": "rc1; [0044] invalid_inline_wasm, no Key_not_found ICE"
+  "evidence": "rc1; [0044] invalid_inline_wasm, no Key_not_found ICE",
+  "bug_symptom": "issue says intrinsic string without extern triggers Key_not_found ICE",
+  "pin_observed": "rc 1, [0044] invalid_inline_wasm; no Key_not_found",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "[0044]"
+  }
 }

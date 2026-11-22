@@ -6,11 +6,16 @@
   "closedAt": "2023-09-14T07:34:34Z",
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/68",
   "category": "formatter",
-  "expected": "旧语法 func 的长表达式格式化后不可解析",
-  "actual": "format then reparse",
   "backends": "all",
   "command": "moonfmt main.mbt -o f.mbt",
   "status": "needs_old_toolchain",
   "notes": "",
-  "evidence": "rc2 E3002 on func/init; source uses 2023 syntax"
+  "evidence": "rc2 E3002 on func/init; source uses 2023 syntax",
+  "bug_symptom": "issue says 2023 func long-expression formatting breaks parse",
+  "pin_observed": "parse rc2 E3002 on current pin (old syntax not accepted)",
+  "assertion": {
+    "kind": "parse_rc",
+    "value": 2,
+    "contains": "E3002"
+  }
 }

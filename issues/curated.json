@@ -8,7 +8,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1364",
     "command": "moonc syncheck doc.mbt.md",
     "rc": 199,
-    "evidence": "rc 199; Error: Moonc.Basic_utf8_decode.MalFormed"
+    "evidence": "rc 199; Error: Moonc.Basic_utf8_decode.MalFormed",
+    "bug_symptom": "moonc syncheck doc.mbt.md exits 199 with Basic_utf8_decode.MalFormed",
+    "pin_observed": "same: rc 199, Basic_utf8_decode.MalFormed",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 199,
+      "contains": "Basic_utf8_decode.MalFormed"
+    },
+    "dir": "oracle_cases/crash_ice/1364"
   },
   {
     "issue": 1365,
@@ -19,7 +27,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1365",
     "command": "moon check",
     "rc": 1,
-    "evidence": "rc 1; Error: Invalid_argument(\"Char.chr\")"
+    "evidence": "rc 1; Error: Invalid_argument(\"Char.chr\")",
+    "bug_symptom": "moon check exits 1 with ICE Invalid_argument(\"Char.chr\")",
+    "pin_observed": "same: rc 1, Invalid_argument(\"Char.chr\")",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "Invalid_argument(\"Char.chr\")"
+    },
+    "dir": "oracle_cases/crash_ice/1365"
   },
   {
     "issue": 1366,
@@ -30,7 +46,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1366",
     "command": "prlimit --as=6442450944 -- moonc syncheck main.mbt",
     "rc": -6,
-    "evidence": "rc -6 (SIGABRT); Fatal error: out of memory"
+    "evidence": "rc -6 (SIGABRT); Fatal error: out of memory",
+    "bug_symptom": "moonc syncheck main.mbt grows memory and aborts under 6 GiB address-space cap",
+    "pin_observed": "same: signal/abort, Fatal error: out of memory",
+    "assertion": {
+      "kind": "signal_and_stderr",
+      "signal": 6,
+      "contains": "out of memory"
+    },
+    "dir": "oracle_cases/crash_ice/1366"
   },
   {
     "issue": 1367,
@@ -41,7 +65,14 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1367",
     "command": "moonc syncheck moon.pkg",
     "rc": -11,
-    "evidence": "rc -11 (SIGSEGV); no output"
+    "evidence": "rc -11 (SIGSEGV); no output",
+    "bug_symptom": "moonc syncheck moon.pkg gets SIGSEGV, shell rc 139",
+    "pin_observed": "same: SIGSEGV, shell rc 139",
+    "assertion": {
+      "kind": "signal",
+      "signal": 11
+    },
+    "dir": "oracle_cases/crash_ice/1367"
   },
   {
     "issue": 1368,
@@ -52,7 +83,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1368",
     "command": "moon build --target native",
     "rc": 255,
-    "evidence": "rc 255; reject_export_type_containing_unsupported_callback"
+    "evidence": "rc 255; reject_export_type_containing_unsupported_callback",
+    "bug_symptom": "moon build --target native exits 255 with reject_export_type_containing_unsupported_callback",
+    "pin_observed": "same: rc 255, reject_export_type_containing_unsupported_callback",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 255,
+      "contains": "reject_export_type_containing_unsupported_callback"
+    },
+    "dir": "oracle_cases/crash_ice/1368"
   },
   {
     "issue": 1340,
@@ -63,7 +102,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1340",
     "command": "moon test --target js",
     "rc": 1,
-    "evidence": "rc 1; File \"moonc.ml\", line 125623: Assertion failed"
+    "evidence": "rc 1; File \"moonc.ml\", line 125623: Assertion failed",
+    "bug_symptom": "async raise? callback after suspension makes link-core fail with moonc.ml:125623 Assertion failed",
+    "pin_observed": "same: rc 1, moonc.ml:125623 Assertion failed",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "line 125623"
+    },
+    "dir": "oracle_cases/crash_ice/1340"
   },
   {
     "issue": 1344,
@@ -74,7 +121,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1344",
     "command": "moon test --target native",
     "rc": 1,
-    "evidence": "rc 1; finish_stub_wrapper_shell; aggregate stub wrapper arguments are not lowered"
+    "evidence": "rc 1; finish_stub_wrapper_shell; aggregate stub wrapper arguments are not lowered",
+    "bug_symptom": "native debug test link hits finish_stub_wrapper_shell for a V128 stub parameter",
+    "pin_observed": "same: rc 1, finish_stub_wrapper_shell",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "finish_stub_wrapper_shell"
+    },
+    "dir": "oracle_cases/crash_ice/1344"
   },
   {
     "issue": 1322,
@@ -85,7 +140,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1322",
     "command": "moon run repro.mbt --target native",
     "rc": 1,
-    "evidence": "rc 1; lower_array_make; uninitialized non-null GC ref arrays are not lowered"
+    "evidence": "rc 1; lower_array_make; uninitialized non-null GC ref arrays are not lowered",
+    "bug_symptom": "native debug Array::push of #valtype record with enum hits lower_array_make",
+    "pin_observed": "same: rc 1, lower_array_make",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "lower_array_make"
+    },
+    "dir": "oracle_cases/crash_ice/1322"
   },
   {
     "issue": 861,
@@ -96,7 +159,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/861",
     "command": "moon run main.mbt --target wasm-gc",
     "rc": 1,
-    "evidence": "rc1; [3001] invalid UTF-8 streams, no Basic_utf8.MalFormed ICE"
+    "evidence": "rc1; [3001] invalid UTF-8 streams, no Basic_utf8.MalFormed ICE",
+    "bug_symptom": "issue says malformed .mbt reaches Basic_utf8.MalFormed ICE",
+    "pin_observed": "rc 1, [3001] invalid UTF-8 streams; no MalFormed exception",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "[3001]"
+    },
+    "dir": "oracle_cases/crash_ice/861"
   },
   {
     "issue": 654,
@@ -107,7 +178,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/654",
     "command": "moon run main.mbt --target wasm-gc",
     "rc": 1,
-    "evidence": "rc1; [4038] Trait object for Eq is not allowed, clean diagnostic"
+    "evidence": "rc1; [4038] Trait object for Eq is not allowed, clean diagnostic",
+    "bug_symptom": "issue says struct field &Eq triggers assertion-failed ICE",
+    "pin_observed": "rc 1, [4038] Trait object for Eq is not allowed",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "[4038]"
+    },
+    "dir": "oracle_cases/crash_ice/654"
   },
   {
     "issue": 596,
@@ -118,7 +197,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/596",
     "command": "moon run main.mbt --target wasm-gc",
     "rc": 1,
-    "evidence": "rc1; Cannot use @lib / package not imported, no Unresolved_type_variable ICE"
+    "evidence": "rc1; Cannot use @lib / package not imported, no Unresolved_type_variable ICE",
+    "bug_symptom": "issue says derive(Default) with unresolved @lib field triggers Unresolved_type_variable ICE",
+    "pin_observed": "rc 1, Cannot use @lib: package lib is not imported; no Unresolved_type_variable",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "Cannot use `@lib`"
+    },
+    "dir": "oracle_cases/crash_ice/596"
   },
   {
     "issue": 573,
@@ -129,7 +216,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/573",
     "command": "moon test main.mbt --target wasm-gc",
     "rc": 1,
-    "evidence": "rc1; [0044] invalid_inline_wasm, no Key_not_found ICE"
+    "evidence": "rc1; [0044] invalid_inline_wasm, no Key_not_found ICE",
+    "bug_symptom": "issue says intrinsic string without extern triggers Key_not_found ICE",
+    "pin_observed": "rc 1, [0044] invalid_inline_wasm; no Key_not_found",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "[0044]"
+    },
+    "dir": "oracle_cases/crash_ice/573"
   },
   {
     "issue": 1369,
@@ -140,7 +235,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1369",
     "command": "moonfmt u.mbt -o f.mbt; moonc syncheck f.mbt",
     "rc": 2,
-    "evidence": "fmt rc0 -> f.mbt; reparse rc2 E3001 unrecognized \"~\""
+    "evidence": "fmt rc0 -> f.mbt; reparse rc2 E3001 unrecognized \"~\"",
+    "bug_symptom": "moonfmt turns unary + into ~+; reparse fails E3001",
+    "pin_observed": "same: fmt rc0, reparse rc2 E3001",
+    "assertion": {
+      "kind": "formatter_reparse",
+      "rc": 2,
+      "contains": "E3001"
+    },
+    "dir": "oracle_cases/formatter/1369"
   },
   {
     "issue": 197,
@@ -149,9 +252,16 @@
     "category": "formatter",
     "status": "fixed",
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/197",
-    "command": "moonfmt main.mbt -o f.mbt; moonfmt f.mbt -o f2.mbt",
+    "command": "moonfmt main.mbt -o f.mbt; moonfmt f.mbt -o f2.mbt; cmp -s f.mbt f2.mbt; echo idem=$?; moonc syncheck f.mbt",
     "rc": 0,
-    "evidence": "fmt rc0, second fmt identical (idem=0), reparse rc0; comment moved to top level before Bool impl"
+    "evidence": "fmt rc0, second fmt identical (idem=0), reparse rc0; comment moved to top level before Bool impl",
+    "bug_symptom": "issue says indented comment is moved into the wrong impl body",
+    "pin_observed": "fmt twice byte-identical, reparse rc0; comment sits at top level before the Bool impl",
+    "assertion": {
+      "kind": "formatter_idempotent_reparse",
+      "value": true
+    },
+    "dir": "oracle_cases/formatter/197"
   },
   {
     "issue": 68,
@@ -162,7 +272,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/68",
     "command": "moonfmt main.mbt -o f.mbt",
     "rc": 2,
-    "evidence": "rc2 E3002 on func/init; source uses 2023 syntax"
+    "evidence": "rc2 E3002 on func/init; source uses 2023 syntax",
+    "bug_symptom": "issue says 2023 func long-expression formatting breaks parse",
+    "pin_observed": "parse rc2 E3002 on current pin (old syntax not accepted)",
+    "assertion": {
+      "kind": "parse_rc",
+      "value": 2,
+      "contains": "E3002"
+    },
+    "dir": "oracle_cases/formatter/68"
   },
   {
     "issue": 45,
@@ -173,7 +291,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/45",
     "command": "moonfmt main.mbt -o f.mbt",
     "rc": 2,
-    "evidence": "rc2 E3002 on func and struct destructuring; 2023 syntax"
+    "evidence": "rc2 E3002 on func and struct destructuring; 2023 syntax",
+    "bug_symptom": "issue says 2023 func struct-destructuring formatting breaks parse",
+    "pin_observed": "parse rc2 E3002 on current pin (old syntax not accepted)",
+    "assertion": {
+      "kind": "parse_rc",
+      "value": 2,
+      "contains": "E3002"
+    },
+    "dir": "oracle_cases/formatter/45"
   },
   {
     "issue": 875,
@@ -184,7 +310,14 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/875",
     "command": "moonfmt main.mbt -o f.mbt; moonc syncheck f.mbt",
     "rc": 2,
-    "evidence": "source now rejected: [E4003] \"Option\" is a reserved type name; cannot reconstruct valid original"
+    "evidence": "source now rejected: [E4003] \"Option\" is a reserved type name; cannot reconstruct valid original",
+    "bug_symptom": "issue says enum Option formatting changes Option[Int] to Int? and fails",
+    "pin_observed": "source is now rejected by [E4003] reserved type name; original valid precondition unavailable",
+    "assertion": {
+      "kind": "skip",
+      "reason": "not_reproducible: Option is a reserved type name"
+    },
+    "dir": "oracle_cases/formatter/875"
   },
   {
     "issue": 1372,
@@ -195,7 +328,14 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1372",
     "command": "python3 \"$ROOT/poc/f10_lsp_format_nth_hang/replay.py\" hang.json",
     "rc": 0,
-    "evidence": "HUNG (no response in 10s); init ok"
+    "evidence": "HUNG (no response in 10s); init ok",
+    "bug_symptom": "format-nth on a final block without trailing newline never responds; server at ~100% CPU",
+    "pin_observed": "same: HUNG, no response in 10 s, init ok",
+    "assertion": {
+      "kind": "stdout_contains",
+      "contains": "HUNG"
+    },
+    "dir": "oracle_cases/lsp/1372"
   },
   {
     "issue": 1376,
@@ -206,7 +346,14 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1376",
     "command": "python3 \"$ROOT/poc/f12_lsp_frame_wedge/replay.py\" array",
     "rc": 0,
-    "evidence": "WEDGED; id2/id3 unanswered; stderr Internal error"
+    "evidence": "WEDGED; id2/id3 unanswered; stderr Internal error",
+    "bug_symptom": "one malformed frame wedges the LSP input loop; later complete requests unanswered",
+    "pin_observed": "same: WEDGED, id2/id3 unanswered, stderr Internal error",
+    "assertion": {
+      "kind": "stdout_contains",
+      "contains": "WEDGED"
+    },
+    "dir": "oracle_cases/lsp/1376"
   },
   {
     "issue": 1328,
@@ -217,7 +364,16 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1328",
     "command": "moon run main.mbtx --target {wasm-gc,js,native} [-r]",
     "rc": 0,
-    "evidence": "wasm-gc rc0; (nz+0.0) bits = 0, expected +0; no longer 8000000000000000"
+    "evidence": "wasm-gc rc0; stdout lines 5/6/7 = 0 / 0 / 8000000000000000; assertion: line 6 == 0",
+    "bug_symptom": "issue says line 6 ((nz + 0.0) bits) was 8000000000000000; expected 0",
+    "pin_observed": "source lines 5/6/7: stdout = 0 / 0 / 8000000000000000; assertion is stdout line 2 (source line 6) == 0",
+    "assertion": {
+      "kind": "stdout_line_exact",
+      "line": 2,
+      "value": "0",
+      "source_line": 6
+    },
+    "dir": "oracle_cases/miscompile/1328"
   },
   {
     "issue": 1326,
@@ -228,7 +384,18 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1326",
     "command": "moon run main.mbt --target native --release",
     "rc": 0,
-    "evidence": "native --release rc0; 80000001 / 2147483649 / 40000000, matching expected"
+    "evidence": "native --release rc0; 80000001 / 2147483649 / 40000000, matching expected",
+    "bug_symptom": "issue says native --release prints ffffffff80000001 / -2147483647 / c0000000 for UInt? payload",
+    "pin_observed": "80000001 / 2147483649 / 40000000 on native --release",
+    "assertion": {
+      "kind": "stdout_lines_exact",
+      "values": [
+        "80000001",
+        "2147483649",
+        "40000000"
+      ]
+    },
+    "dir": "oracle_cases/miscompile/1326"
   },
   {
     "issue": 1006,
@@ -239,7 +406,15 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1006",
     "command": "moon test main.mbt --target wasm-gc",
     "rc": 0,
-    "evidence": "moon test rc0; Total tests 1 passed 1 failed 0"
+    "evidence": "moon test rc0; Total tests 1 passed 1 failed 0",
+    "bug_symptom": "issue says [.., ch] binds the first char; test fails 'a' != 'c'",
+    "pin_observed": "moon test passes: Total tests 1, passed 1, failed 0",
+    "assertion": {
+      "kind": "test_summary",
+      "passed": 1,
+      "failed": 0
+    },
+    "dir": "oracle_cases/miscompile/1006"
   },
   {
     "issue": 448,
@@ -250,7 +425,14 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/448",
     "command": "moon build --target native (needs C stub)",
     "rc": 255,
-    "evidence": "rc255 not in a Moon project; case needs a package + C stub not supplied"
+    "evidence": "rc255 not in a Moon project; case needs a package + C stub not supplied",
+    "bug_symptom": "issue says native ExternRef array is allocated with int32 instead of pointer/int64 width",
+    "pin_observed": "not run: no Moon project / C stub supplied",
+    "assertion": {
+      "kind": "skip",
+      "reason": "unclear: needs package + C stub"
+    },
+    "dir": "oracle_cases/miscompile/448"
   },
   {
     "issue": 860,
@@ -261,7 +443,14 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/860",
     "command": "moon run (needs @utils.List)",
     "rc": 1,
-    "evidence": "rc1 Cannot use @utils: package utils is not imported; full List package not included"
+    "evidence": "rc1 Cannot use @utils: package utils is not imported; full List package not included",
+    "bug_symptom": "issue says frontend accepts code whose wasm fails validation",
+    "pin_observed": "not run: @utils.List package not supplied",
+    "assertion": {
+      "kind": "skip",
+      "reason": "unclear: needs @utils.List package"
+    },
+    "dir": "oracle_cases/miscompile/860"
   },
   {
     "issue": 968,
@@ -270,9 +459,17 @@
     "category": "typecheck",
     "status": "fixed",
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/968",
-    "command": "moon test main.mbtx --target wasm-gc",
+    "command": "moon test main.mbt --target wasm-gc",
     "rc": 1,
-    "evidence": "rc1; E4095 Integer literal 12345678912 is out of range (correct diagnostic)"
+    "evidence": "rc1; E4095 Integer literal 12345678912 is out of range (correct diagnostic)",
+    "bug_symptom": "issue says UInt literal 12345678912 is accepted/silently wrong instead of out-of-range",
+    "pin_observed": "rc 1, E4095 Integer literal 12345678912 is out of range",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "Integer literal 12345678912 is out of range"
+    },
+    "dir": "oracle_cases/typecheck/968"
   },
   {
     "issue": 1155,
@@ -283,6 +480,14 @@
     "url": "https://github.com/moonbitlang/moonbit-docs/issues/1155",
     "command": "moon run main.mbt --target native",
     "rc": 0,
-    "evidence": "native rc0; actual length 268435456; b[0]=42 (no truncation)"
+    "evidence": "native rc0; actual length 268435456; b[0]=42 (no truncation)",
+    "bug_symptom": "issue says native Bytes::make(2^28) truncates length to 0 and aborts",
+    "pin_observed": "native rc 0, requested 268435456, actual length 268435456, b[0]=42",
+    "assertion": {
+      "kind": "stdout_line_exact",
+      "line": 2,
+      "value": "actual length  = 268435456"
+    },
+    "dir": "oracle_cases/runtime/1155"
   }
 ]

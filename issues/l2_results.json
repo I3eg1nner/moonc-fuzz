@@ -1,0 +1,83 @@
+{
+  "budget": "300 executions or 300 s per issue, whichever first",
+  "engine": "cmd/seedfuzz where it accepts the seed; command-level mutation for .mbt.md/.moon.pkg/escape seeds; no LSP mutation harness",
+  "results": {
+    "1364": {
+      "runs": 300,
+      "same_signature_hits": 300,
+      "rediscovered": true,
+      "engine": "custom invalid-UTF8 mutation, original hash excluded",
+      "reason": ""
+    },
+    "1365": {
+      "runs": 270,
+      "same_signature_hits": 150,
+      "rediscovered": true,
+      "engine": "custom escape mutation, original hash excluded",
+      "reason": ""
+    },
+    "1366": {
+      "runs": 0,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "precondition_unavailable: seedfuzz SIGSEGV / no run on OOM seed"
+    },
+    "1367": {
+      "runs": 243,
+      "same_signature_hits": 92,
+      "rediscovered": true,
+      "engine": "custom moon.pkg count/suffix mutation, original hash excluded",
+      "reason": ""
+    },
+    "1368": {
+      "runs": 282,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "precondition_unavailable: mutation grammar did not preserve export-closure package shape"
+    },
+    "1369": {
+      "runs": 296,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "no_predicate: seedfuzz build oracle does not classify formatter reparse; one new unrelated signature"
+    },
+    "1372": {
+      "runs": 1,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "precondition_unavailable: seedfuzz ignores LSP JSON request seeds"
+    },
+    "1376": {
+      "runs": 0,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "precondition_unavailable: seedfuzz ignores LSP framing seed (SIGSEGV)"
+    },
+    "1340": {
+      "runs": 0,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "precondition_unavailable: seedfuzz SIGSEGV on package seed"
+    },
+    "1344": {
+      "runs": 0,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "precondition_unavailable: seedfuzz SIGSEGV on package seed"
+    },
+    "1322": {
+      "runs": 0,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz",
+      "reason": "precondition_unavailable: seedfuzz SIGSEGV on package seed"
+    }
+  }
+}

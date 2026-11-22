@@ -6,11 +6,16 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1155",
   "category": "runtime",
-  "expected": "native 数组长度被截断到 28 bit，>=256MB 崩溃",
-  "actual": "length 268435456",
   "backends": "native",
   "command": "moon run main.mbt --target native",
   "status": "fixed",
   "notes": "",
-  "evidence": "native rc0; actual length 268435456; b[0]=42 (no truncation)"
+  "evidence": "native rc0; actual length 268435456; b[0]=42 (no truncation)",
+  "bug_symptom": "issue says native Bytes::make(2^28) truncates length to 0 and aborts",
+  "pin_observed": "native rc 0, requested 268435456, actual length 268435456, b[0]=42",
+  "assertion": {
+    "kind": "stdout_line_exact",
+    "line": 2,
+    "value": "actual length  = 268435456"
+  }
 }

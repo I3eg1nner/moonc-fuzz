@@ -6,11 +6,19 @@
   "closedAt": null,
   "url": "https://github.com/moonbitlang/moonbit-docs/issues/1326",
   "category": "miscompile",
-  "expected": "UInt? 取出后在 native release 被当 signed",
-  "actual": "80000001 / 2147483649 / 40000000 expected",
   "backends": "native",
   "command": "moon run main.mbt --target native --release",
   "status": "fixed",
   "notes": "",
-  "evidence": "native --release rc0; 80000001 / 2147483649 / 40000000, matching expected"
+  "evidence": "native --release rc0; 80000001 / 2147483649 / 40000000, matching expected",
+  "bug_symptom": "issue says native --release prints ffffffff80000001 / -2147483647 / c0000000 for UInt? payload",
+  "pin_observed": "80000001 / 2147483649 / 40000000 on native --release",
+  "assertion": {
+    "kind": "stdout_lines_exact",
+    "values": [
+      "80000001",
+      "2147483649",
+      "40000000"
+    ]
+  }
 }
