@@ -37,6 +37,9 @@ repro 文件；不搬运完整 issue 正文。索引：`issues/curated.json`。
 
 命令、rc、关键输出片段都在每个用例的 `result.json`；下表是摘要。
 
+注意：这里的 **fixed 指当前 pin 上观察到期望行为**，不等于上游 issue 已关闭；
+#1328、#1326、#1155 在本次复核时仍是 open。
+
 | issue | state | category | 状态 | 关键证据 |
 |---|---|---|---|---|
 | 1364 | open | crash_ice | **reproduced** | rc 199; `Basic_utf8_decode.MalFormed` |
