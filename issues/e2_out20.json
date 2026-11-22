@@ -1,0 +1,162 @@
+[
+  {
+    "issue": 594,
+    "state": "closed",
+    "title": "[ICE] when parsing `fn { => 2 }`",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 681,
+    "state": "closed",
+    "title": "Build LLVM Failed",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1031,
+    "state": "open",
+    "title": "[vscode] Multiple moon.mod.json project broken with select backend",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 540,
+    "state": "closed",
+    "title": "[compiler] warn-list number not match its description",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 862,
+    "state": "closed",
+    "title": "[LSP] Failure to render large chunks of code",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 437,
+    "state": "closed",
+    "title": "error: compile an async fn",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 550,
+    "state": "closed",
+    "title": "[ICE] Compiler error on wasm-gc target but not on native",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1338,
+    "state": "closed",
+    "title": "Native runtime: moonbit_make_ref_valtype_array_raw under-allocates by 4 bytes on 32-bit targets (heap overflow)",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1337,
+    "state": "open",
+    "title": "Native runtime: moonbit_get_ms_since_epoch (`@env.now()`) wraps around on 32-bit targets",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 60,
+    "state": "closed",
+    "title": "Build fails when binding external functions with float return type",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 128,
+    "state": "closed",
+    "title": "`pkg.json` import should change the schema to array",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1345,
+    "state": "open",
+    "title": "JS source map: two source lines mapped to the same generated position, so breakpoints can't be set on the call's line",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1130,
+    "state": "closed",
+    "title": "LSP reports \"Type has no method\" for #cfg-gated FFI functions",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 803,
+    "state": "closed",
+    "title": "[VSCode LSP] Can't complete `raise` keyword in type annotation.",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 687,
+    "state": "closed",
+    "title": "[VSCode LSP] warn-list unavailable in moon.mod.json",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 421,
+    "state": "closed",
+    "title": "error: compile an async fn",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1064,
+    "state": "closed",
+    "title": "moonbit-lsp can't `run` main function  for single main.mbt without `moon.pkg.json`",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 340,
+    "state": "closed",
+    "title": "ICE when having extern function of other targets ",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 878,
+    "state": "closed",
+    "title": "[moon test] define `Bool` type will encounter compile error in native backend",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 914,
+    "state": "closed",
+    "title": "FFI functions returning Int64/UInt64 are not properly converted from JavaScript numbers",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  }
+]

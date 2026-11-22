@@ -1,0 +1,282 @@
+[
+  {
+    "issue": 324,
+    "state": "closed",
+    "title": "文档顺序问题 - 下载界面",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 406,
+    "state": "closed",
+    "title": "doc: rewrite tutorial",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 778,
+    "state": "closed",
+    "title": "[question] What is the release cycle of the different moonbit toolchains for `core`'s CI?",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 218,
+    "state": "closed",
+    "title": "document error handling",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 612,
+    "state": "closed",
+    "title": "compiler doesn't report error when use polymorphic recursion",
+    "verdict": "defect",
+    "reason": "typecheck: polymorphic recursion accepted (old syntax)"
+  },
+  {
+    "issue": 148,
+    "state": "closed",
+    "title": "Dyn trait support inside data structures, like Vectors",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 227,
+    "state": "closed",
+    "title": "missing document for `fn main`",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 1175,
+    "state": "open",
+    "title": "moonc prove: wildcard `_` in #proof_pure match arms generates broken WhyML",
+    "verdict": "defect",
+    "reason": "typecheck/prove: wildcard WhyML arity"
+  },
+  {
+    "issue": 1132,
+    "state": "closed",
+    "title": "文档里MoonBit for Go Programmers的位置太靠前了",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 217,
+    "state": "closed",
+    "title": "document `panic`, `abort` properly",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 607,
+    "state": "closed",
+    "title": "typo: coref Issue on page /example/gmachine/gmachine-2.html",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 1294,
+    "state": "closed",
+    "title": "`#deprecated(skip_current_package=true)` still warns the package's own blackbox tests",
+    "verdict": "defect",
+    "reason": "typecheck/diagnostic: skip_current_package leaks into blackbox tests"
+  },
+  {
+    "issue": 945,
+    "state": "closed",
+    "title": "[moon info] Unexpected empty type param list in generated mbti files",
+    "verdict": "defect",
+    "reason": "tooling: mbti emits fn[]"
+  },
+  {
+    "issue": 551,
+    "state": "closed",
+    "title": "Missing import list in moon.pkg.json without check error when use traitalias",
+    "verdict": "defect",
+    "reason": "typecheck: missing import list not reported"
+  },
+  {
+    "issue": 425,
+    "state": "closed",
+    "title": "Issue on page /toolchain/moon/package.html",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 77,
+    "state": "closed",
+    "title": "开启moon check --watch后，print依然飘红",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 428,
+    "state": "closed",
+    "title": "views (string, array, byte)",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 794,
+    "state": "closed",
+    "title": "[doc] `fnalias` used to create alias for values.",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 213,
+    "state": "closed",
+    "title": "WebAssembly.instantiate(): Import #0 module=\"spectest\": module is not an object or function",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 643,
+    "state": "closed",
+    "title": "guard keyword doesn't support completion, only has snippet in VsCode",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 706,
+    "state": "closed",
+    "title": "[VSCode LSP enhancement] improve integer value of constant enum",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 591,
+    "state": "closed",
+    "title": "Issue on page /language/ffi-and-wasm-host.html#provide-host-functions",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 379,
+    "state": "closed",
+    "title": "doc: error and warning list + explanation",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 750,
+    "state": "closed",
+    "title": "[incosnistent] VSCode Error Message in E0011",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 116,
+    "state": "closed",
+    "title": "It is recommended to provide a binary installation package, rather than installing it online using commands.",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 88,
+    "state": "closed",
+    "title": "Vscode plugin invalid type (?)",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 391,
+    "state": "closed",
+    "title": "doc: regenerate command line helper",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 447,
+    "state": "closed",
+    "title": "Compile Error when enabling `use-js-builtin-string`",
+    "verdict": "defect",
+    "reason": "wasm codegen: use-js-builtin-string compile error"
+  },
+  {
+    "issue": 727,
+    "state": "closed",
+    "title": "[doc syntax trap] `type! E` and `type T`",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 679,
+    "state": "closed",
+    "title": "inconsistent name in moonbit.h in native backend",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 1008,
+    "state": "closed",
+    "title": "Tool chain update error on Win 64",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 1052,
+    "state": "closed",
+    "title": "Proper versioning",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 3,
+    "state": "closed",
+    "title": "Type corresponding the WebAssembly `i64` type",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 390,
+    "state": "closed",
+    "title": "doc: Include a link to the stdlib docs on the homepage",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 630,
+    "state": "closed",
+    "title": "doc: rewrite sudoku part",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 249,
+    "state": "closed",
+    "title": "update the build sys doc w/ default Wasm-gc",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 264,
+    "state": "closed",
+    "title": "换行优化建议",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 805,
+    "state": "closed",
+    "title": "[Question] Why `letrec` syntax doesn't support `function type's newtype`?",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 212,
+    "state": "closed",
+    "title": "中文编程语言为什么代码不能用中文写，看了下还是英文",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  },
+  {
+    "issue": 353,
+    "state": "closed",
+    "title": "`moon new hello` got `Permission denied (os error 13)`",
+    "verdict": "not_defect",
+    "reason": "docs/feature/question/environment; not crash/wrong-code/typecheck/formatter/LSP-hang"
+  }
+]

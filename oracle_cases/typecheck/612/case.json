@@ -1,0 +1,20 @@
+{
+  "issue": 612,
+  "title": "compiler doesn't report error when use polymorphic recursion",
+  "state": "closed",
+  "createdAt": "2025-04-03T08:21:12Z",
+  "closedAt": "2026-06-24T04:42:04Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/612",
+  "category": "typecheck",
+  "status": "needs_old_toolchain",
+  "backends": "all",
+  "command": "moonc syncheck main.mbt",
+  "notes": "",
+  "evidence": "rc2 E3002: old typealias/fn[T] syntax not accepted on pin",
+  "bug_symptom": "issue says polymorphic recursion is accepted without an error",
+  "pin_observed": "current pin rejects the 2025 syntax at parse time",
+  "assertion": {
+    "kind": "skip",
+    "reason": "needs_old_toolchain: 2025 typealias syntax"
+  }
+}

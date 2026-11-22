@@ -1,0 +1,10 @@
+{
+  "issue": 1175,
+  "category": "typecheck",
+  "command": "moon prove (requires Why3 + proof-enabled package)",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "not run",
+  "status": "unclear",
+  "evidence": "blocked_by_deps: Why3/proof package not set up; source preserved"
+}

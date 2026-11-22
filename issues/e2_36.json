@@ -1,0 +1,290 @@
+[
+  {
+    "issue": 1343,
+    "state": "open",
+    "title": "ICE: native debug regalloc 'requires more GPR patch scratch registers' when a call passes 13+ #valtype arguments",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1327,
+    "state": "closed",
+    "title": "ICE: Sys_error \"No such file or directory\" when building with --target llvm (std bundle dir is named `native`, not `llvm`)",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1308,
+    "state": "closed",
+    "title": "ICE: Machine_of_clam_lower.lower_break: \"break value is required for scalar loop\"",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1304,
+    "state": "closed",
+    "title": "ICE: Moonc.Hashed_type.Unresolved_type_variable on malformed lexmatch arms (string-literal patterns in tuple form)",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1291,
+    "state": "closed",
+    "title": "ICE: Ctype.Unify when `extend`ing two trait methods that both conflict with existing regular methods",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1289,
+    "state": "open",
+    "title": "ICE: native test link fails when layout table exceeds 22-bit offset",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1286,
+    "state": "closed",
+    "title": "ICE: `moonc` raise Sys_error(No such file or directory) directly",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1272,
+    "state": "open",
+    "title": "ICE: output_value: integer cannot be read back on 32-bit platform",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1266,
+    "state": "closed",
+    "title": "ICE: moonc crashes when ```argument |> tuple struct constructor```",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1137,
+    "state": "closed",
+    "title": "ICE: Key_not_found in link-core with `try/catch` on non-raising body (debug mode, wasm/wasm-gc/native)",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1134,
+    "state": "closed",
+    "title": "ICE: The latest compiler appears to have internal problems with previous builds",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1133,
+    "state": "closed",
+    "title": "ICE: Key_not_found in link-core when optional Array[T] parameter has no default value (JS target)",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1121,
+    "state": "closed",
+    "title": "ICE: moonc link-core Error: Not_found",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1081,
+    "state": "closed",
+    "title": "ICE: moon coverage analyze cannot find symbols for enum variants with specific patterns",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1072,
+    "state": "closed",
+    "title": "ICE: LLVM build target fail - No llvm release bundle",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1071,
+    "state": "closed",
+    "title": "ICE:  `moon coverage analyze` failed with `AnyType::main() -> NonUnitType`",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1041,
+    "state": "closed",
+    "title": "ICE: Compiler crash on moon build --target js",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1035,
+    "state": "closed",
+    "title": "Error: File \"moonc.ml\", line 206536, characters 34-40: Assertion failed",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 1001,
+    "state": "closed",
+    "title": "ICE: miscompile in wasm-gc",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 996,
+    "state": "closed",
+    "title": "ICE: cast a closure to an empty trait object",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 973,
+    "state": "closed",
+    "title": "ICE:",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 972,
+    "state": "closed",
+    "title": "ICE:",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 970,
+    "state": "closed",
+    "title": "ICE: moon build",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 949,
+    "state": "closed",
+    "title": "ICE: failed when building project",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 925,
+    "state": "closed",
+    "title": "ICE: ^-char in match using regex crashes compiler",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 899,
+    "state": "closed",
+    "title": "ICE: continue with a labelled loop",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 887,
+    "state": "closed",
+    "title": "ICE: moon test trigger ICE",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 821,
+    "state": "closed",
+    "title": "ICE: \"%async.run\" cause compile failure",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 804,
+    "state": "closed",
+    "title": "ICE: `letrec`",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 800,
+    "state": "closed",
+    "title": "ICE: async local function that returns a trait object with error causes ICE",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 796,
+    "state": "closed",
+    "title": "ICE: `... as B` where `B` is a type alias for `&A` cause ICE",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 784,
+    "state": "closed",
+    "title": "ICE: Stack overflow when compiling large functions with C backend (over 200,000 lines)",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 780,
+    "state": "closed",
+    "title": "ICE: randomly occurred `parse_patch` error",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 779,
+    "state": "closed",
+    "title": "ICE: Array Pattern for `FixedArray`",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 181,
+    "state": "closed",
+    "title": "printing char beyond `U+10000` causes `moon run` to panic",
+    "decision": "blocked_by_deps",
+    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
+    "minutes_cap": 10
+  },
+  {
+    "issue": 101,
+    "state": "closed",
+    "title": "Fatal error: exception File \"lib/xml/mir/monofy.ml\": Assertion failed",
+    "decision": "unclear",
+    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
+    "minutes_cap": 10
+  }
+]

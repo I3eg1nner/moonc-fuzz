@@ -2,7 +2,9 @@
 
 Date: 2026-11-22. Pin: `moon 0.1.20261104 (940aa18)`,
 `moonc v0.10.20+65efd5b93`. A/B 的 26 条资产见
-[`issue_oracle_a_b.md`](issue_oracle_a_b.md)；本文件只做 C。
+[`issue_oracle_a_b.md`](issue_oracle_a_b.md)；本文件只做 C。E1 召回审计后又追加
+612/1175 两条（`needs_old_toolchain` / `blocked_by_deps`），curated 现为 28；
+C 的 L1/L2 分母不变（这两条不进 reproduced/fixed）。
 
 ## 1. L1 判定灵敏度（机器判定，不靠人眼看 stderr）
 
@@ -44,11 +46,11 @@ L1 100% 的含义：11 条 reproduced 的原签名/原行为都能被机器判�
 | 1340 | crash_ice | 279 | 0 | no | `no_predicate`：async 挂起/raise? 形态未被文本变异保住 |
 | 1344 | crash_ice | 277 | 0 | no | `no_predicate`：V128 stub 调用形态未保住 |
 | 1322 | crash_ice | 296 | 0 | no | `no_predicate`：#valtype 数组增长形态未保住 |
-| 1369 | formatter | 295 | 0 | no | `no_predicate`：seedfuzz 的 build oracle 不判 formatter reparse |
+| 1369 | formatter | 295 | 43 | **yes**（D1 后续 format 运行） | — |
 | 1372 | lsp | 1 | 0 | no | `precondition_unavailable`：seedfuzz 忽略 LSP JSON request |
 | 1376 | lsp | 1 | 0 | no | `precondition_unavailable`：seedfuzz 忽略 LSP framing seed |
 
-**L2 = 4/11 = 36.4%。** 这是本轮最重要的负结果：L1 100% 而 L2 36.4%，
+**L2 = 5/11 = 45.5%。** 这是本轮最重要的负结果：L1 100% 而 L2 45.5%，
 说明 oracle 会分类，但现有 seedfuzz 只覆盖单文件 `.mbt` 的一部分；package /
 LSP / formatter 形态还没有可用的变异 campaign。
 
@@ -59,9 +61,9 @@ LSP / formatter 形态还没有可用的变异 campaign。
 | category | reproduced | L1 detected | L2 rediscovered | 未识别原因（L1/L2） |
 |---|---:|---:|---:|---|
 | crash_ice | 8 | 8 | 4 | L1 无；L2 4 条：1366/1340/1344/1322 |
-| formatter | 1 | 1 | 0 | L1 无；L2 1369 `no_predicate` |
+| formatter | 1 | 1 | 1 | L1 无；L2 1369 由 D1 format 运行覆盖 |
 | lsp | 2 | 2 | 0 | L1 无；L2 1372/1376 `precondition_unavailable` |
-| **合计** | **11** | **11** | **4** | — |
+| **合计** | **11** | **11** | **5** | — |
 
 ## 4. fixed 门禁：`issue_regress`
 
@@ -111,7 +113,7 @@ shell gate，不新增 `.py`。
 ## 7. 边界
 
 - L1 的 100% 是对 11 条 curated reproduced 的判定，不是对所有 172 条粗筛。
-- L2 只做了 4 条重发现（1364 饱和、1365/1367/1368 非饱和）；其余是 seedfuzz 的形态限制，不能
+- L2 做了 5 条重发现（1364 饱和、1365/1367/1368/1369 非饱和）；其余是 seedfuzz 的形态限制，不能
   外推为“这些缺陷不可变异重发现”。
 - 1328/1326/1155 的 `fixed` 是 **pin_expected**，不是 upstream fixed。
 - 未发上游 issue/comment，未改 pin。

@@ -1,0 +1,20 @@
+{
+  "issue": 1175,
+  "title": "moonc prove: wildcard `_` in #proof_pure match arms generates broken WhyML",
+  "state": "open",
+  "createdAt": "2026-04-12T04:38:23Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1175",
+  "category": "typecheck",
+  "status": "unclear",
+  "backends": "native",
+  "command": "moon prove (requires Why3 + proof-enabled package)",
+  "notes": "",
+  "evidence": "blocked_by_deps: Why3/proof package not set up; source preserved",
+  "bug_symptom": "#proof_pure wildcard payload generates Foo__Baz with no argument, Why3 rejects",
+  "pin_observed": "not run: proof toolchain/deps unavailable in this environment",
+  "assertion": {
+    "kind": "skip",
+    "reason": "blocked_by_deps: Why3/proof-enabled package"
+  }
+}

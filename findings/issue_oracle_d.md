@@ -31,7 +31,7 @@ Date: 2026-11-22. Pin: `moon 0.1.20261104 (940aa18)`,
 
 | 输入 | runs | defects | 命中签名 | 结论 |
 |---|---:|---:|---|---|
-| F5（`+y`） | 295 | 43 | `fmt/reparse`（E3001 `~`） | 已知 F5，非新根因 |
+| F5（`+y`） | 295 | 43 | `fmt/reparse`（E3001 `~`） | 已知 F5；同时是 C 的 1369 L2 证据（5/11） |
 | F13（`-(-2147483648)`） | 289 | 23 | `fmt/not_idempotent` | 已知 F13，非新根因 |
 | `templates/` 25 | 293 | **0** | — | 负控通过 |
 | `regressions/fmt_shapes/` 12 | 290 | **0** | — | 负控通过 |
@@ -67,7 +67,9 @@ SIGSEGV。这是**工具缺陷**，已修；不是 compiler candidate。
 | F1（101 B moon.pkg） | 257 | 87 | `pkg/sigsegv`（已知 F1） |
 | F6-min（clean 包） | 20 | **0** | — |
 
-正控制 F1 命中，负控 0；新 accept gate：`package_sensitivity`。
+正控制 F1 命中（本轮 20 mutants：defects=7, seed_defects=1；上条 300 mutants 为 87/257），负控 0；新 accept gate `package_sensitivity` 断言 **defects>=1 且 seed_defects>=1**，detail 打印 `pos_defects/pos_seed/neg_defects/neg_seed`。
+
+Formatter gate 是 **seed 级证明**：`seed_defects=1` 证明已知 F5/F13 破坏能被抓；变异级证据是 F5 43/295、F13 23/289，不能把 seed 级当变异级。
 
 限制：`moon.mod` 的正例尚未构造；F8/F9 只跑了 `.mbt` 变异（279/277 runs，
 0 同签名），没有做到“保留 package 形状的 F8/F9 变异”。这是覆盖缺口，不是
@@ -91,6 +93,12 @@ header 拆分等），700 ms/例，fresh `moon-lsp`。
 14 HANG 与 14 DESYNC 全部落在 F10（format-nth 无尾换行）、F11（标量 params）、
 F12（BOM/顶层非对象/坏 header）的已知签名；**0 个新签名**。现有
 `lsp_regress_6` 与 `lspneg` 已覆盖断言，没有新增 gate。
+
+## C 的 L2 更新（D 后续运行覆盖）
+
+D1 的 `--stage format` 运行补上了 C 的 1369 L2：F5 seed 295 次中 43 次命中
+`fmt/reparse`；1368 在临时目录修复后 seedfuzz 为 15/291。C 的 L2 因此从
+4/11 更新为 **5/11 = 45.5%**（1364 饱和、1365、1367、1368、1369）。
 
 ## 去重与三档分类
 

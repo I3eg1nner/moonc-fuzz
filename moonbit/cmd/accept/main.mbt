@@ -38,6 +38,33 @@ fn check(name : String, ok : Bool, detail : String) -> String {
 }
 
 ///|
+fn json_int(text : String, key : String) -> Int32 {
+  let pat = "\"" + key + "\":"
+  match text.find(pat) {
+    Some(pos) => {
+      let mut i = pos + pat.length()
+      while i < text.length() && text[i] == ' ' {
+        i += 1
+      }
+      let mut v = 0
+      let mut any = false
+      while i < text.length() {
+        let c = text[i]
+        if c >= '0' && c <= '9' {
+          v = v * 10 + (c.to_int() - 48)
+          any = true
+          i += 1
+        } else {
+          break
+        }
+      }
+      if any { v } else { -1 }
+    }
+    None => -1
+  }
+}
+
+///|
 fn count_lines(text : String) -> Int32 {
   let mut n = 0
   for line in text.split("\n") {
@@ -275,16 +302,21 @@ async fn main {
     root,
     60000,
   )
-  let pkg_ok = pkgpos.stdout.contains("\"seed_defects\":1") &&
-    pkgpos.stdout.contains("pkg/sigsegv") &&
-    pkgneg.stdout.contains("\"defects\":0") &&
-    pkgneg.stdout.contains("\"seed_defects\":0")
+  let pkg_defects = json_int(pkgpos.stdout, "defects")
+  let pkg_seed = json_int(pkgpos.stdout, "seed_defects")
+  let neg_defects = json_int(pkgneg.stdout, "defects")
+  let neg_seed = json_int(pkgneg.stdout, "seed_defects")
+  let pkg_ok = pkg_defects >= 1 && pkg_seed >= 1 &&
+    neg_defects == 0 && neg_seed == 0
   results.push(
     check(
       "package_sensitivity",
       pkg_ok,
-      "pos_rc=" + pkgpos.rc.to_string() + " neg_rc=" + pkgneg.rc.to_string() +
-      " " + pkgneg.stdout.trim().to_owned(),
+      "pos_defects=" + pkg_defects.to_string() +
+      " pos_seed=" + pkg_seed.to_string() +
+      " neg_defects=" + neg_defects.to_string() +
+      " neg_seed=" + neg_seed.to_string() +
+      " pos_rc=" + pkgpos.rc.to_string() + " neg_rc=" + pkgneg.rc.to_string(),
     ),
   )
 

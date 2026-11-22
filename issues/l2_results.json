@@ -43,10 +43,11 @@
     },
     "1369": {
       "runs": 295,
-      "same_signature_hits": 0,
-      "rediscovered": false,
-      "engine": "seedfuzz",
-      "reason": "no_predicate: build-stage oracle does not classify formatter reparse"
+      "same_signature_hits": 43,
+      "rediscovered": true,
+      "saturated": false,
+      "engine": "seedfuzz --stage format (F5 seed; later D run)",
+      "reason": ""
     },
     "1372": {
       "runs": 1,

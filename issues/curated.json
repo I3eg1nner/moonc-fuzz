@@ -472,6 +472,42 @@
     "dir": "oracle_cases/typecheck/968"
   },
   {
+    "issue": 612,
+    "title": "compiler doesn't report error when use polymorphic recursion",
+    "state": "closed",
+    "category": "typecheck",
+    "status": "needs_old_toolchain",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/612",
+    "command": "moonc syncheck main.mbt",
+    "rc": 2,
+    "evidence": "rc2 E3002: old typealias/fn[T] syntax not accepted on pin",
+    "bug_symptom": "issue says polymorphic recursion is accepted without an error",
+    "pin_observed": "current pin rejects the 2025 syntax at parse time",
+    "assertion": {
+      "kind": "skip",
+      "reason": "needs_old_toolchain: 2025 typealias syntax"
+    },
+    "dir": "oracle_cases/typecheck/612"
+  },
+  {
+    "issue": 1175,
+    "title": "moonc prove: wildcard `_` in #proof_pure match arms generates broken WhyML",
+    "state": "open",
+    "category": "typecheck",
+    "status": "unclear",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/1175",
+    "command": "moon prove (requires Why3 + proof-enabled package)",
+    "rc": 0,
+    "evidence": "blocked_by_deps: Why3/proof package not set up; source preserved",
+    "bug_symptom": "#proof_pure wildcard payload generates Foo__Baz with no argument, Why3 rejects",
+    "pin_observed": "not run: proof toolchain/deps unavailable in this environment",
+    "assertion": {
+      "kind": "skip",
+      "reason": "blocked_by_deps: Why3/proof-enabled package"
+    },
+    "dir": "oracle_cases/typecheck/1175"
+  },
+  {
     "issue": 1155,
     "title": "Native target: array length silently truncated to 28 bits, causing SIGABRT for allocations >= 256MB",
     "state": "open",

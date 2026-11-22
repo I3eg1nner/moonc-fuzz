@@ -17,7 +17,7 @@
 |---|---|---|---|
 | 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
 | 13 个回归 case（F1–F6 家族 12 个 + P1；F7–F12 另有专项门禁） | `p0_evidence.md`, `f8f9_trigger_surface.md`, `defect_inventory.md` | `poc/`, `cmd/regress` | `regressions_13`, `f7_boundary`, `reduce_witness`, `lsp_regress_6` |
-| 26 条 issue 派生 oracle（A/B）+ D1–D3 | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity` |
+| 26 条 issue 派生 oracle（A/B）+ D1–D3；E1 召回审计 | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity` |
 | semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
 | triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
 | formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
@@ -77,6 +77,15 @@
 6. trait/可变别名/指针域；
 7. 用 headroom 指标（distinct T2/T3、time-to-threshold）重做 edge 实验，
    并强制 trace 完成率 ≥80% 才计收益（benchstat 已支持 invalid）。
+
+**D 未覆盖（E 继续）**
+
+- formatter：doc comment 内的 fenced code、极深泛型嵌套、trait impl 注释；
+- package：`moon.mod` 正例、F8/F9 保留 package 形状的变异；
+- L2 已更新为 5/11（1369 由 D1 `--stage format` 覆盖；1364 是 saturated，不算搜索能力）。
+- E1 召回审计：40 条样本 6 条真缺陷，15%（95% CI 7.1–29.1%）；对 389 条推算漏
+  27–113 条，现有 curated 的召回约 18.7–48.6%。E2 36 条 crash-drop 0 rebuilt、
+  30 blocked_by_deps、6 unclear；剩余风险主要来自无最小模块/外部依赖。
 
 ## 6. 运行手册
 

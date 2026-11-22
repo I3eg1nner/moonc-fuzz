@@ -421,6 +421,7 @@ moon test --target native
 | `findings/issue_oracle_a_b.md` | 历史 issue 采集/归一/复现：561→292→172→26，11 reproduced / 10 fixed |
 | `findings/issue_oracle_c.md` | L1 100%、L2 4/11（1364 saturated）、fixed 门禁、172 triage、.py 例外 |
 | `findings/issue_oracle_d.md` | D1 formatter 闭环、D2 package 变异、D3 LSP 136 case；无新候选 |
+| `findings/issue_oracle_e.md` | E1 40 条召回（15%，CI 7.1–29.1%）、E2 36+20 回收、E4 其他仓库快照 |
 | `findings/python_inventory.md` | 20 个已跟踪 .py 的分类与更正后的不变量 |
 | `issues/triage_172.md` | 172 条粗筛 keep/drop 理由 |
 | `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |
