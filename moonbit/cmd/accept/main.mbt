@@ -320,6 +320,32 @@ async fn main {
     ),
   )
 
+  // 2a4. must-reject sensitivity: every positive must be rejected, every
+  // healthy control accepted, and the missing-trait-import control rejected.
+  let mr = @exec.run(
+    "bash",
+    [join(root, "scripts/must_reject.sh"), root,
+     "/tmp/mbtfuzz_accept_mustreject_" + tag + ".jsonl"],
+    root,
+    300000,
+  )
+  let mr_sum = read_text("/tmp/mbtfuzz_accept_mustreject_" + tag + ".summary.json")
+  let mr_pos = json_int(mr_sum, "positives")
+  let mr_acc = json_int(mr_sum, "accepted")
+  let mr_negbad = json_int(mr_sum, "negative_bad")
+  let mr_ctl = json_int(mr_sum, "control_rc")
+  let must_ok = mr.rc == 0 && mr_pos >= 100 && mr_acc == 0 &&
+    mr_negbad == 0 && mr_ctl != 0
+  results.push(
+    check(
+      "must_reject_sensitivity",
+      must_ok,
+      "positives=" + mr_pos.to_string() + " accepted=" + mr_acc.to_string() +
+      " negative_bad=" + mr_negbad.to_string() + " control_rc=" +
+      mr_ctl.to_string() + " rc=" + mr.rc.to_string(),
+    ),
+  )
+
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
   // rather than quietly changing `regressions_13`.  Six serial cases with one

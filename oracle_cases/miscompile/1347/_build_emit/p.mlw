@@ -1,0 +1,10 @@
+module P
+  use bool.Bool
+  use moonbit_builtin_prelude.Int as Moonbit_builtin_prelude_Int
+  
+  predicate p (a: bool) (b: bool) (c: bool) = a /\ b \/ c
+  
+  let f (x : Moonbit_builtin_prelude_Int.t) : Moonbit_builtin_prelude_Int.t
+    ensures { p false false true }
+  = x
+end

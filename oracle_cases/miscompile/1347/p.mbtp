@@ -1,0 +1,4 @@
+///|
+predicate p(a : Bool, b : Bool, c : Bool) {
+  a && (b || c)
+}

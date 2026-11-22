@@ -97,6 +97,13 @@
       "rediscovered": false,
       "engine": "seedfuzz build 50 mutants",
       "reason": "no_predicate: attribute diagnostic is not a judge defect"
+    },
+    "1347": {
+      "runs": 0,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "none (must-reject surface only)",
+      "reason": "no_predicate: proof emit text is not a seedfuzz judge defect"
     }
   }
 }

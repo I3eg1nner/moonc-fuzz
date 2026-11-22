@@ -1,0 +1,18 @@
+{
+  "issue": 1347,
+  "title": "moonc prove drops parentheses around || under &&",
+  "state": "open",
+  "category": "miscompile",
+  "status": "reproduced",
+  "backends": "proof",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1347",
+  "command": "rm -rf _build_emit; mkdir -p _build_emit; moonc-prove p.mbt p.mbtp -emit-only -whyml-output-path _build_emit/p.mlw -proof-report-output-path _build_emit/p.json -pkg e1b1347 -pkg-type library -i \"$HOME/.moon/lib/core/_build/wasm/release/bundle/builtin/builtin.mi:moonbitlang/core/builtin\" -i \"$HOME/.moon/lib/core/_build/wasm/release/bundle/prelude/prelude.mi:prelude\" -pkg-sources e1b1347:. -workspace-path . -all-pkgs \"$ROOT/harness/all_pkgs.json\" >/dev/null 2>&1; grep -qF \"a /\\ b \\/ c\" _build_emit/p.mlw && echo BUG",
+  "notes": "emit-only; no Why3 solver needed",
+  "evidence": "emitted WhyML predicate p = a /\\ b \\/ c; expected a /\\ (b \\/ c)",
+  "bug_symptom": "parentheses around b||c dropped in emitted WhyML",
+  "pin_observed": "emit-only rc0; emitted text lacks parentheses",
+  "assertion": {
+    "kind": "stdout_contains",
+    "contains": "BUG"
+  }
+}

@@ -17,7 +17,7 @@
 |---|---|---|---|
 | 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
 | 13 个回归 case（F1–F6 家族 12 个 + P1；F7–F12 另有专项门禁） | `p0_evidence.md`, `f8f9_trigger_surface.md`, `defect_inventory.md` | `poc/`, `cmd/regress` | `regressions_13`, `f7_boundary`, `reduce_witness`, `lsp_regress_6` |
-| 33 条 issue 派生 oracle（A/B/C/D/E/F） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity` |
+| 34 条 issue 派生 oracle（A/B/C/D/E/F/G） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md`, `issue_oracle_g.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity`, `must_reject_sensitivity` |
 | semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
 | triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
 | formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
@@ -82,7 +82,7 @@
 
 - formatter：doc comment 内的 fenced code、极深泛型嵌套、trait impl 注释；
 - package：`moon.mod` 正例、F8/F9 保留 package 形状的变异；
-- L2 已更新为 5/12（F 新增 1294/836 均为 0）（1369 由 D1 `--stage format` 覆盖；1364 是 saturated，不算搜索能力）。
+- L2 已更新为 5/13（F 新增 1294/836/1347 均为 0）（1369 由 D1 `--stage format` 覆盖；1364 是 saturated，不算搜索能力）。
 - E1 召回审计：第一轮 40 条 6 条缺陷（4 pin-validated）；第二轮 60 条 8 条
   labeled、4 pin-validated；两轮严格 8/100（95% CI 4.1–15.0%），推算漏 16–58 条，
   召回 30.8–61.9%。E2 36 条 0 rebuilt、30 blocked、6 unclear；核心风险是
@@ -97,9 +97,9 @@ moon version --all            # 期望包含 0.1.20261104 / 0.10.20+65efd5b93
 cd moonbit
 moon test --target native     # 期望 Total tests: 385, passed: 385, failed: 0
 
-# 完整验收（27 门）
+# 完整验收（28 门）
 ./_build/native/debug/build/cmd/accept/accept.exe /data/audit/mbtfuzz
-# 期望 {"ok":true,"checks":[...27...]}
+# 期望 {"ok":true,"checks":[...28...]}
 
 # 短 campaign（示例）
 ./_build/native/debug/build/cmd/fuzz/fuzz.exe --root /data/audit/mbtfuzz \
@@ -146,7 +146,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 
 ```
 moon test   385 / 385（Total tests: 385, passed: 385, failed: 0）
-accept      27 / 27（ok=true, checks=27, 无失败）
+accept      28 / 28（ok=true, checks=28, 无失败）
 git         已提交并推送，worktree clean
 pin         未改动
 ```

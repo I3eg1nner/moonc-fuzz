@@ -129,8 +129,8 @@ fixed：
 | 547 | **fixed** | typecheck | `moon check/build --target wasm-gc` rc0；现代 alias 接受 |
 | 208 | **fixed** | crash | `moon build --target wasm` rc0；`WebAssembly.validate=true` |
 
-1347 的精确 `moonc-prove -emit-only` argv 尚未归一化，未进 curated；报告只记为
-pin-reproduced audit，不伪造资产。
+1347 已用 `moonc-prove -emit-only` 资产化：`oracle_cases/miscompile/1347/`
+生成 `a /\ b \/ c`，L1 命中 `BUG`；不需要 Why3。
 
 另外 4 条 labeled 但未 pin 验证：1051、440、415、1339（原因见
 `e1b_audit.json` 的 `pin_validation`；不并入 confirmed）。
@@ -154,9 +154,9 @@ pin-reproduced audit，不伪造资产。
 - F2 36 行全部重做，同一 reason 最多 2 次；20 条 out-of-scope 逐条。
 - F3 3 条跨仓库 + core20 有结论；2 条 blocked、1 条 allowed divergence。
 - F4 60 行有逐条结论；4 条 confirmed，4 条 unconfirmed；合并区间。
-- `curated.json` 33 条（新增 1294/945/447/551/836；612/1175 保持 skipped；1347 见 F4 的资产限制）。
+- `curated.json` 34 条（新增 1294/945/447/551/836/1347；612/1175 保持 skipped）。
 - L1：reproduced evaluated 12/12、fixed 12/12；L2 新增 1294/836 均 0
-  （`no_predicate`，warning/诊断不是 judge defect）；F 后 L2 为 **5/12 = 41.7%**。
+  （`no_predicate`，warning/诊断不是 judge defect）；F 后 L2 为 **5/13 = 38.5%**。
 - accept：27/27；package pos_defects=10；issue_regress normal 0/tamper 1。
 
 ## 风险
