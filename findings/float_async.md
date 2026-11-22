@@ -11,8 +11,9 @@ Date: 2026-11-22. 工具链 pin 未改。
   排除**（本生成器不产生 NaN：sqrt 输入为正、除数非零）；
 - 不比较格式化文本，只比较位型/布尔。
 
-控制：`--inject-node` 可把 node expected 改一位 → 每族 witness；NaN/格式化
-不进入比较。
+控制：`--inject-node` 把 node expected 改一位 → `float_bits` 与
+`float_cmp` 各 1/1 witness，`float_format` 仍 excluded；NaN payload 不进入
+比较（生成器不产生 NaN，属排除域，未作 NaN 正控）。
 
 ## async（`cmd/asem`，固定 10+1 case）
 
