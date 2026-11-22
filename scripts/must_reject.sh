@@ -1,37 +1,39 @@
 #!/bin/bash
+# H must-reject/diagnostic-precision gate.
 set -uo pipefail
 ROOT="${1:-/data/audit/mbtfuzz}"
-OUT="${2:-/tmp/must_reject.jsonl}"
-CASE="$ROOT/regressions/must_reject"
+OUT="${2:-/tmp/must_reject_h.jsonl}"
+BASE="$ROOT/regressions/must_reject_v2"
 : > "$OUT"
-acc=0; rej=0; neg_bad=0; pos=0; neg=0
-for f in "$CASE"/positive/*.mbt; do
+pos=0; acc=0; wrong=0; neg=0; negbad=0; fams=0; ctl=0
+families=""
+for d in "$BASE"/positive/*; do
+  [ -d "$d" ] || continue
+  fam=$(jq -r '.family' "$d/expected.json" 2>/dev/null || echo "")
+  exp=$(jq -r '.expected_codes[0]' "$d/expected.json" 2>/dev/null || echo "")
+  if [ -z "$families" ]; then families="$fam"; else families="$families,$fam"; fi
+  if [ -f "$d/main.mbt" ]; then
+    ( cd "$d" && timeout 60 moon check main.mbt ) >/tmp/mr_o 2>/tmp/mr_e; rc=$?
+  else
+    ( cd "$d" && timeout 60 moon check ) >/tmp/mr_o 2>/tmp/mr_e; rc=$?
+  fi
   pos=$((pos+1))
-  ( cd "$(dirname "$f")" && timeout 60 moon check "$(basename "$f")" ) >/tmp/mr_o 2>/tmp/mr_e
-  rc=$?
-  if [ "$rc" = 0 ]; then
-    acc=$((acc+1)); verdict=accepted
-  else
-    rej=$((rej+1)); verdict=rejected
-  fi
-  printf '{"file":"%s","class":"positive","rc":%d,"verdict":"%s"}\n' "$(basename "$f")" "$rc" "$verdict" >> "$OUT"
+  code=$(cat /tmp/mr_e /tmp/mr_o 2>/dev/null | grep -oE 'Error: \[[0-9]{3,5}\]' | head -1 | grep -oE '[0-9]{3,5}')
+  if [ "$rc" = 0 ]; then verdict=accepted; acc=$((acc+1))
+  elif [ "$code" = "$exp" ]; then verdict=expected
+  else verdict=wrong_diagnostic; wrong=$((wrong+1)); fi
+  printf '{"case":"%s","family":"%s","expected":"%s","rc":%d,"code":"%s","verdict":"%s"}\n' "$(basename "$d")" "$fam" "$exp" "$rc" "$code" "$verdict" >> "$OUT"
 done
-for f in "$CASE"/negative/*.mbt; do
+for f in "$BASE"/negative/*.mbt; do
   neg=$((neg+1))
-  ( cd "$(dirname "$f")" && timeout 60 moon check "$(basename "$f")" ) >/tmp/mr_o 2>/tmp/mr_e
-  rc=$?
-  if [ "$rc" = 0 ]; then
-    verdict=expected
-  else
-    neg_bad=$((neg_bad+1)); verdict=wrong_diagnostic
-  fi
-  printf '{"file":"%s","class":"negative","rc":%d,"verdict":"%s"}\n' "$(basename "$f")" "$rc" "$verdict" >> "$OUT"
+  ( cd "$(dirname "$f")" && timeout 60 moon check "$(basename "$f")" ) >/tmp/mr_o 2>/tmp/mr_e; rc=$?
+  if [ "$rc" = 0 ]; then verdict=expected; else verdict=wrong_diagnostic; negbad=$((negbad+1)); fi
+  printf '{"case":"%s","family":"negative","expected":"0","rc":%d,"code":"","verdict":"%s"}\n' "$(basename "$f")" "$rc" "$verdict" >> "$OUT"
 done
-# Positive control: missing trait import must be rejected (from 551 package)
-( cd "$ROOT/oracle_cases/typecheck/551" && moon check ) >/tmp/mr_o 2>/tmp/mr_e
-ctl=$?
-printf '{"file":"control_missing_trait_import","class":"control","rc":%d,"verdict":"%s"}\n' "$ctl" "$([ "$ctl" != 0 ] && echo rejected || echo accepted)" >> "$OUT"
-jq -n --argjson pos "$pos" --argjson rejected "$rej" --argjson accepted "$acc" --argjson neg "$neg" --argjson neg_bad "$neg_bad" --argjson control_rc "$ctl" \
- '{positives:$pos,rejected:$rejected,accepted:$accepted,negative_controls:$neg,negative_bad:$neg_bad,control_rc:$control_rc}' > "${OUT%.jsonl}.summary.json"
+( cd "$ROOT/oracle_cases/typecheck/551" && moon check ) >/tmp/mr_o 2>/tmp/mr_e; ctl=$?
+# distinct families
+fams=$(printf '%s' "$families" | tr ',' '\n' | sort -u | wc -l)
+jq -n --argjson pos "$pos" --argjson acc "$acc" --argjson wrong "$wrong" --argjson neg "$neg" --argjson negbad "$negbad" --argjson fams "$fams" --argjson ctl "$ctl" \
+ '{positives:$pos,transforms:$fams,accepted:$acc,wrong_diagnostic:$wrong,negative_controls:$neg,negative_bad:$negbad,control_rc:$ctl}' > "${OUT%.jsonl}.summary.json"
 cat "${OUT%.jsonl}.summary.json"
-[[ "$acc" -eq 0 && "$neg_bad" -eq 0 && "$ctl" -ne 0 && "$pos" -ge 100 ]]
+[[ "$pos" -ge 300 && "$fams" -ge 10 && "$acc" -eq 0 && "$negbad" -eq 0 && "$ctl" -ne 0 ]]

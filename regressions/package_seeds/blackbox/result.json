@@ -1,0 +1,10 @@
+{
+  "issue": 1294,
+  "category": "typecheck",
+  "command": " moon test --target wasm-gc",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "",
+  "status": "reproduced",
+  "evidence": "rc0; stderr Warning (deprecated): use new in foo_test.mbt"
+}

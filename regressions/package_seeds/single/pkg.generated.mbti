@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "e945"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Box[T] {
+  v : T
+}
+pub fn[T] Box::get(Self[T]) -> T
+pub fn[T] Box::new(T) -> Self[T]
+
+// Type aliases
+
+// Traits

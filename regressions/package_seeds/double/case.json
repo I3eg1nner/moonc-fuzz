@@ -1,0 +1,21 @@
+{
+  "issue": 551,
+  "title": "missing import list not reported with traitalias",
+  "state": "closed",
+  "createdAt": "2024-12-18",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/551",
+  "category": "typecheck",
+  "status": "fixed",
+  "backends": "all",
+  "command": "moon check",
+  "notes": "missing trait import now errors",
+  "evidence": "rc1; The trait A is not found",
+  "bug_symptom": "issue says missing import list is accepted",
+  "pin_observed": "rc1 clean error",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 1,
+    "contains": "The trait A is not found"
+  }
+}

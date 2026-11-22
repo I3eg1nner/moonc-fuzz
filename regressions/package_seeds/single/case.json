@@ -1,0 +1,20 @@
+{
+  "issue": 945,
+  "title": "moon info emits fn[] in mbti",
+  "state": "closed",
+  "createdAt": "2025-09-05",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/945",
+  "category": "formatter",
+  "status": "fixed",
+  "backends": "all",
+  "command": "moon info; grep -qF 'fn[T]' pkg.generated.mbti && echo MBTI_OK",
+  "notes": "",
+  "evidence": "rc0; pkg.generated.mbti has fn[T], not fn[]",
+  "bug_symptom": "issue says generated mbti contains fn[]",
+  "pin_observed": "moon info rc0; pkg.generated.mbti uses fn[T]",
+  "assertion": {
+    "kind": "stdout_contains",
+    "contains": "MBTI_OK"
+  }
+}

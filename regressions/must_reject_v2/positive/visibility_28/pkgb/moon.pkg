@@ -1,0 +1,2 @@
+import { "evis28/pkga" }
+options("is-main": false)

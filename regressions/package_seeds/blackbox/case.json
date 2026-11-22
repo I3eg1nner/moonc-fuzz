@@ -1,0 +1,21 @@
+{
+  "issue": 1294,
+  "title": "skip_current_package still warns own blackbox tests",
+  "state": "closed",
+  "createdAt": "2026-07-15",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1294",
+  "category": "typecheck",
+  "status": "reproduced",
+  "backends": "all",
+  "command": "rm -rf _build; moon test --target wasm-gc",
+  "notes": "",
+  "evidence": "rc0; stderr Warning (deprecated): use new in foo_test.mbt",
+  "bug_symptom": "issue says blackbox test of declaring package still gets deprecation warning",
+  "pin_observed": "rc0; warning still fires",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 0,
+    "contains": "Warning (deprecated)"
+  }
+}

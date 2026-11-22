@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "e1294"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Foo {
+  x : Int32
+}
+pub fn Foo::new() -> Self
+#deprecated
+pub fn Foo::old(Self) -> Int32
+
+// Type aliases
+
+// Traits

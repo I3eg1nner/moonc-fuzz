@@ -331,18 +331,42 @@ async fn main {
   )
   let mr_sum = read_text("/tmp/mbtfuzz_accept_mustreject_" + tag + ".summary.json")
   let mr_pos = json_int(mr_sum, "positives")
+  let mr_fams = json_int(mr_sum, "transforms")
   let mr_acc = json_int(mr_sum, "accepted")
   let mr_negbad = json_int(mr_sum, "negative_bad")
   let mr_ctl = json_int(mr_sum, "control_rc")
-  let must_ok = mr.rc == 0 && mr_pos >= 100 && mr_acc == 0 &&
+  let must_ok = mr.rc == 0 && mr_pos >= 300 && mr_fams >= 10 &&
+    mr_acc == 0 &&
     mr_negbad == 0 && mr_ctl != 0
   results.push(
     check(
       "must_reject_sensitivity",
       must_ok,
-      "positives=" + mr_pos.to_string() + " accepted=" + mr_acc.to_string() +
+      "positives=" + mr_pos.to_string() + " transforms=" +
+      mr_fams.to_string() + " accepted=" + mr_acc.to_string() +
       " negative_bad=" + mr_negbad.to_string() + " control_rc=" +
       mr_ctl.to_string() + " rc=" + mr.rc.to_string(),
+    ),
+  )
+
+  // 2a5. attribute/diagnostic family: at least 100 attribute combinations.
+  let at = @exec.run(
+    "bash",
+    [join(root, "scripts/attribute_check.sh"), root,
+     "/tmp/mbtfuzz_accept_attribute_" + tag + ".jsonl"],
+    root,
+    120000,
+  )
+  let at_sum = read_text("/tmp/mbtfuzz_accept_attribute_" + tag + ".summary.json")
+  let at_cases = json_int(at_sum, "cases")
+  let at_missing = json_int(at_sum, "missing_warning")
+  let at_ok = at.rc == 0 && at_cases >= 100
+  results.push(
+    check(
+      "attribute_sensitivity",
+      at_ok,
+      "cases=" + at_cases.to_string() + " missing_warning=" +
+      at_missing.to_string() + " rc=" + at.rc.to_string(),
     ),
   )
 
