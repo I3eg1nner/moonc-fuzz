@@ -17,7 +17,7 @@
 |---|---|---|---|
 | 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
 | 13 个回归 case（F1–F6 家族 12 个 + P1；F7–F12 另有专项门禁） | `p0_evidence.md`, `f8f9_trigger_surface.md`, `defect_inventory.md` | `poc/`, `cmd/regress` | `regressions_13`, `f7_boundary`, `reduce_witness`, `lsp_regress_6` |
-| 34 条 issue 派生 oracle（A/B/C/D/E/F/G） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md`, `issue_oracle_g.md`, `issue_oracle_h.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity`, `must_reject_sensitivity`, `attribute_sensitivity` |
+| 34 条 issue 派生 oracle（A/B/C/D/E/F/G/H） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md`, `issue_oracle_g.md`, `issue_oracle_h.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity`, `must_reject_sensitivity`, `attribute_sensitivity` |
 | semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
 | triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
 | formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
