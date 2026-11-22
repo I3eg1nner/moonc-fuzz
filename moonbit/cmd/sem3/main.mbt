@@ -177,6 +177,16 @@ fn next_case(family : String, seed : UInt64) -> Case {
     gen_func(seed)
   } else if family == "array_nested" {
     gen_nested_array(seed)
+  } else if family == "struct_fields" {
+    gen_struct(seed)
+  } else if family == "struct_nested" {
+    gen_nested_struct(seed)
+  } else if family == "enum_match" {
+    gen_enum(seed)
+  } else if family == "generic_box" {
+    gen_box(seed)
+  } else if family == "closure_capture" {
+    gen_closure(seed)
   } else {
     gen_float(seed)
   }
@@ -262,7 +272,7 @@ async fn main {
   let limit = num_arg(args, "--limit", 100000)
   let seed_off = num_arg(args, "--seed", 1)
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
-  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "float_format"]
+  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "float_format"]
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
@@ -429,6 +439,12 @@ enum TE {
 }
 
 ///|
+fn te_u64(v : Int64) -> UInt64 { v.reinterpret_as_uint64() }
+
+///|
+fn te_i64(u : UInt64) -> Int64 { u.reinterpret_as_int64() }
+
+///|
 fn te_wrap32(v : Int64) -> Int64 {
   let x = v & 0xFFFFFFFFL
   if x >= 0x80000000L { x - 0x100000000L } else { x }
@@ -439,16 +455,25 @@ fn te_eval(t : TE, bits : Int32) -> Int64 {
   match t {
     C(v) => if bits == 32 { te_wrap32(v) } else { v }
     Add(a, b) => {
-      let v = te_eval(a, bits) + te_eval(b, bits)
-      if bits == 32 { te_wrap32(v) } else { v }
+      if bits == 64 {
+        te_i64(te_u64(te_eval(a, 64)) + te_u64(te_eval(b, 64)))
+      } else {
+        te_wrap32(te_eval(a, 32) + te_eval(b, 32))
+      }
     }
     Sub(a, b) => {
-      let v = te_eval(a, bits) - te_eval(b, bits)
-      if bits == 32 { te_wrap32(v) } else { v }
+      if bits == 64 {
+        te_i64(te_u64(te_eval(a, 64)) - te_u64(te_eval(b, 64)))
+      } else {
+        te_wrap32(te_eval(a, 32) - te_eval(b, 32))
+      }
     }
     Mul(a, b) => {
-      let v = te_eval(a, bits) * te_eval(b, bits)
-      if bits == 32 { te_wrap32(v) } else { v }
+      if bits == 64 {
+        te_i64(te_u64(te_eval(a, 64)) * te_u64(te_eval(b, 64)))
+      } else {
+        te_wrap32(te_eval(a, 32) * te_eval(b, 32))
+      }
     }
     Div(a, b) => {
       let d = te_eval(b, bits)
@@ -680,4 +705,68 @@ fn gen_nested_array(seed : UInt64) -> Case {
   let src = "fn main {\n  let xs : Array[Array[Int]] = [[" + a.to_string() +
     ", " + b.to_string() + "], [3, 4]]\n  println(xs[0][1].to_string())\n}\n"
   { family: "array_nested", src, expected: [b.to_string()], excluded: false }
+}
+
+///|
+fn gen_struct(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(100)
+  let b = rng.int(100)
+  let src = "struct P { x : Int; y : Int }\nfn sum(p : P) -> Int { p.x + p.y }\nfn main {\n  let p : P = { x: " +
+    a.to_string() + ", y: " + b.to_string() +
+    " }\n  println(p.x.to_string())\n  println(p.y.to_string())\n  println(sum(p).to_string())\n}\n"
+  { family: "struct_fields", src, expected: [a.to_string(), b.to_string(), (a + b).to_string()], excluded: false }
+}
+
+///|
+fn gen_nested_struct(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(50)
+  let b = rng.int(50)
+  let src = "struct Inner { v : Int }\nstruct Outer { a : Inner; b : Int }\nfn main {\n  let o : Outer = { a: { v: " +
+    a.to_string() + " }, b: " + b.to_string() +
+    " }\n  println(o.a.v.to_string())\n  println(o.b.to_string())\n}\n"
+  { family: "struct_nested", src, expected: [a.to_string(), b.to_string()], excluded: false }
+}
+
+///|
+fn gen_enum(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let tag = rng.int(3)
+  let x = rng.int(30)
+  let y = rng.int(30)
+  if tag == 0 {
+    let src = "enum E { A; B(Int); C(Int, Int) }\nfn main {\n  let e : E = A\n  let r = match e {\n    A => 0\n    B(n) => n\n    C(a, b) => a + b\n  }\n  println(r.to_string())\n}\n"
+    { family: "enum_match", src, expected: ["0"], excluded: false }
+  } else if tag == 1 {
+    let src = "enum E { A; B(Int); C(Int, Int) }\nfn main {\n  let e : E = B(" + x.to_string() +
+      ")\n  let r = match e {\n    A => 0\n    B(n) => n\n    C(a, b) => a + b\n  }\n  println(r.to_string())\n}\n"
+    { family: "enum_match", src, expected: [x.to_string()], excluded: false }
+  } else {
+    let src = "enum E { A; B(Int); C(Int, Int) }\nfn main {\n  let e : E = C(" + x.to_string() +
+      ", " + y.to_string() +
+      ")\n  let r = match e {\n    A => 0\n    B(n) => n\n    C(a, b) => a + b\n  }\n  println(r.to_string())\n}\n"
+    { family: "enum_match", src, expected: [(x + y).to_string()], excluded: false }
+  }
+}
+
+///|
+fn gen_box(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let v = rng.int(100)
+  let src = "enum Box[T] { Val(T) }\nfn main {\n  let b : Box[Int] = Box::Val(" +
+    v.to_string() +
+    ")\n  match b { Box::Val(x) => println(x.to_string()) }\n}\n"
+  { family: "generic_box", src, expected: [v.to_string()], excluded: false }
+}
+
+///|
+fn gen_closure(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let k = rng.int(50)
+  let x = rng.int(50)
+  let src = "fn main {\n  let k = " + k.to_string() +
+    "\n  let f = fn(x : Int) -> Int { x + k }\n  println(f(" + x.to_string() +
+    ").to_string())\n}\n"
+  { family: "closure_capture", src, expected: [(k + x).to_string()], excluded: false }
 }
