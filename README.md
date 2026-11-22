@@ -142,6 +142,12 @@ native debug 下 `#valtype` 记录（标量 + 含 GC 引用的 enum）经 `Array
 `findings/coverage_depth_review.md`，独立 codex 复验见
 `findings/codex_open_ice_review.md`。
 
+2026-11-22 新增 formatter 候选 **F13**：`moonfmt` 把
+`-(-2147483648)` 打成 `--2147483648`，格式化后的文件因 `E4095` 字面量越界
+无法编译；原程序正常。3/3 复现，见 `poc/f13_fmt_nested_minus/` 与
+`findings/fmt_nested_minus.md`。它与 F5 的一元 `+` 缺陷可能同源，尚未证明，
+因此不计入上面的根因类，也未提交上游。
+
 对外口径按证据强度分三档：
 
 - **可直接引用**：F2 的 T1/T2 阶段分裂与 ICE、F3 在固定上限下的内存耗尽、
@@ -413,6 +419,7 @@ moon test --target native
 |---|---|
 | `findings/defect_inventory.md` | 全部缺陷的根因归类、2026-11-22 逐项复核与记录修正 |
 | `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |
+| `findings/fmt_nested_minus.md` | F13 候选：`moonfmt` 嵌套一元负号生成越界字面量 |
 | `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
 | `findings/deep_funnel.md` | 类型有效 IR 的 T2/T3 专用队列；30 分钟 11,451 例全部与解释器一致 |

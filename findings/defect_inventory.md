@@ -121,3 +121,12 @@ F12 `control` 两个 id 都应答。
   F7/F9 只在 native debug；F8 是链接期断言；F10/F11/F12 是 LSP 层，
   不声称根因已定位。
 - 本次未向任何上游仓库发 issue/comment，未改 pin。
+
+## 7. 2026-11-22 新增候选（尚未并入上面的根因计数）
+
+F13（`poc/f13_fmt_nested_minus/`，`findings/fmt_nested_minus.md`）：
+`moonfmt` 把 `-(-2147483648)` 打成 `--2147483648`，格式化后的文件因
+`E4095 Integer literal 2147483648 is out of range` 无法编译；原程序
+rc 0、输出 `-2147483648`。3/3 复现，js/native/wasm-gc 都在 typecheck 阶段失败。
+它和 F5（`moonfmt` 一元 `+` → `~+`）是同一组件、不同签名；是否同一根因
+尚未证明，因此暂不并入 11 个根因类，也不进 `regressions_13`。未发上游。

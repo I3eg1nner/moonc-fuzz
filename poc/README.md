@@ -28,6 +28,7 @@ Set `MOONC`/`MOON`/`MOONFMT` or use `$HOME/.moon/bin/...`.
 | F10 | [`f10_lsp_format_nth_hang/`](f10_lsp_format_nth_hang/) | `python3 replay.py hang.json` | LSP `format-nth` never returns, 100% CPU |
 | F11 | [`f11_lsp_scalar_params_deadlock/`](f11_lsp_scalar_params_deadlock/) | `python3 replay.py hang_null.json 3` | LSP deadlocks on any request with scalar `params` (`null`/number/string/bool) |
 | F12 | [`f12_lsp_frame_wedge/`](f12_lsp_frame_wedge/) | `python3 replay.py array` | one unparsable frame wedges the LSP stdio loop permanently (also `bom`) |
+| F13 | [`f13_fmt_nested_minus/`](f13_fmt_nested_minus/) | `moonfmt main.mbt -o f.mbt`; `moon run f.mbt` | formatter emits `--2147483648`; formatted file fails `E4095` |
 | P1 | [`p1_fmt_interp/`](p1_fmt_interp/) | `./generate.sh 2048` then 5x `moonfmt` | ~10x per doubling |
 
 Run all local PoCs:
@@ -76,6 +77,12 @@ Independent Codex runs (three repeats each, with negative controls) are
 archived in `findings/codex_open_ice_review.md` (F7–F9) and
 `findings/codex_lsp_review.md` (F10–F12). The former also corrected the F9
 README claim about `moon test --build-only`.
+
+F13 is a **new local candidate**, not an upstream issue: `moonfmt` turns
+`-(-2147483648)` into `--2147483648`, and the formatted file no longer
+typechecks (`E4095`). It is 3/3 reproducible on the pin, but it is not yet
+triaged as independent of F5 (unary plus → `~+`). See
+[`findings/fmt_nested_minus.md`](../findings/fmt_nested_minus.md).
 
 They are excluded from `scripts/reproduce_all.sh` because that script asserts the
 expected F1–F6 behavior; run the commands in each PoC README directly.
