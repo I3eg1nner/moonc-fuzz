@@ -2,6 +2,15 @@
 
 Date: 2026-11-22. 工具链 pin 未改。
 
+> **2026-11-22 更正**：本文原先写“Float（f32）没有可用的 `to_bits`/reinterpret
+> API”，这是**错的**；实际只缺 `to_bits` 这个名字。`Float::reinterpret_as_uint`、
+> `reinterpret_from_uint`、`reinterpret_from_int`、`to_be_bytes` 都存在并在
+> 三个后端工作。由此新增了 Float32/qNaN 位型 pilot（0 candidate，JS sNaN
+> quieting 记为 allowed host divergence），见
+> [`float32_nan_pilot.md`](float32_nan_pilot.md)。本文下面的 30 分钟数字仍是
+> 旧生成器（只覆盖 Double、非 NaN）的，不要把“旧批只测 Double”读成
+> “Float32 不可测”。
+
 ## 浮点（`float_bits` / `float_cmp`）
 
 - MoonBit：`Double.reinterpret_as_uint64()` 打印**位型十进制**；
@@ -30,7 +39,7 @@ Date: 2026-11-22. 工具链 pin 未改。
 
 | 域 | 比较对象 | expected 来源 | 经过 moonc? |
 |---|---|---|---|
-| Float/Double | 位型、布尔 | node DataView | 否 |
+| Float32/Double | 位型、布尔 | Double 批：node DataView；f32 pilot：numpy/struct | 否 |
 | async | 确定性完成顺序/输出（不含时序、异常 Display） | node Promise | 否 |
 | trait/可变别名/指针 | 未覆盖 | — | — |
 
@@ -48,8 +57,9 @@ float_format: attempts=169, excluded=169（策略排除）
 在本轮覆盖的算子里（+ - * /、sqrt、floor/ceil/round/trunc、min/max、比较，
 IEEE-754 默认 round-to-nearest，非 NaN），三后端位型与 node DataView 一致，
 未发现分歧。NaN payload/signaling NaN 未生成（排除域，不能据此说 NaN 行为
-一致）。Float（f32）没有可用的 `to_bits`/reinterpret API，本批只覆盖
-Double，能力表如实标注。
+一致）。Float（f32）的位型 API 实际存在（`reinterpret_as_uint` 等）；本批
+30 分钟生成器只覆盖 Double，未扩到 f32，能力表曾因此误标“无 API”，已在
+开头更正。
 
 ## async
 
@@ -76,5 +86,6 @@ excluded=0  inconclusive=0
 
 - 浮点（Double、本轮算子集、非 NaN）位型与 node DataView 一致；
 - async 固定场景的确定性完成顺序/输出与 node Promise 一致；
-- 域外：Float(f32) 无 bits API、NaN payload/signaling NaN、trait、可变别名、
+- 域外：Float32/qNaN 只有 2026-11-22 的 437-check pilot，不是常规 campaign；
+  sNaN 在 JS 上会被 host quieten（allowed divergence）；trait、可变别名、
   指针、随机深 async 组合均未覆盖，不能由本轮结果外推。

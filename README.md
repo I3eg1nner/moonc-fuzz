@@ -420,6 +420,8 @@ moon test --target native
 | `findings/defect_inventory.md` | 全部缺陷的根因归类、2026-11-22 逐项复核与记录修正 |
 | `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |
 | `findings/fmt_nested_minus.md` | F13 候选：`moonfmt` 嵌套一元负号生成越界字面量 |
+| `findings/float32_nan_pilot.md` | Float32/qNaN 位型 pilot：API 更正、437 checks/后端、0 candidate、JS sNaN allowed |
+| `findings/oracle_expansion_2026-11-22.md` | F7 布局 174/174、Float32 0 candidate、async 38/38、F13 候选的合并结论 |
 | `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
 | `findings/deep_funnel.md` | 类型有效 IR 的 T2/T3 专用队列；30 分钟 11,451 例全部与解释器一致 |
@@ -492,7 +494,7 @@ truncated`，三个完整观测才可判 pass。
 | 指针/结构体/async/真实包语义 | 未覆盖（研究原型） |
 | i64 参考值独立性 | 基础 i64 族用 node BigInt.asIntN(64) 独立参考；其余 i64 表达式仍用 MoonBit 参考（共模风险未完全消除） |
 | 独立参考（不经过 moonc） | **全部同步族**（i32/i64/expr/string/array/loop/var/if/func/alias/nested/utf8 + struct/enum/泛型/闭包/typed_nested/typed_deep）由 node 执行 JS 得到 expected；boundary 仍用 MoonBit 参考（allowed 域）；不一致时记 reference_disagree / oracle_candidate |
-| 浮点位型（Double） | 已验证：+ - * /、sqrt、floor/ceil/round/trunc、min/max、比较；node DataView 独立参考；NaN payload 排除，Float(f32) 未覆盖 |
+| 浮点位型（Double + Float32 pilot） | Double 批已验证 + - * /、sqrt、floor/ceil/round/trunc、min/max、比较；2026-11-22 Float32/qNaN pilot 437 checks/后端、0 candidate，但 JS sNaN quieting 是 allowed；30 分钟 campaign 仍只覆盖 Double/非 NaN |
 | async（确定性顺序） | `cmd/asem` 已验证：固定 10+1 case（顺序/异常传播），2,122 attempts 0 witness；node Promise 参考，仅比较完成顺序/输出；wasm-gc 零测试按 unsupported；随机 3–4 层未做 |
 
 控制：`--inject js` 每族必须产出 witness；`--inject all` 产出

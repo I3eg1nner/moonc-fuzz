@@ -30,6 +30,10 @@ moon run f.mbt --target wasm-gc -q       # rc 1
 not lexing/parsing. The bug is that the printer turns a valid nested unary
 minus into `--2147483648`, whose inner positive literal is out of `Int` range.
 
+A fresh `moon new` module reproduces through `moon fmt` too: the same
+`--2147483648` is written into `cmd/main/main.mbt`, and `moon run cmd/main`
+fails with `E4095`; this is not standalone-file-only.
+
 A second `moonfmt` pass makes the instability explicit:
 
 ```text

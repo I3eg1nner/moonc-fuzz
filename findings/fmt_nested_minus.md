@@ -43,6 +43,11 @@ The same failure occurs on `js` and `native`; it is a typecheck/build error,
 not a backend-specific runtime issue. `moonc syncheck f.mbt` still returns 0,
 so this is not a lexer/parser error.
 
+A fresh `moon new` module reproduces through the orchestrator too: `moon fmt`
+writes the same `--2147483648` into `cmd/main/main.mbt`, and
+`moon run cmd/main --target wasm-gc` fails with `E4095`. This is not a
+standalone-file-only path.
+
 ## Idempotence
 
 ```text

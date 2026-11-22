@@ -36,8 +36,10 @@
   （`pkg_semantic.md`, `pkg30.md`）。
 - **sem3 全域 0 witness**：域内（整数/字符串/数组/控制流/struct/enum/泛型/
   闭包/typed 组合、Double 位型、async 固定顺序）三后端与 node 一致；
-  但域边界：`Float`(f32) 未测、NaN payload/signaling NaN 未测、async 只比
-  确定性顺序、trait/可变别名/指针未覆盖。
+  但域边界：30 分钟浮点批只覆盖 Double/非 NaN；2026-11-22 的
+  `float32_nan_pilot.md` 已覆盖 Float32 位型/qNaN/±0/±inf/subnormal
+  （0 candidate；JS sNaN quieting 是 allowed host divergence），但尚未接入
+  常规 campaign；async 只比确定性顺序；trait/可变别名/指针未覆盖。
 - `min/-1`、除零是 **allowed_impl_divergence**（core int 文档 "no portable
   result"），非缺陷（`int_min_divergence.md`）。
 
@@ -68,7 +70,8 @@
    cgroup 主机跑 1 h，记录 memory.peak/pids/disk，kill 后无孤儿进程。
 
 **P1**
-4. Float(f32) bits、NaN payload/signaling NaN 排除域的正负控；
+4. 把 Float32/qNaN pilot（`float32_nan_pilot.md`）接入常规 campaign，补
+   sNaN 的正负控，并在 JS 上排除/归一化 sNaN quieting；
 5. async 随机 3–4 层组合与异常顺序；
 6. trait/可变别名/指针域；
 7. 用 headroom 指标（distinct T2/T3、time-to-threshold）重做 edge 实验，
@@ -118,7 +121,8 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 - 不要声称“发现/确认了编译器 bug”；`min/-1` 是 allowed divergence。
 - 不要声称“零 witness = 编译器无 bug”或“完备覆盖”。
 - 不要引用 1,960 / 75% 平台、旧 edge “无收益”、旧 sem3 0-witness 表。
-- 不要声称 Float(f32)/NaN/trait/指针已覆盖。
+- 不要声称 Float32/NaN 已全面覆盖：2026-11-22 pilot 只覆盖 f32 位型/qNaN/
+  ±0/±inf/subnormal，JS sNaN 是 allowed divergence；trait/指针仍未覆盖。
 - 不要声称 async 时序、异常 Display 已比较。
 - 不要声称 cgroup 聚合资源已实测。
 - 不要发上游 issue/评论；不要改 pin。

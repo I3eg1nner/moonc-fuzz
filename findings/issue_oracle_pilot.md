@@ -92,3 +92,22 @@ F7 结果：`/tmp/pilot_issue_oracle/f7/results.jsonl`（release）与
 Formatter 结果：`/tmp/pilot_issue_oracle/fmt/results.jsonl`。
 
 这些是临时证据，不替代 `poc/`、`regress` 或 `lspregress` 的正式回归。
+
+## Follow-up: one formatter candidate from the expanded pilot
+
+The formatter oracle was extended to 12 generated syntax cases (optional/labelled
+args, comment positions, escapes, interpolation, operator spacing, match guards,
+struct/array trailing commas, nested lambdas, generics, enum payloads, loops).
+11/12 passed the same format→reparse→format→run checks. The exception,
+`ops_spacing`, was the nested unary-minus case:
+
+```moonbit
+fn main { println(-(-2147483648)) }
+```
+
+`moonfmt` produced `println(--2147483648)`, which fails to build with
+`E4095 Integer literal 2147483648 is out of range`; the original program runs.
+This is recorded as **F13 candidate** in
+[`fmt_nested_minus.md`](fmt_nested_minus.md) and
+`poc/f13_fmt_nested_minus/`. It is a formatter validity bug, not a miscompile;
+its relation to F5 (unary plus → `~+`) is not yet proven.
