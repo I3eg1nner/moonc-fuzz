@@ -6,6 +6,7 @@ package "I3eg1nner/mbtfuzz/cmd/seedfuzz"
 // Errors
 
 // Types and methods
+type FmtCheck
 
 // Type aliases
 

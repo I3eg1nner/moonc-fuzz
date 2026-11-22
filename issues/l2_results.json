@@ -6,43 +6,47 @@
       "runs": 300,
       "same_signature_hits": 300,
       "rediscovered": true,
+      "saturated": true,
       "engine": "custom invalid-UTF8 mutation, original hash excluded",
       "reason": ""
     },
     "1365": {
-      "runs": 270,
-      "same_signature_hits": 150,
+      "runs": 284,
+      "same_signature_hits": 203,
       "rediscovered": true,
-      "engine": "custom escape mutation, original hash excluded",
+      "saturated": false,
+      "engine": "seedfuzz 300 mutants, original baseline only for known",
       "reason": ""
     },
     "1366": {
-      "runs": 0,
+      "runs": 295,
       "same_signature_hits": 0,
       "rediscovered": false,
       "engine": "seedfuzz",
-      "reason": "precondition_unavailable: seedfuzz SIGSEGV / no run on OOM seed"
+      "reason": "no_predicate: mutated parser shape no longer reaches the OOM trigger"
     },
     "1367": {
       "runs": 243,
       "same_signature_hits": 92,
       "rediscovered": true,
+      "saturated": false,
       "engine": "custom moon.pkg count/suffix mutation, original hash excluded",
       "reason": ""
     },
     "1368": {
-      "runs": 282,
-      "same_signature_hits": 0,
-      "rediscovered": false,
+      "runs": 291,
+      "same_signature_hits": 15,
+      "rediscovered": true,
+      "saturated": false,
       "engine": "seedfuzz",
-      "reason": "precondition_unavailable: mutation grammar did not preserve export-closure package shape"
+      "reason": ""
     },
     "1369": {
-      "runs": 296,
+      "runs": 295,
       "same_signature_hits": 0,
       "rediscovered": false,
       "engine": "seedfuzz",
-      "reason": "no_predicate: seedfuzz build oracle does not classify formatter reparse; one new unrelated signature"
+      "reason": "no_predicate: build-stage oracle does not classify formatter reparse"
     },
     "1372": {
       "runs": 1,
@@ -52,32 +56,32 @@
       "reason": "precondition_unavailable: seedfuzz ignores LSP JSON request seeds"
     },
     "1376": {
-      "runs": 0,
+      "runs": 1,
       "same_signature_hits": 0,
       "rediscovered": false,
       "engine": "seedfuzz",
-      "reason": "precondition_unavailable: seedfuzz ignores LSP framing seed (SIGSEGV)"
+      "reason": "precondition_unavailable: seedfuzz ignores LSP framing seeds"
     },
     "1340": {
-      "runs": 0,
+      "runs": 279,
       "same_signature_hits": 0,
       "rediscovered": false,
       "engine": "seedfuzz",
-      "reason": "precondition_unavailable: seedfuzz SIGSEGV on package seed"
+      "reason": "no_predicate: async suspension/raise? shape not preserved by text mutation"
     },
     "1344": {
-      "runs": 0,
+      "runs": 277,
       "same_signature_hits": 0,
       "rediscovered": false,
       "engine": "seedfuzz",
-      "reason": "precondition_unavailable: seedfuzz SIGSEGV on package seed"
+      "reason": "no_predicate: V128 stub call shape not preserved"
     },
     "1322": {
-      "runs": 0,
+      "runs": 296,
       "same_signature_hits": 0,
       "rediscovered": false,
       "engine": "seedfuzz",
-      "reason": "precondition_unavailable: seedfuzz SIGSEGV on package seed"
+      "reason": "no_predicate: #valtype array-growth shape not preserved"
     }
   }
 }

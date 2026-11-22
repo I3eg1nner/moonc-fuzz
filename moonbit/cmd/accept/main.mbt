@@ -216,6 +216,78 @@ async fn main {
     ),
   )
 
+  // 2a2. Formatter closed-loop predicate sensitivity.  The positive seeds
+  // (F5 unary plus, F13 nested unary minus) must produce a defect; healthy
+  // templates must produce none.
+  let sf = join(bin, "cmd/seedfuzz/seedfuzz.exe")
+  let f5 = @exec.run(
+    sf,
+    ["--out", "/tmp/mbtfuzz_accept_f5_" + tag, "--seed",
+     join(root, "poc/f5_prefix_plus"), "--mutants", "2", "--stage", "format",
+     "--timeout-ms", "5000"],
+    root,
+    60000,
+  )
+  let f13 = @exec.run(
+    sf,
+    ["--out", "/tmp/mbtfuzz_accept_f13_" + tag, "--seed",
+     join(root, "poc/f13_fmt_nested_minus"), "--mutants", "2", "--stage", "format",
+     "--timeout-ms", "5000"],
+    root,
+    60000,
+  )
+  let clean = @exec.run(
+    sf,
+    ["--out", "/tmp/mbtfuzz_accept_fmt_clean_" + tag, "--seed",
+     join(root, "templates"), "--mutants", "40", "--stage", "format",
+     "--timeout-ms", "5000"],
+    root,
+    120000,
+  )
+  let fmt_sens_ok = f5.stdout.contains("\"seed_defects\":1") &&
+    f13.stdout.contains("\"seed_defects\":1") &&
+    clean.stdout.contains("\"defects\":0") &&
+    clean.stdout.contains("\"seed_defects\":0")
+  results.push(
+    check(
+      "formatter_sensitivity",
+      fmt_sens_ok,
+      "f5_rc=" + f5.rc.to_string() + " f13_rc=" + f13.rc.to_string() +
+      " clean_rc=" + clean.rc.to_string() + " " + clean.stdout.trim().to_owned(),
+    ),
+  )
+
+  // 2a3. Package/moon.pkg oracle sensitivity.  F1 seed must produce a
+  // pkg/sigsegv defect; a clean package must produce none.
+  let pkgpos = @exec.run(
+    sf,
+    ["--out", "/tmp/mbtfuzz_accept_pkgpos_" + tag, "--seed",
+     join(root, "oracle_cases/crash_ice/1367"), "--mutants", "20",
+     "--stage", "package", "--timeout-ms", "5000"],
+    root,
+    60000,
+  )
+  let pkgneg = @exec.run(
+    sf,
+    ["--out", "/tmp/mbtfuzz_accept_pkgneg_" + tag, "--seed",
+     join(root, "poc/f6_native_export_closure_min"), "--mutants", "20",
+     "--stage", "package", "--timeout-ms", "5000"],
+    root,
+    60000,
+  )
+  let pkg_ok = pkgpos.stdout.contains("\"seed_defects\":1") &&
+    pkgpos.stdout.contains("pkg/sigsegv") &&
+    pkgneg.stdout.contains("\"defects\":0") &&
+    pkgneg.stdout.contains("\"seed_defects\":0")
+  results.push(
+    check(
+      "package_sensitivity",
+      pkg_ok,
+      "pos_rc=" + pkgpos.rc.to_string() + " neg_rc=" + pkgneg.rc.to_string() +
+      " " + pkgneg.stdout.trim().to_owned(),
+    ),
+  )
+
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
   // rather than quietly changing `regressions_13`.  Six serial cases with one

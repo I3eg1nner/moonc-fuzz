@@ -36,19 +36,19 @@ L1 100% 的含义：11 条 reproduced 的原签名/原行为都能被机器判�
 
 | issue | category | runs | 同签名 hits | L2 rediscovered | 未识别原因 |
 |---|---:|---:|---:|---|---|
-| 1364 | crash_ice | 300 | 300 | **yes** | — |
-| 1365 | crash_ice | 270 | 150 | **yes** | — |
+| 1364 | crash_ice | 300 | 300 | **yes，但 saturated** | —（任何非法 UTF-8 字节都触发，不能算搜索能力） |
+| 1365 | crash_ice | 284 | 203 | **yes** | — |
 | 1367 | crash_ice | 243 | 92 | **yes** | — |
-| 1366 | crash_ice | 0 | 0 | no | `precondition_unavailable`：seedfuzz 在 OOM seed 上崩溃，未产生结果 |
-| 1368 | crash_ice | 282 | 0 | no | `precondition_unavailable`：文本变异没有保住 export-closure 包形状 |
-| 1340 | crash_ice | 0 | 0 | no | `precondition_unavailable`：seedfuzz 对 package seed SIGSEGV |
-| 1344 | crash_ice | 0 | 0 | no | `precondition_unavailable`：seedfuzz 对 package seed SIGSEGV |
-| 1322 | crash_ice | 0 | 0 | no | `precondition_unavailable`：seedfuzz 对 script seed SIGSEGV |
-| 1369 | formatter | 296 | 0 | no | `no_predicate`：seedfuzz 的 build oracle 不判 formatter reparse |
+| 1366 | crash_ice | 295 | 0 | no | `no_predicate`：变异后不再命中 OOM 触发形态 |
+| 1368 | crash_ice | 291 | 15 | **yes** | — |
+| 1340 | crash_ice | 279 | 0 | no | `no_predicate`：async 挂起/raise? 形态未被文本变异保住 |
+| 1344 | crash_ice | 277 | 0 | no | `no_predicate`：V128 stub 调用形态未保住 |
+| 1322 | crash_ice | 296 | 0 | no | `no_predicate`：#valtype 数组增长形态未保住 |
+| 1369 | formatter | 295 | 0 | no | `no_predicate`：seedfuzz 的 build oracle 不判 formatter reparse |
 | 1372 | lsp | 1 | 0 | no | `precondition_unavailable`：seedfuzz 忽略 LSP JSON request |
-| 1376 | lsp | 0 | 0 | no | `precondition_unavailable`：seedfuzz 对 LSP framing seed SIGSEGV |
+| 1376 | lsp | 1 | 0 | no | `precondition_unavailable`：seedfuzz 忽略 LSP framing seed |
 
-**L2 = 3/11 = 27.3%。** 这是本轮最重要的负结果：L1 100% 而 L2 27.3%，
+**L2 = 4/11 = 36.4%。** 这是本轮最重要的负结果：L1 100% 而 L2 36.4%，
 说明 oracle 会分类，但现有 seedfuzz 只覆盖单文件 `.mbt` 的一部分；package /
 LSP / formatter 形态还没有可用的变异 campaign。
 
@@ -58,10 +58,10 @@ LSP / formatter 形态还没有可用的变异 campaign。
 
 | category | reproduced | L1 detected | L2 rediscovered | 未识别原因（L1/L2） |
 |---|---:|---:|---:|---|
-| crash_ice | 8 | 8 | 3 | L1 无；L2 5 条：1366/1368/1340/1344/1322 |
+| crash_ice | 8 | 8 | 4 | L1 无；L2 4 条：1366/1340/1344/1322 |
 | formatter | 1 | 1 | 0 | L1 无；L2 1369 `no_predicate` |
 | lsp | 2 | 2 | 0 | L1 无；L2 1372/1376 `precondition_unavailable` |
-| **合计** | **11** | **11** | **3** | — |
+| **合计** | **11** | **11** | **4** | — |
 
 ## 4. fixed 门禁：`issue_regress`
 
@@ -111,7 +111,7 @@ shell gate，不新增 `.py`。
 ## 7. 边界
 
 - L1 的 100% 是对 11 条 curated reproduced 的判定，不是对所有 172 条粗筛。
-- L2 只做了 3 条自定义变异的正结果；其余是 seedfuzz 的形态/崩溃限制，不能
+- L2 只做了 4 条重发现（1364 饱和、1365/1367/1368 非饱和）；其余是 seedfuzz 的形态限制，不能
   外推为“这些缺陷不可变异重发现”。
 - 1328/1326/1155 的 `fixed` 是 **pin_expected**，不是 upstream fixed。
 - 未发上游 issue/comment，未改 pin。

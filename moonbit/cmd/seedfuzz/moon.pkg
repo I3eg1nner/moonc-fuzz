@@ -17,6 +17,7 @@ import {
   "moonbitlang/x/fs",
   "I3eg1nner/mbtfuzz/mutate",
   "I3eg1nner/mbtfuzz/stager",
+  "I3eg1nner/mbtfuzz/exec",
 }
 
 options(
