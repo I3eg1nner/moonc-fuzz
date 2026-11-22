@@ -320,6 +320,24 @@
     "dir": "oracle_cases/formatter/875"
   },
   {
+    "issue": 945,
+    "title": "moon info emits fn[] in mbti",
+    "state": "closed",
+    "category": "formatter",
+    "status": "fixed",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/945",
+    "command": "moon info; grep -qF 'fn[T]' pkg.generated.mbti && echo MBTI_OK",
+    "rc": 0,
+    "evidence": "rc0; pkg.generated.mbti has fn[T], not fn[]",
+    "bug_symptom": "issue says generated mbti contains fn[]",
+    "pin_observed": "moon info rc0; pkg.generated.mbti uses fn[T]",
+    "assertion": {
+      "kind": "stdout_contains",
+      "contains": "MBTI_OK"
+    },
+    "dir": "oracle_cases/formatter/945"
+  },
+  {
     "issue": 1372,
     "title": "moon-lsp hangs at 100% CPU in format-nth when the last top-level block has no trailing newline",
     "state": "open",
@@ -453,6 +471,25 @@
     "dir": "oracle_cases/miscompile/860"
   },
   {
+    "issue": 447,
+    "title": "use-js-builtin-string compile error",
+    "state": "closed",
+    "category": "miscompile",
+    "status": "fixed",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/447",
+    "command": "moon run . --target wasm-gc -q",
+    "rc": 0,
+    "evidence": "rc0; simplified closure runs",
+    "bug_symptom": "issue says use-js-builtin-string wasm-gc compile fails",
+    "pin_observed": "equivalent program rc0",
+    "assertion": {
+      "kind": "exit_and_stdout",
+      "rc": 0,
+      "contains": ""
+    },
+    "dir": "oracle_cases/miscompile/447"
+  },
+  {
     "issue": 968,
     "title": "moonc parsing incorrect result for `UInt` integer literal",
     "state": "closed",
@@ -506,6 +543,63 @@
       "reason": "blocked_by_deps: Why3/proof-enabled package"
     },
     "dir": "oracle_cases/typecheck/1175"
+  },
+  {
+    "issue": 1294,
+    "title": "skip_current_package still warns own blackbox tests",
+    "state": "closed",
+    "category": "typecheck",
+    "status": "reproduced",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/1294",
+    "command": "rm -rf _build; moon test --target wasm-gc",
+    "rc": 0,
+    "evidence": "rc0; stderr Warning (deprecated): use new in foo_test.mbt",
+    "bug_symptom": "issue says blackbox test of declaring package still gets deprecation warning",
+    "pin_observed": "rc0; warning still fires",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 0,
+      "contains": "Warning (deprecated)"
+    },
+    "dir": "oracle_cases/typecheck/1294"
+  },
+  {
+    "issue": 551,
+    "title": "missing import list not reported with traitalias",
+    "state": "closed",
+    "category": "typecheck",
+    "status": "fixed",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/551",
+    "command": "moon check",
+    "rc": 0,
+    "evidence": "rc1; The trait A is not found",
+    "bug_symptom": "issue says missing import list is accepted",
+    "pin_observed": "rc1 clean error",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 1,
+      "contains": "The trait A is not found"
+    },
+    "dir": "oracle_cases/typecheck/551"
+  },
+  {
+    "issue": 836,
+    "title": "E0042 not triggering for dotted unknown attribute",
+    "state": "closed",
+    "category": "typecheck",
+    "status": "reproduced",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/836",
+    "command": "moon check 2>&1 | grep -c 'invalid_attribute'",
+    "rc": 0,
+    "evidence": "rc0; exactly one [0042] for #aaa; #aaa.aaa no diagnostic",
+    "bug_symptom": "dotted unknown attribute escapes E0042",
+    "pin_observed": "grep count=1",
+    "assertion": {
+      "kind": "stdout_line_exact",
+      "line": 1,
+      "value": "1"
+    },
+    "dir": "oracle_cases/typecheck/836"
   },
   {
     "issue": 1155,

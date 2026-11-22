@@ -1,0 +1,10 @@
+{
+  "issue": 945,
+  "category": "formatter",
+  "command": "moon info; grep -qF 'fn[T]' pkg.generated.mbti && echo MBTI_OK",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "",
+  "status": "fixed",
+  "evidence": "rc0; pkg.generated.mbti has fn[T], not fn[]"
+}

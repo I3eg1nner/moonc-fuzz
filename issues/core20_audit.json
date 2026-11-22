@@ -1,0 +1,282 @@
+[
+ {
+  "issue": 154,
+  "title": "Dependency circle misjudged",
+  "state": "closed",
+  "decision": "blocked_by_deps",
+  "missing": "Missing the full `Lampese/core` `show` branch with both `list`/`vec` package manifests and its complete dependency graph.",
+  "attempted_command": null,
+  "planned_command": "moon check (core package graph)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "The body only links a fork; the cycle cannot be rebuilt from the issue text."
+  }
+ },
+ {
+  "issue": 1133,
+  "title": "Feature request: explicit implementation of trait for type",
+  "state": "closed",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: this is an API design proposal to require `impl Trait for Type`, not a correctness claim.",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "Feature/API proposal, not a defect."
+  }
+ },
+ {
+  "issue": 4348,
+  "title": "[BUG] Integer division and remainder by zero do not panic on native and on js --release",
+  "state": "closed",
+  "decision": "unclear",
+  "missing": "Missing a pin run of the runtime-zero division/remainder matrix on native and js `--release`.",
+  "attempted_command": null,
+  "planned_command": "moon test --target native; moon test --target js --release",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "unclear",
+   "why": "Body gives a self-contained test but no pin attempt was run before finalization."
+  }
+ },
+ {
+  "issue": 4292,
+  "title": "@json.parse: duplicate keys are silently merged, and float lexemes such as `1.0` are lost",
+  "state": "closed",
+  "decision": "blocked_by_deps",
+  "missing": "Missing the `json` module source at the reported core revision and a typify-style accept/reject harness.",
+  "attempted_command": null,
+  "planned_command": "moon test (core json package)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "The behavior depends on core `@json` internals, not on a standalone compiler input."
+  }
+ },
+ {
+  "issue": 289,
+  "title": "Question about array out-of-bound checking",
+  "state": "closed",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: this is a question about `@intrinsic %array.iter` bounds behavior, with no claimed wrong result.",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "Question, not a defect report."
+  }
+ },
+ {
+  "issue": 4635,
+  "title": "[P1-18] Maps: insert verb is set on mutable and add on immutable; merge vs union",
+  "state": "open",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: this is an API naming/verb consistency review item (P1-18).",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "Design/API review, not a correctness defect."
+  }
+ },
+ {
+  "issue": 501,
+  "title": "impl Eq,Debug,Show for Map",
+  "state": "closed",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: the issue is an empty feature request to implement Eq/Debug/Show for Map.",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "Feature request."
+  }
+ },
+ {
+  "issue": 1983,
+  "title": "A trap when using an Array::make function",
+  "state": "closed",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: `Array::make(m, Array::make(p, 0))` aliases one inner array by value semantics, so rows sharing memory is expected user error.",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "Aliasing is documented value semantics; not a compiler defect."
+  }
+ },
+ {
+  "issue": 1931,
+  "title": "cc @bzy-debug @Young-Flash  I got some weird warnings when running `moon test --md`",
+  "state": "closed",
+  "decision": "blocked_by_deps",
+  "missing": "Missing the core checkout containing the exact `sorted_map`/`quickcheck` `README.mbt.md` files and the `moon test --md` warning configuration.",
+  "attempted_command": null,
+  "planned_command": "moon test --md (core repo)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "Warnings are tied to specific README files and CI flags absent from the issue."
+  }
+ },
+ {
+  "issue": 4084,
+  "title": "immut/vector: `makei`/`make`/`from_iter` return wrong elements above 32768",
+  "state": "closed",
+  "decision": "blocked_by_deps",
+  "missing": "Missing the `immut/vector` package source at the issue revision plus a runnable large-size sweep harness.",
+  "attempted_command": null,
+  "planned_command": "moon test (immut/vector)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "The bug is inside a core package implementation, not a standalone compiler input."
+  }
+ },
+ {
+  "issue": 4683,
+  "title": "[async-runtime-20] Naming and shape nits (grouped)",
+  "state": "open",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: this is a grouped async-runtime naming/shape API review item.",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "API naming review, not a correctness defect."
+  }
+ },
+ {
+  "issue": 4647,
+  "title": "[P1-30] parse_int and parse_bigint accept different grammars; add a strict mode for wire formats",
+  "state": "open",
+  "decision": "blocked_by_deps",
+  "missing": "Missing the `bigint` and `string` package sources at the pinned core revision and a parser-grammar test matrix.",
+  "attempted_command": null,
+  "planned_command": "moon test (bigint/string)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "The divergence is in core library parser APIs, not a compiler-only input."
+  }
+ },
+ {
+  "issue": 4629,
+  "title": "[P1-12] path: pub(all) struct Path(String) freezes the representation",
+  "state": "open",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: this is an API representation design decision for `path.Path`.",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "Design/API issue."
+  }
+ },
+ {
+  "issue": 1602,
+  "title": "bleeding-check failed",
+  "state": "closed",
+  "decision": "blocked_by_deps",
+  "missing": "Missing the core tree and exact bleeding `moon check --deny-warn` warning configuration at the failing commit.",
+  "attempted_command": null,
+  "planned_command": "moon check --deny-warn (core repo)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "The failure depends on the borrowed warning-list config in core CI."
+  }
+ },
+ {
+  "issue": 3325,
+  "title": "[Perf] JS target: abort() in moonbitlang/core (StringView, Array) silently pulls ~5KB into release builds",
+  "state": "closed",
+  "decision": "not_a_bug",
+  "missing": "No artifact is missing: this is a JS bundle-size/performance complaint about `abort()` pulling SourceLoc code.",
+  "attempted_command": null,
+  "planned_command": null,
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "not_a_bug",
+   "why": "Performance/bundle-size, outside crash/wrong-code/typecheck/formatter/LSP-hang."
+  }
+ },
+ {
+  "issue": 4622,
+  "title": "[P1-5] Define one contract for integer / 0, % 0 and MIN / -1 across backends",
+  "state": "open",
+  "decision": "unclear",
+  "missing": "Missing a pin run of the per-backend integer `/ 0`, `% 0`, `MIN / -1` matrix on native, js and wasm-gc.",
+  "attempted_command": null,
+  "planned_command": "moon test --target native; moon test --target js --release; moon test --target wasm-gc",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "unclear",
+   "why": "Body gives a verified table but no pin attempt was run before finalization."
+  }
+ },
+ {
+  "issue": 4662,
+  "title": "[text-12] `internal_search` is unmarked public API, and the READMEs teach it",
+  "state": "open",
+  "decision": "blocked_by_deps",
+  "missing": "Missing the core source at `0cf74cb9c` and a check of the `#internal` annotation on `internal_search`.",
+  "attempted_command": null,
+  "planned_command": "moon check (core string/bytes packages)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "The finding is a source-annotation/API-visibility issue inside core."
+  }
+ },
+ {
+  "issue": 3133,
+  "title": "[BUG] runtime crash 24400320830243753476N & 1N",
+  "state": "closed",
+  "decision": "blocked_by_deps",
+  "missing": "Missing a BigInt package build at the issue revision and a runnable literal harness for `24400320830243753476N & 1N`.",
+  "attempted_command": null,
+  "planned_command": "moon run (BigInt literal repro)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "BigInt implementation source and version are not in the issue."
+  }
+ },
+ {
+  "issue": 2514,
+  "title": "[BUG] Incorrect String comparison implementation",
+  "state": "closed",
+  "decision": "unclear",
+  "missing": "Missing a pin run of `\"abc\".compare(\"b\")` to confirm the reported length-first ordering.",
+  "attempted_command": null,
+  "planned_command": "moon run (String::compare repro)",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "unclear",
+   "why": "Body gives the one-line repro but no pin attempt was run before finalization."
+  }
+ },
+ {
+  "issue": 1277,
+  "title": "Errors publishing packages",
+  "state": "closed",
+  "decision": "blocked_by_deps",
+  "missing": "Missing registry/network access and the 21 large `mbt-fonts-*` repositories needed to reproduce the publish failure.",
+  "attempted_command": null,
+  "planned_command": "moon publish --dry-run",
+  "pin_validation": {
+   "attempted": false,
+   "pin_result": "blocked_by_deps",
+   "why": "Failure is registry/network-side and tied to large external repos."
+  }
+ }
+]

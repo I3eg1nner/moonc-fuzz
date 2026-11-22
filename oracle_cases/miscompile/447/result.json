@@ -1,0 +1,10 @@
+{
+  "issue": 447,
+  "category": "miscompile",
+  "command": "moon run . --target wasm-gc -q",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "",
+  "status": "fixed",
+  "evidence": "rc0; simplified closure runs"
+}

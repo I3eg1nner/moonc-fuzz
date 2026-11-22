@@ -1,0 +1,8 @@
+Warning: [0042]
+   ╭─[ /tmp/e1b_836/main/a.mbt:1:1 ]
+   │
+ 1 │ #aaa
+   │ ──┬─  
+   │   ╰─── Warning (invalid_attribute): unknown attribute aaa
+───╯
+Finished. moon: ran 6 tasks, now up to date (1 warnings, 0 errors)

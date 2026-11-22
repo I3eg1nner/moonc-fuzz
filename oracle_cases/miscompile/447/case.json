@@ -1,0 +1,21 @@
+{
+  "issue": 447,
+  "title": "use-js-builtin-string compile error",
+  "state": "closed",
+  "createdAt": "2025-01-21",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/447",
+  "category": "miscompile",
+  "status": "fixed",
+  "backends": "wasm-gc",
+  "command": "moon run . --target wasm-gc -q",
+  "notes": "2025 shorthand { val, } no longer parses; simplified equivalent",
+  "evidence": "rc0; simplified closure runs",
+  "bug_symptom": "issue says use-js-builtin-string wasm-gc compile fails",
+  "pin_observed": "equivalent program rc0",
+  "assertion": {
+    "kind": "exit_and_stdout",
+    "rc": 0,
+    "contains": ""
+  }
+}

@@ -1,0 +1,15 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "audit/e1b836/main"
+
+// Values
+pub fn f() -> Int32
+
+pub fn g() -> Int32
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

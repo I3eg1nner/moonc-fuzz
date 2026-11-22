@@ -1,0 +1,606 @@
+[
+  {
+    "issue": 1063,
+    "title": "Setup AI for this project to fix CI errors",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "CI/network setup task; no language/compiler correctness predicate.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1252,
+    "title": "Issue on page /tutorial/index.html",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation page link/image issue; no compiler behavior.",
+    "pin_validation": null
+  },
+  {
+    "issue": 886,
+    "title": "[LSP] [Feature Request] Add `documentHighlightProvider` capability",
+    "state": "open",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "LSP documentHighlight capability feature request.",
+    "pin_validation": null
+  },
+  {
+    "issue": 315,
+    "title": "Have you considered supporting shorthand syntax for top-level functions to return complex generic types?",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Syntax shorthand feature proposal; no incorrect result.",
+    "pin_validation": null
+  },
+  {
+    "issue": 348,
+    "title": "文档中首页程序入口小节的示例代码运行报错",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Docs playground example runtime host error, not pin compiler behavior.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1047,
+    "title": "document `panic` and `abort`",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request for panic/abort semantics.",
+    "pin_validation": null
+  },
+  {
+    "issue": 163,
+    "title": "mooncakes.io 改进",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "mooncakes.io feature request (listing/search).",
+    "pin_validation": null
+  },
+  {
+    "issue": 1014,
+    "title": "Moving around packages is a bit tedious & error prone",
+    "state": "open",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Build-tool feature request for package moves/import updates.",
+    "pin_validation": null
+  },
+  {
+    "issue": 696,
+    "title": "[moonc] generate duplicate code when type variable without constraint.",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Codegen duplication/code-size enhancement for unconstrained type variables; no wrong result claimed.",
+    "pin_validation": null
+  },
+  {
+    "issue": 702,
+    "title": "doc: add new syntax sugar",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request; empty body.",
+    "pin_validation": null
+  },
+  {
+    "issue": 361,
+    "title": "Function Parameter Evaluation Order: Is it Necessary?",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Argument evaluation-order language design proposal.",
+    "pin_validation": null
+  },
+  {
+    "issue": 59,
+    "title": "print可以放在前边么！！！",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Naming/style proposal (`print` placement).",
+    "pin_validation": null
+  },
+  {
+    "issue": 133,
+    "title": "Benchmark against Zig",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Benchmark-against-Zig request; no defect predicate.",
+    "pin_validation": null
+  },
+  {
+    "issue": 192,
+    "title": "「可选参数」文档代码例子错误",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation example for optional parameters is wrong; docs-only.",
+    "pin_validation": null
+  },
+  {
+    "issue": 748,
+    "title": "[docs] glossary convension `record type` and `struct type`",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation glossary wording convention.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1246,
+    "title": "Installation error on Windows.",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Windows installation/environment failure with screenshot only.",
+    "pin_validation": null
+  },
+  {
+    "issue": 547,
+    "title": "invalid stub type when use typealias in other pkg in wasm-gc backend",
+    "state": "closed",
+    "verdict": "defect",
+    "category": "typecheck",
+    "reason": "Compiler rejects a valid extern-type alias used as a stub parameter when the alias is declared in another package; modern alias equivalent now accepted.",
+    "pin_validation": {
+      "attempted": true,
+      "project": "/tmp/e1b_547",
+      "command": "moon check --target wasm-gc && moon build --target wasm-gc",
+      "rc": 0,
+      "key_output": "both rc=0; 3 warnings, 0 errors; wasm-gc artifact built. Original `typealias` keyword is E3002 removed syntax; `pub type JAny1 = JAny` is accepted.",
+      "pin_result": "fixed",
+      "pin_validated": true
+    }
+  },
+  {
+    "issue": 208,
+    "title": "WebAssembly.instantiate(): invalid value type",
+    "state": "closed",
+    "verdict": "defect",
+    "category": "crash",
+    "reason": "Wasm backend emitted an invalid module (invalid value type 0x77) for a `Date.now` FFI plus loop; pin now emits a valid module.",
+    "pin_validation": {
+      "attempted": true,
+      "project": "/tmp/e1b_208",
+      "command": "moon build --target wasm; node check_wasm.js",
+      "rc": 0,
+      "key_output": "build rc=0; WebAssembly.validate(buffer)=true; new WebAssembly.Module ok.",
+      "pin_result": "fixed",
+      "pin_validated": true
+    }
+  },
+  {
+    "issue": 1347,
+    "title": "moonc prove: parentheses around `||` inside `&&` are dropped in generated WhyML",
+    "state": "open",
+    "verdict": "defect",
+    "category": "wrong-code",
+    "reason": "`moonc-prove` drops parentheses around `||` under `&&` in generated WhyML, turning `a /\\ (b \\/ c)` into `a /\\ b \\/ c` and making a false postcondition provable.",
+    "pin_validation": {
+      "attempted": true,
+      "project": "/tmp/e1b_1347",
+      "command": "moon prove (rc=255, no SMT solver); moonc-prove ... -emit-only (rc=0)",
+      "rc": 0,
+      "key_output": "generated p.mlw contains `predicate p (a: bool) (b: bool) (c: bool) = a /\\ b \\/ c`; grouping lost. No solver installed, so `moon prove` itself cannot complete.",
+      "pin_result": "reproduced",
+      "pin_validated": true
+    }
+  },
+  {
+    "issue": 91,
+    "title": "To improve Readme of AVL tree",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "README documentation request for AVL tree.",
+    "pin_validation": null
+  },
+  {
+    "issue": 561,
+    "title": "docs: hard to find the usage for the `matrix function`",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation navigation/heading request.",
+    "pin_validation": null
+  },
+  {
+    "issue": 659,
+    "title": "function attribute doesn't support completion in VSCode",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "VSCode completion feature request for function attributes.",
+    "pin_validation": null
+  },
+  {
+    "issue": 825,
+    "title": "Cannot download toolchain on Windows 11",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Windows toolchain installation environment issue.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1273,
+    "title": "Issue on page /language/fundamentals.html",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation example clarity request.",
+    "pin_validation": null
+  },
+  {
+    "issue": 622,
+    "title": "doc: add explanation about constant enum",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request; empty body.",
+    "pin_validation": null
+  },
+  {
+    "issue": 82,
+    "title": "Is this not open-source?",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Licensing/open-source question.",
+    "pin_validation": null
+  },
+  {
+    "issue": 120,
+    "title": "document return, break, continue with examples",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request; empty body.",
+    "pin_validation": null
+  },
+  {
+    "issue": 87,
+    "title": "How moonbit would go about error handling？",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Error-handling design question.",
+    "pin_validation": null
+  },
+  {
+    "issue": 836,
+    "title": "Bug: E0042 not triggering when expected",
+    "state": "closed",
+    "verdict": "defect",
+    "category": "typecheck",
+    "reason": "Unknown-attribute warning E0042 fires for `#aaa` but not for the dotted form `#aaa.aaa`, so an unknown attribute escapes diagnostics.",
+    "pin_validation": {
+      "attempted": true,
+      "project": "/tmp/e1b_836",
+      "command": "moon check",
+      "rc": 0,
+      "key_output": "check rc=0 with exactly one Warning [0042] for `#aaa`; `#aaa.aaa` produced no diagnostic.",
+      "pin_result": "reproduced",
+      "pin_validated": true
+    }
+  },
+  {
+    "issue": 1051,
+    "title": "FFI declaration bug",
+    "state": "closed",
+    "verdict": "defect",
+    "category": "typecheck",
+    "reason": "Body reports js FFI stub rejection for a newtype parameter (`type I Int`) plus an extern-js closure; plausible valid-FFI false rejection, not validated on pin.",
+    "pin_validation": {
+      "attempted": false,
+      "project": null,
+      "command": null,
+      "rc": null,
+      "key_output": "Not attempted: parent requested stop/time cap. Planned: `moon build --target js`.",
+      "pin_result": "unclear",
+      "pin_validated": false
+    }
+  },
+  {
+    "issue": 440,
+    "title": "Compiler Error When Using `Array::make` with `ExternRef`",
+    "state": "closed",
+    "verdict": "defect",
+    "category": "crash",
+    "reason": "Body reports a native-only compiler error for `Array::make(3, extern_ref)` with `type ExternRef`; not validated on pin.",
+    "pin_validation": {
+      "attempted": false,
+      "project": null,
+      "command": null,
+      "rc": null,
+      "key_output": "Not attempted: parent requested stop/time cap. Planned: `moon build --target native`.",
+      "pin_result": "unclear",
+      "pin_validated": false
+    }
+  },
+  {
+    "issue": 373,
+    "title": "文档 https://tour.moonbitlang.com/basics/test/index.html 中的 playground链接不存在",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation playground link is 404.",
+    "pin_validation": null
+  },
+  {
+    "issue": 848,
+    "title": "[Question] How to implement a trait for a type when both are defined in other packages?",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Language-design question about orphan trait impls.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1083,
+    "title": "documentation: #cfg",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request for `#cfg`.",
+    "pin_validation": null
+  },
+  {
+    "issue": 211,
+    "title": "建议开源这个代码块的react组件",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Feature request to open-source a React playground component.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1154,
+    "title": "document `supported_target` in moon.pkg",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request for `supported_target`.",
+    "pin_validation": null
+  },
+  {
+    "issue": 616,
+    "title": "Unexpected File Extension in ELF Executable When Building with moon run on Debian/WSL2",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Linux native artifact retains `.exe` suffix; cosmetic tooling/naming, not a correctness defect.",
+    "pin_validation": null
+  },
+  {
+    "issue": 730,
+    "title": "[doc] Add a new subsection to interpolated string syntax",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request; empty body.",
+    "pin_validation": null
+  },
+  {
+    "issue": 725,
+    "title": "[Inconsistent] There is no syntactic structure in the struct syntax that corresponds to the error type.",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Syntax/feature consistency question about spelling an error struct; no crash or wrong result.",
+    "pin_validation": null
+  },
+  {
+    "issue": 957,
+    "title": "[LSP] hover documentation too long",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "LSP hover UI feature request (too-long docs).",
+    "pin_validation": null
+  },
+  {
+    "issue": 686,
+    "title": "in typealias context, completion should without qualified module name",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "LSP completion feature request (unqualified names).",
+    "pin_validation": null
+  },
+  {
+    "issue": 1074,
+    "title": "Doc: add explanation for `mbt check` in docstring",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request for `mbt check` in docstrings.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1239,
+    "title": "describe Ref[T] ABI guarantee for native backend",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation request for Ref[T] native ABI guarantee.",
+    "pin_validation": null
+  },
+  {
+    "issue": 744,
+    "title": "[moonc] improve type infer in toplevel values",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Type-inference ergonomics report with screenshot only and no textual repro.",
+    "pin_validation": null
+  },
+  {
+    "issue": 707,
+    "title": "IDE: show the integer value of enum",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "IDE feature request to show enum integer values.",
+    "pin_validation": null
+  },
+  {
+    "issue": 85,
+    "title": "Incomplete sections Conditional Expressions and Loops in README.md",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation incompleteness report for README sections.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1000,
+    "title": "error: Unsupported platform: Darwin x86_64",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Installer does not support Darwin x86_64; environment/platform request.",
+    "pin_validation": null
+  },
+  {
+    "issue": 950,
+    "title": "`E4122` needs to be updated",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation update for obsolete E4122 error code.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1159,
+    "title": "Windows installer download is much slower when PowerShell progress output is enabled",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Windows installer download performance issue, not compiler correctness.",
+    "pin_validation": null
+  },
+  {
+    "issue": 490,
+    "title": "Linking C code in sub-packages causes errors: not find symbol `main` in the subpackage and symbol `foo` in the top package",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Build-system/C-linking behavior for native sub-packages; outside crash/wrong-code/typecheck/formatter/LSP-hang categories.",
+    "pin_validation": null
+  },
+  {
+    "issue": 584,
+    "title": "Add Java style enum type",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Java-style enum syntax feature proposal.",
+    "pin_validation": null
+  },
+  {
+    "issue": 576,
+    "title": "Bug: In VSCode plugin, the guard syntax cannot step over through code line by line when in debug mode.",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "VSCode debugger step-over behavior for `guard`; debugger UX, outside listed defect categories.",
+    "pin_validation": null
+  },
+  {
+    "issue": 229,
+    "title": "Syntax doc is extremely out of date",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation examples are outdated; docs-only.",
+    "pin_validation": null
+  },
+  {
+    "issue": 96,
+    "title": "Add license",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Repository license request.",
+    "pin_validation": null
+  },
+  {
+    "issue": 623,
+    "title": "fnalias and traitalias can't use code completion in VSCode",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "VSCode completion diagnostic/UX issue for fnalias/traitalias; outside listed defect categories.",
+    "pin_validation": null
+  },
+  {
+    "issue": 708,
+    "title": "[Question] Why use `int32_t` to repr `Bool` in the native backend?",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Question about Bool representation in native backend; no defect claim.",
+    "pin_validation": null
+  },
+  {
+    "issue": 895,
+    "title": "[LSP] Local extension method has no completion hints",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "LSP completion feature request for local extension methods.",
+    "pin_validation": null
+  },
+  {
+    "issue": 1339,
+    "title": "Linux native link-core stack overflow in MoonPlot ticker tests on stable and nightly",
+    "state": "open",
+    "verdict": "defect",
+    "category": "crash",
+    "reason": "Body reports a compiler `link-core` stack overflow on Linux native for MoonPlot ticker tests, with CI logs but no reduced repro; not validated on pin.",
+    "pin_validation": {
+      "attempted": false,
+      "project": null,
+      "command": null,
+      "rc": null,
+      "key_output": "Not attempted: needs clone of moonbit-community/moonplot at 38ed2c954 and native all-target test; parent requested stop/time cap.",
+      "pin_result": "unclear",
+      "pin_validated": false
+    }
+  },
+  {
+    "issue": 415,
+    "title": " %identity Inconsistent behavior in wasm-gc backend",
+    "state": "closed",
+    "verdict": "defect",
+    "category": "crash",
+    "reason": "Body reports wasm-gc producing an invalid module (local.set type mismatch) from `%identity` coercions between function types; not validated on pin.",
+    "pin_validation": {
+      "attempted": false,
+      "project": null,
+      "command": null,
+      "rc": null,
+      "key_output": "Not attempted: parent requested stop/time cap. Planned: `moon test --target wasm-gc`.",
+      "pin_result": "unclear",
+      "pin_validated": false
+    }
+  },
+  {
+    "issue": 519,
+    "title": "doc: improve error code suggestions",
+    "state": "closed",
+    "verdict": "not_defect",
+    "category": null,
+    "reason": "Documentation/error-code suggestion checklist.",
+    "pin_validation": null
+  }
+]

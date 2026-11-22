@@ -1,0 +1,10 @@
+{
+  "issue": 836,
+  "category": "typecheck",
+  "command": "moon check 2>&1 | grep -c 'invalid_attribute'",
+  "rc": 0,
+  "stdout_tail": "1\n",
+  "stderr_tail": "",
+  "status": "reproduced",
+  "evidence": "rc0; exactly one [0042] for #aaa; #aaa.aaa no diagnostic"
+}

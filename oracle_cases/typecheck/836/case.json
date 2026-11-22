@@ -1,0 +1,19 @@
+{
+  "issue": 836,
+  "title": "E0042 not triggering for dotted unknown attribute",
+  "state": "closed",
+  "category": "typecheck",
+  "status": "reproduced",
+  "backends": "all",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/836",
+  "command": "moon check 2>&1 | grep -c 'invalid_attribute'",
+  "notes": "",
+  "evidence": "rc0; exactly one [0042] for #aaa; #aaa.aaa no diagnostic",
+  "bug_symptom": "dotted unknown attribute escapes E0042",
+  "pin_observed": "grep count=1",
+  "assertion": {
+    "kind": "stdout_line_exact",
+    "line": 1,
+    "value": "1"
+  }
+}

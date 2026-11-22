@@ -4,287 +4,323 @@
     "state": "open",
     "title": "ICE: native debug regalloc 'requires more GPR patch scratch registers' when a call passes 13+ #valtype arguments",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs a native test package with 13 #valtype args; issue omits the test harness/pipeline",
+    "minutes_cap": 10,
+    "attempted_command": "moon test --target native"
   },
   {
     "issue": 1327,
     "state": "closed",
     "title": "ICE: Sys_error \"No such file or directory\" when building with --target llvm (std bundle dir is named `native`, not `llvm`)",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs an LLVM release bundle and `--target llvm`; pin only has the native std bundle",
+    "minutes_cap": 10,
+    "attempted_command": "moon build --target llvm"
   },
   {
     "issue": 1308,
     "state": "closed",
     "title": "ICE: Machine_of_clam_lower.lower_break: \"break value is required for scalar loop\"",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs a scalar labelled loop with `break value`; the issue code is old `loop` syntax and current parser rejects it before lowering",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 1304,
     "state": "closed",
     "title": "ICE: Moonc.Hashed_type.Unresolved_type_variable on malformed lexmatch arms (string-literal patterns in tuple form)",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs lexmatch with string-literal tuple patterns; no current parser form, old frontend only",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 1291,
     "state": "closed",
     "title": "ICE: Ctype.Unify when `extend`ing two trait methods that both conflict with existing regular methods",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs two conflicting trait methods plus `extend` in a package; body gives no complete module",
+    "minutes_cap": 10,
+    "attempted_command": "moon check"
   },
   {
     "issue": 1289,
     "state": "open",
     "title": "ICE: native test link fails when layout table exceeds 22-bit offset",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs a package whose layout table exceeds 22-bit offsets; generator/package not supplied",
+    "minutes_cap": 10,
+    "attempted_command": "moon build --target native"
   },
   {
     "issue": 1286,
     "state": "closed",
     "title": "ICE: `moonc` raise Sys_error(No such file or directory) directly",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "needs a triggering cwd/path for Sys_error; no path or file layout in body",
+    "minutes_cap": 10,
+    "attempted_command": "moon build"
   },
   {
     "issue": 1272,
     "state": "open",
     "title": "ICE: output_value: integer cannot be read back on 32-bit platform",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs a 32-bit host; current host is x86_64 and the bug is output_value truncation there",
+    "minutes_cap": 10,
+    "attempted_command": "moon build --target native"
   },
   {
     "issue": 1266,
     "state": "closed",
     "title": "ICE: moonc crashes when ```argument |> tuple struct constructor```",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs `argument |> tuple struct constructor`; the 2025 pipe syntax is not accepted by current parser",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 1137,
     "state": "closed",
     "title": "ICE: Key_not_found in link-core with `try/catch` on non-raising body (debug mode, wasm/wasm-gc/native)",
-    "decision": "unclear",
-    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
-    "minutes_cap": 10
+    "decision": "blocked_by_deps",
+    "reason": "needs a full test package for a try/catch on a non-raising body; only a fragment is given",
+    "minutes_cap": 10,
+    "attempted_command": "moon test --target wasm-gc"
   },
   {
     "issue": 1134,
     "state": "closed",
     "title": "ICE: The latest compiler appears to have internal problems with previous builds",
     "decision": "unclear",
-    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
-    "minutes_cap": 10
+    "reason": "reported only against stale previous builds; clean rebuild does not reproduce",
+    "minutes_cap": 10,
+    "attempted_command": "rm -rf _build; moon build"
   },
   {
     "issue": 1133,
     "state": "closed",
     "title": "ICE: Key_not_found in link-core when optional Array[T] parameter has no default value (JS target)",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs a JS package with optional Array[T] lacking a default; moon.pkg/args not in body",
+    "minutes_cap": 10,
+    "attempted_command": "moon test --target js"
   },
   {
     "issue": 1121,
     "state": "closed",
     "title": "ICE: moonc link-core Error: Not_found",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "link-core Not_found; body has no source or command",
+    "minutes_cap": 10,
+    "attempted_command": "moonc link-core"
   },
   {
     "issue": 1081,
     "state": "closed",
     "title": "ICE: moon coverage analyze cannot find symbols for enum variants with specific patterns",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs coverage-instrumented artifacts and enum variants; not a standalone source",
+    "minutes_cap": 10,
+    "attempted_command": "moon coverage analyze"
   },
   {
     "issue": 1072,
     "state": "closed",
     "title": "ICE: LLVM build target fail - No llvm release bundle",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs the absent LLVM release bundle",
+    "minutes_cap": 10,
+    "attempted_command": "moon build --target llvm"
   },
   {
     "issue": 1071,
     "state": "closed",
     "title": "ICE:  `moon coverage analyze` failed with `AnyType::main() -> NonUnitType`",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "needs coverage instrumentation and a main returning non-Unit",
+    "minutes_cap": 10,
+    "attempted_command": "moon coverage analyze"
   },
   {
     "issue": 1041,
     "state": "closed",
     "title": "ICE: Compiler crash on moon build --target js",
     "decision": "unclear",
-    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
-    "minutes_cap": 10
+    "reason": "JS-target compiler crash; no source in body",
+    "minutes_cap": 10,
+    "attempted_command": "moon build --target js"
   },
   {
     "issue": 1035,
     "state": "closed",
     "title": "Error: File \"moonc.ml\", line 206536, characters 34-40: Assertion failed",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "assertion line 206536; body gives no minimal input/stack context",
+    "minutes_cap": 10,
+    "attempted_command": "moonc build-package"
   },
   {
     "issue": 1001,
     "state": "closed",
     "title": "ICE: miscompile in wasm-gc",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "wasm-gc miscompile; needs the full module and expected output not in body",
+    "minutes_cap": 10,
+    "attempted_command": "moon run --target wasm-gc"
   },
   {
     "issue": 996,
     "state": "closed",
     "title": "ICE: cast a closure to an empty trait object",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "closure cast to empty trait object; issue code uses removed cast syntax",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 973,
     "state": "closed",
     "title": "ICE:",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "empty issue body, no repro or command",
+    "minutes_cap": 10,
+    "attempted_command": "none"
   },
   {
     "issue": 972,
     "state": "closed",
     "title": "ICE:",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "empty issue body, no repro or command",
+    "minutes_cap": 10,
+    "attempted_command": "none"
   },
   {
     "issue": 970,
     "state": "closed",
     "title": "ICE: moon build",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "`moon build` only; no source or error",
+    "minutes_cap": 10,
+    "attempted_command": "moon build"
   },
   {
     "issue": 949,
     "state": "closed",
     "title": "ICE: failed when building project",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "failed build project; no source or error text",
+    "minutes_cap": 10,
+    "attempted_command": "moon build"
   },
   {
     "issue": 925,
     "state": "closed",
     "title": "ICE: ^-char in match using regex crashes compiler",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "regex `^-` in match; old regex/pattern syntax, not accepted now",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 899,
     "state": "closed",
     "title": "ICE: continue with a labelled loop",
-    "decision": "unclear",
-    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
-    "minutes_cap": 10
+    "decision": "blocked_by_deps",
+    "reason": "labelled continue; old loop syntax plus external array/buffer packages",
+    "minutes_cap": 10,
+    "attempted_command": "moon check"
   },
   {
     "issue": 887,
     "state": "closed",
     "title": "ICE: moon test trigger ICE",
-    "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "decision": "unclear",
+    "reason": "`moon test` ICE; no test file/package",
+    "minutes_cap": 10,
+    "attempted_command": "moon test"
   },
   {
     "issue": 821,
     "state": "closed",
     "title": "ICE: \"%async.run\" cause compile failure",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "`%async.run` intrinsic; needs the async package and old intrinsic form",
+    "minutes_cap": 10,
+    "attempted_command": "moon build --target native"
   },
   {
     "issue": 804,
     "state": "closed",
     "title": "ICE: `letrec`",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "`letrec`; syntax removed from current parser",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 800,
     "state": "closed",
     "title": "ICE: async local function that returns a trait object with error causes ICE",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "async local fn returning trait object with error; needs async package and old syntax",
+    "minutes_cap": 10,
+    "attempted_command": "moon test --target js"
   },
   {
     "issue": 796,
     "state": "closed",
     "title": "ICE: `... as B` where `B` is a type alias for `&A` cause ICE",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "`... as B` alias form; old syntax removed",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 784,
     "state": "closed",
     "title": "ICE: Stack overflow when compiling large functions with C backend (over 200,000 lines)",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "200,000-line C backend function; exceeds 15-min reconstruction budget and needs a large C harness",
+    "minutes_cap": 10,
+    "attempted_command": "moon build --target native"
   },
   {
     "issue": 780,
     "state": "closed",
     "title": "ICE: randomly occurred `parse_patch` error",
     "decision": "unclear",
-    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
-    "minutes_cap": 10
+    "reason": "parse_patch error described as random; no stable input or seed",
+    "minutes_cap": 10,
+    "attempted_command": "moonc build-package"
   },
   {
     "issue": 779,
     "state": "closed",
     "title": "ICE: Array Pattern for `FixedArray`",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "FixedArray array pattern; old pattern syntax and package",
+    "minutes_cap": 10,
+    "attempted_command": "moonc syncheck main.mbt"
   },
   {
     "issue": 181,
     "state": "closed",
     "title": "printing char beyond `U+10000` causes `moon run` to panic",
     "decision": "blocked_by_deps",
-    "reason": "custom toolchain/OS/external package dependency; not reconstructible in 10 min",
-    "minutes_cap": 10
+    "reason": "printing char beyond U+10000; needs a specific console/encoding host and runtime output",
+    "minutes_cap": 10,
+    "attempted_command": "moon run main.mbt"
   },
   {
     "issue": 101,
     "state": "closed",
     "title": "Fatal error: exception File \"lib/xml/mir/monofy.ml\": Assertion failed",
-    "decision": "unclear",
-    "reason": "bounded read: no self-contained module/command; 10-min reconstruction did not reach pin repro",
-    "minutes_cap": 10
+    "decision": "blocked_by_deps",
+    "reason": "old xml/monofy compiler path; this is an old compiler build, not the pinned moonc",
+    "minutes_cap": 10,
+    "attempted_command": "moonc build-package"
   }
 ]

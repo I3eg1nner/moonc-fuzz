@@ -83,6 +83,20 @@
       "rediscovered": false,
       "engine": "seedfuzz",
       "reason": "no_predicate: #valtype array-growth shape not preserved"
+    },
+    "1294": {
+      "runs": 290,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz test 300 mutants",
+      "reason": "no_predicate: deprecation warning is not a judge defect"
+    },
+    "836": {
+      "runs": 49,
+      "same_signature_hits": 0,
+      "rediscovered": false,
+      "engine": "seedfuzz build 50 mutants",
+      "reason": "no_predicate: attribute diagnostic is not a judge defect"
     }
   }
 }

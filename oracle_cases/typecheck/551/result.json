@@ -1,0 +1,10 @@
+{
+  "issue": 551,
+  "category": "typecheck",
+  "command": "moon check",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "",
+  "status": "fixed",
+  "evidence": "rc1; The trait A is not found"
+}
