@@ -481,7 +481,7 @@ truncated`，三个完整观测才可判 pass。
 | `min / -1`、除零 | **allowed_impl_divergence**（core int 文档：no portable result） |
 | 指针/结构体/async/真实包语义 | 未覆盖（研究原型） |
 | i64 参考值独立性 | 基础 i64 族用 node BigInt.asIntN(64) 独立参考；其余 i64 表达式仍用 MoonBit 参考（共模风险未完全消除） |
-| 独立参考（不经过 moonc） | typed 族 + i64 基础族由 node 执行 JS 得到 expected；与 MoonBit 参考不一致时记 reference_disagree / oracle_candidate |
+| 独立参考（不经过 moonc） | **全部同步族**（i32/i64/expr/string/array/loop/var/if/func/alias/nested/utf8 + struct/enum/泛型/闭包/typed_nested/typed_deep）由 node 执行 JS 得到 expected；boundary 仍用 MoonBit 参考（allowed 域）；不一致时记 reference_disagree / oracle_candidate |
 | async | 不在 sem3；由独立 `cmd/xdiff --family async` harness 覆盖 |
 
 控制：`--inject js` 每族必须产出 witness；`--inject all` 产出
