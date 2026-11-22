@@ -16,7 +16,7 @@
 | 能力 | findings | 原始证据/资产 | 门禁 |
 |---|---|---|---|
 | 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
-| 13 个已知缺陷回归（F1–F9 家族） | `p0_evidence.md`, `f8f9_trigger_surface.md` | `poc/`, `cmd/regress` | `regressions_13`, `seed_repro` |
+| 13 个回归 case（F1–F6 家族 12 个 + P1；F7–F12 另有专项门禁） | `p0_evidence.md`, `f8f9_trigger_surface.md`, `defect_inventory.md` | `poc/`, `cmd/regress` | `regressions_13`, `f7_boundary`, `reduce_witness`, `lsp_regress_6` |
 | semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
 | triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
 | formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
@@ -136,4 +136,8 @@ pin         未改动
 ```
 
 HEAD 与推送结果见本次提交（`docs: final handoff`）。
+
+缺陷复核（同日）：见 `findings/defect_inventory.md`。F1–F12 全部仍在当前 pin
+上复现（11 个根因类 + P1；F11/F12 合并），`cmd/regress` 13/13；未发现新缺陷，
+也没有任何一条可称为 miscompile。
 

@@ -42,7 +42,7 @@ with `scripts/fetch_assets.sh` (uses `moon add WeiR-h/moonldif@0.7.6`).
 
 ## Open upstream defects reproduced here
 
-F7, F8, F9 and F10 are **not** part of the fixed F1–F6 set.  They reproduce open
+F7–F12 are **not** part of the original F1–F6 set.  They reproduce open
 upstream reports on the pinned toolchain and are kept as regression evidence:
 
 - F7 matches [#1322](https://github.com/moonbitlang/moonbit-docs/issues/1322)
@@ -60,29 +60,22 @@ response, not a crash signature:
 - F10 matches [#1372](https://github.com/moonbitlang/moonbit-docs/issues/1372)
   (`moon-lsp` `format-nth` hangs at 100% CPU when the last block has no
   trailing newline).
-- F11 and F12 have **no matching upstream report** and are the same defect with
-  two decoder entry points: an exception raised while converting an input frame
-  escapes `Lsp__Io.Make.read`, after which the process stays alive at ~0% CPU,
-  stdout stays open (not EOF), and later complete requests are never read.
-  F11 raises `invalid structured value` in `Jsonrpc.Packet.t_of_fields` when
-  `params` is a JSON scalar; F12 raises `invalid packet` in
-  `Jsonrpc.Packet.t_of_yojson` for a non-object body such as `[1,2]`, or
-  `content length absent` in `Lsp__Io.Make.read_header` for a UTF-8 BOM.
-  Both are reported as one defect, not two root causes, upstream as
-  [#1376](https://github.com/moonbitlang/moonbit-docs/issues/1376). A
-  dependency-level report exists at
+- F11 and F12 are the same defect with two decoder entry points: an exception
+  raised while converting an input frame escapes `Lsp__Io.Make.read`, after
+  which the process stays alive at ~0% CPU, stdout stays open (not EOF), and
+  later complete requests are never read. F11 raises `invalid structured
+  value` in `Jsonrpc.Packet.t_of_fields` when `params` is a JSON scalar; F12
+  raises `invalid packet` in `Jsonrpc.Packet.t_of_yojson` for a non-object
+  body such as `[1,2]`, or `content length absent` in
+  `Lsp__Io.Make.read_header` for a UTF-8 BOM. Upstream coverage is
+  [#1376](https://github.com/moonbitlang/moonbit-docs/issues/1376) (both
+  entry points, one defect); a dependency-level report exists at
   [ocaml-lsp#1330](https://github.com/ocaml/ocaml-lsp/issues/1330).
-- F12 has **no matching upstream report**: a UTF-8 BOM before the first header,
-  or a valid non-object JSON body, makes `moon-lsp` log an uncaught exception,
-  stay alive at 0% CPU and never process another complete request. The
-  single-request silence of malformed JSON was already noted in
-  `findings/lsp_probe.md`; F12 proves the session is permanently wedged and
-  adds the transport/encoding triggers.
 
-An independent Codex run (three repeats each, with negative controls) is
-archived in `findings/codex_open_ice_review.md`; it covered F7–F9 and also
-corrected the F9 README claim about `moon test --build-only`. F10 and F11 were
-found later and have not been through that review.
+Independent Codex runs (three repeats each, with negative controls) are
+archived in `findings/codex_open_ice_review.md` (F7–F9) and
+`findings/codex_lsp_review.md` (F10–F12). The former also corrected the F9
+README claim about `moon test --build-only`.
 
 They are excluded from `scripts/reproduce_all.sh` because that script asserts the
-F1–F6 fixed behavior; run the commands in each PoC README directly.
+expected F1–F6 behavior; run the commands in each PoC README directly.

@@ -5,7 +5,7 @@
 | 目标 | `moonc v0.10.20+65efd5b93 (2026-11-05)` |
 | 输入类型 | `.mbt.md`（带 MoonBit 代码块的 Markdown，用于 doctest） |
 | 现象 | ICE，`Error: Moonc.Basic_utf8_decode.MalFormed`，退出码 199 |
-| 最小输入 | 22 字节 |
+| 最小输入 | 40 字节 |
 | 严重性 | 低（错误路径未兜住，属于偶发 ICE；不应影响正常构建） |
 
 ## 复现

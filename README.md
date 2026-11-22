@@ -4,10 +4,9 @@
 
 面向闭源 MoonBit 编译器 `moonc` 的黑盒/灰盒测试工具，主分支实现为
 MoonBit。Python 参考实现和归档 pilot 在 `python-reference` 分支，不参与
-主分支构建或验收。目前复现 6 个缺陷（F1–F6）和 1 个 formatter 性能异常
-（P1），7 个 issue 已提交至 `moonbitlang/moonbit-docs`；另在固定版本上复现
-3 个上游仍开放的链接期 ICE（F7/F8/F9），以及 3 个 LSP 层缺陷
-（F10/F11/F12，其中只有 F10 有上游报告）。
+主分支构建或验收。目前复现 11 个根因类缺陷（F1–F10，F11/F12 合并为一类）
+和 1 个 formatter 性能异常（P1）；F1–F6 与 P1 的 7 个 issue 已提交至
+`moonbitlang/moonbit-docs`，F7–F12 对应上游仍开放的报告（见 §5）。
 
 - 仓库：<https://github.com/I3eg1nner/moonc-fuzz>
 - 包：<https://mooncakes.io/docs/I3eg1nner/mbtfuzz>（`moon add I3eg1nner/mbtfuzz`）
@@ -78,7 +77,8 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ```
 
 `cmd/accept` 依次检查（24 项）：工具链 pin、`moon build`、`moon test`、
-`moon check`、13 例编译器缺陷回归、6 例 LSP 缺陷回归、LSP 负样本
+`moon check`、13 个缺陷回归 case（F1–F6 家族 + P1）、6 例 LSP 回归
+（3 缺陷 + 3 控制）、LSP 负样本
 （3 会话 × 7 请求，且探针必须能看见 F11 触发）、oracle 灵敏度、真实编译
 语料上的误报回归、归约 witness、种子复现、F7 边界、语义差分、语义差分反例自检、深层漏斗（类型有效 IR 的 T2/T3 队列）、triage 正负控、triage campaign 端到端、formatter 聚类端到端、stub 编译器未知 witness 晋级、合成 trace
 精确输出、真实 QEMU trace 的 599 函数集合、覆盖并集、25 个模板的
@@ -107,11 +107,12 @@ run.sh          MoonBit fuzz 入口
 
 ## 4. 缺陷
 
-11 个 PoC（含 F6 外部包）在固定版本上全部复现。独立复验（2026-11-13）未发现
+F1–F6 与 P1 的 11 个 PoC（含 F6 外部包）在固定版本上全部复现。独立复验（2026-11-13）未发现
 假阳性，并排除了四类误报来源：文件不存在、cwd 错误、缺 core library、
 `_build` 缓存；F2 和 F6 另在全新副本上重跑。同一轮复验修正了 8 处数字或措辞
 过度声明（见 `d1447bd`），`scripts/reproduce_all.sh` 也从“打印 rc”改为带断言
-的 13 项检查。
+的 13 项检查。后续加入的 F7–F12 共 6 个目录在 2026-11-22 复核中亦全部复现；
+汇总见 `findings/defect_inventory.md`。
 
 每个 PoC 的完整命令和预期输出见 `poc/<id>/README.md`，索引见 `poc/README.md`。
 7 条 issue 已提交到 `moonbitlang/moonbit-docs`
@@ -132,7 +133,7 @@ ICE banner 指定的入口，`moonbitlang/moonbit-compiler` 的 Issues 处于关
 | F6 | 10 行单包 | `moon build --target native` rc 255 | 3/3 | 限定：链接期诊断缺陷 |
 | P1 | 2,048 段插值 | 15.1 s vs 纯串 7 ms | 3+5 | 限定：两点实测，不推阶数 |
 
-F7/F8/F9 是**上游仍开放**的链接期 ICE，不计入 F1–F6 的“已修复”集合：F7 是
+F7/F8/F9 是**上游仍开放**的链接期 ICE，不计入 F1–F6 的既有集合：F7 是
 native debug 下 `#valtype` 记录（标量 + 含 GC 引用的 enum）经 `Array::push`
 触发 `lower_array_make` ICE；F8 是 async 挂起后调用 `raise?` 参数触发
 `link-core` 断言；F9 是 native debug 下 `extern "C"` stub 接收 `V128` 触发
@@ -212,7 +213,7 @@ plain-struct 控制在四个后端都 ALL_EQUAL。async 侧改为比较测试驱
 **不是**缺陷发现效果的证明；`29.75%` 的函数口径没有改动。
 详见 `findings/edge_feedback.md`。
 
-### 5.3 LSP 层：三条互不重叠的健壮性缺陷
+### 5.3 LSP 层：三个编号、两条根因的健壮性缺陷
 
 `moon-lsp` 是本项目唯一一个**不经过编译器**的攻击面，oracle 也最干净：
 **没有响应就是缺陷**，不需要签名归一化。
@@ -277,11 +278,11 @@ moon run cmd/lspregress
 - `featuregen/`、`asyncgen/`：特性定向源生成器（native 布局矩阵、async 状态机矩阵）；
 - `lsp/`：LSP 帧/请求模型与结果分类（纯函数，29 个测试）。
 
-当前 340 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 385 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑两个 job：`latest-canary` 用上游最新的工具链跑
 `moon check`/`build`/`test`/`fmt --check` 和最小示例；`pinned-evidence`
 下载 v0.1.0 的冻结工具链、校验 sha256，然后跑 `accept --profile core`
-的 21 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 例缺陷（含 F3 的第二 witness）；
+的 21 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 个回归 case（F1–F6 家族 12 个 + P1；含 F3 的第二 witness）；
 `cmd/accept` 是迁移验收门禁。主分支不包含 `.py` 文件；独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。
@@ -410,6 +411,7 @@ moon test --target native
 
 | 文件 | 内容 |
 |---|---|
+| `findings/defect_inventory.md` | 全部缺陷的根因归类、2026-11-22 逐项复核与记录修正 |
 | `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
 | `findings/toolchain_archive.md` | 冻结 pin 工具链（CDN 只发 latest）、恢复与验证步骤 |
 | `findings/deep_funnel.md` | 类型有效 IR 的 T2/T3 专用队列；30 分钟 11,451 例全部与解释器一致 |
