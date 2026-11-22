@@ -483,7 +483,7 @@ truncated`，三个完整观测才可判 pass。
 | i64 参考值独立性 | 基础 i64 族用 node BigInt.asIntN(64) 独立参考；其余 i64 表达式仍用 MoonBit 参考（共模风险未完全消除） |
 | 独立参考（不经过 moonc） | **全部同步族**（i32/i64/expr/string/array/loop/var/if/func/alias/nested/utf8 + struct/enum/泛型/闭包/typed_nested/typed_deep）由 node 执行 JS 得到 expected；boundary 仍用 MoonBit 参考（allowed 域）；不一致时记 reference_disagree / oracle_candidate |
 | 浮点位型（Double） | 已验证：+ - * /、sqrt、floor/ceil/round/trunc、min/max、比较；node DataView 独立参考；NaN payload 排除，Float(f32) 未覆盖 |
-| async（确定性顺序） | `cmd/asem`：async fn/await、顺序、异常传播；node Promise 参考，仅比较完成顺序/输出，wasm-gc 零测试按 unsupported；固定 10+1 case，随机 3–4 层未做 |
+| async（确定性顺序） | `cmd/asem` 已验证：固定 10+1 case（顺序/异常传播），2,122 attempts 0 witness；node Promise 参考，仅比较完成顺序/输出；wasm-gc 零测试按 unsupported；随机 3–4 层未做 |
 
 控制：`--inject js` 每族必须产出 witness；`--inject all` 产出
 oracle_candidate 而非 witness；float 与 allowed_divergence 只计 excluded。
