@@ -474,12 +474,14 @@ truncated`，三个完整观测才可判 pass。
 | Int32/Int64 精确算术、位运算、移位、溢出边界 | 已验证（生成 + 三后端比较） |
 | 随机表达式树（深度 2–4，括号） | 已验证 |
 | 变量绑定/多次引用、if/else、while 计数、同文件函数调用 | 已验证（结构化族） |
+| struct 字段读写/函数、嵌套 struct、enum+match、泛型 Box[T]、闭包捕获 | 已验证（显式逐字段打印） |
 | ASCII/UTF-8 字符串 length/char_length/concat/eq | 已验证（`length`=UTF-16 单元，已探测） |
 | 数组 in-bounds、越界 trap、别名、嵌套 | 已验证（越界要求每后端真正 trap） |
 | 浮点格式化 | **排除**（excluded_domain） |
 | `min / -1`、除零 | **allowed_impl_divergence**（core int 文档：no portable result） |
 | 指针/结构体/async/真实包语义 | 未覆盖（研究原型） |
-| i64 参考值独立性 | **未完成**：参考求值仍用宿主 Int64（wrap），存在共模风险 |
+| i64 参考值独立性 | 已改为 UInt64 位运算模拟 wrap；仍与被测编译器同源（共模风险未完全消除） |
+| async | 不在 sem3；由独立 `cmd/xdiff --family async` harness 覆盖 |
 
 控制：`--inject js` 每族必须产出 witness；`--inject all` 产出
 oracle_candidate 而非 witness；float 与 allowed_divergence 只计 excluded。
