@@ -82,7 +82,8 @@
 
 - formatter：doc comment 内的 fenced code、极深泛型嵌套、trait impl 注释；
 - package：`moon.mod` 正例、F8/F9 保留 package 形状的变异；
-- L2 已更新为 5/13（F 新增 1294/836/1347 均为 0）（1369 由 D1 `--stage format` 覆盖；1364 是 saturated，不算搜索能力）。
+- L2 已更新为 5/13（F 新增 1294/836/1347 均为 0；1294/836 是 **no_predicate**：warning/诊断不是 judge defect，不能算 L2 失败）
+  （1369 由 D1 `--stage format` 覆盖；1364 是 saturated，不算搜索能力）。
 - E1 召回审计：第一轮 40 条 6 条缺陷（4 pin-validated）；第二轮 60 条 8 条
   labeled、4 pin-validated；两轮严格 8/100（95% CI 4.1–15.0%），推算漏 16–58 条，
   召回 30.8–61.9%。E2 36 条 0 rebuilt、30 blocked、6 unclear；核心风险是
