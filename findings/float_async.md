@@ -57,4 +57,23 @@ node 参考为 Promise/await；`wasm-gc` 对 async test 报 `Total tests: 0`，
 按 unsupported 跳过，不参与比较。异常文本按 `ASEM:E=` 前缀归一化，不比较
 `Failure(boom)` vs `boom` 的 Display。
 
-（30 分钟结果见下。）
+
+## async 30 分钟
+
+```
+attempts=2,122  cases=11  witness=0  oracle_candidate=0
+excluded=0  inconclusive=0
+```
+
+- 每个 attempt 跑 js/native（wasm-gc 对 async test 报 `Total tests: 0`，
+  按 unsupported 跳过），只比较 `ASEM:` 行；
+- 固定 10 个顺序 case + 1 个异常传播 case，30 分钟内重复执行 2,122 次；
+- 无 witness、无 oracle、无 inconclusive。**随机 3–4 层 async 组合未做**，
+  能力表按固定 case 标注。
+
+## 结论
+
+- 浮点（Double、本轮算子集、非 NaN）位型与 node DataView 一致；
+- async 固定场景的确定性完成顺序/输出与 node Promise 一致；
+- 域外：Float(f32) 无 bits API、NaN payload/signaling NaN、trait、可变别名、
+  指针、随机深 async 组合均未覆盖，不能由本轮结果外推。
