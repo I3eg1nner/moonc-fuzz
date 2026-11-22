@@ -94,3 +94,36 @@ Date: 2026-11-22. 工具链 pin 未改。
 - 域已扩到 struct/enum/泛型 Box/闭包/嵌套组合，但仍是模板级组合
   （0–2 层），不是完整 typed AST + 泛型单态化；其余同步族仍用 MoonBit
   参考，共模风险未完全消除；async 仍由独立 xdiff harness 覆盖。
+## 30 分钟（第一次全 node 运行，4,467 cases / unique 2,838）
+
+witness 0、oracle_candidate 0；但 expr_i32/var_use/if_else 有
+26/25/34 个 inconclusive：JS 表达式 `377 - -341` 被发射成 `377--341`
+（node 解析成自减），node 参考失败。已给所有二元运算符加空格修复。
+
+## 修复后 10 分钟（1,469 cases / unique 1,070，含 typed_deep）
+
+witness 0、oracle_candidate 0、inconclusive 0、reference_disagree 0；
+boundary excluded 与 float excluded 正常。23 个同步族全部通过。
+
+## 深度
+
+`typed_deep`：`Root{h: Holder}` → `Holder.Has(Box[Bucket])` →
+`Bucket{xs: Array[Leaf], k}` → `Leaf{v}`，match 两层 + 数组下标 + 字段，
+共 4 层结构组合（不是 3–5 层随机全组合，如实记录）；JS 镜像由 node 给
+expected。
+
+## 能力表终版
+
+| 族 | expected 来源 | 经过 moonc? |
+|---|---|---|
+| i32/i64/expr_*/string/array/loop/var/if/func/alias/nested/utf8 | node JS | 否 |
+| struct*/enum/generic/closure/typed_nested/typed_deep | node JS | 否 |
+| boundary_i32/i64 | MoonBit 参考（min/-1 allowed） | 是 |
+| float | excluded | — |
+
+## 结论
+
+在本轮域（整数/字符串/数组/控制流/struct/enum/泛型/闭包，23 族 ×3 后端 ×
+node 独立 expected）内，**没有 witness、没有 oracle_candidate、
+没有 reference_disagree**。这支持“该域内三后端与 node 参考一致”，但不能
+外推到 async/trait/浮点/真实包语义。

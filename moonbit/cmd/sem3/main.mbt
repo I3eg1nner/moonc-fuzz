@@ -204,6 +204,8 @@ fn next_case(family : String, seed : UInt64) -> Case {
     gen_closure(seed)
   } else if family == "typed_nested" {
     gen_typed_nested(seed)
+  } else if family == "typed_deep" {
+    gen_typed_deep(seed)
   } else {
     gen_float(seed)
   }
@@ -304,7 +306,7 @@ async fn main {
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
   let inject_node = args.contains("--inject-node")
   let inject_moon = args.contains("--inject-moon")
-  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "typed_nested", "float_format"]
+  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "typed_nested", "typed_deep", "float_format"]
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
@@ -901,16 +903,16 @@ fn te_js32(t : TE) -> String {
   ignore(p)
   match t {
     C(v) => v.to_string()
-    Add(a, b) => "(" + te_js32(a) + "+" + te_js32(b) + ")"
-    Sub(a, b) => "(" + te_js32(a) + "-" + te_js32(b) + ")"
-    Mul(a, b) => "(" + te_js32(a) + "*" + te_js32(b) + ")"
+    Add(a, b) => "(" + te_js32(a) + " + " + te_js32(b) + ")"
+    Sub(a, b) => "(" + te_js32(a) + " - " + te_js32(b) + ")"
+    Mul(a, b) => "(" + te_js32(a) + " * " + te_js32(b) + ")"
     Div(a, b) => "d32(" + te_js32(a) + "," + te_js32(b) + ")"
     Mod(a, b) => "m32(" + te_js32(a) + "," + te_js32(b) + ")"
-    BAnd(a, b) => "(" + te_js32(a) + "&" + te_js32(b) + ")"
-    BOr(a, b) => "(" + te_js32(a) + "|" + te_js32(b) + ")"
-    BXor(a, b) => "(" + te_js32(a) + "^" + te_js32(b) + ")"
-    Shl(a, b) => "(" + te_js32(a) + "<<(" + te_js32(b) + "&31))"
-    Shr(a, b) => "(" + te_js32(a) + ">>(" + te_js32(b) + "&31))"
+    BAnd(a, b) => "(" + te_js32(a) + " & " + te_js32(b) + ")"
+    BOr(a, b) => "(" + te_js32(a) + " | " + te_js32(b) + ")"
+    BXor(a, b) => "(" + te_js32(a) + " ^ " + te_js32(b) + ")"
+    Shl(a, b) => "(" + te_js32(a) + "<< (" + te_js32(b) + " & 31))"
+    Shr(a, b) => "(" + te_js32(a) + ">> (" + te_js32(b) + " & 31))"
   }
 }
 
@@ -918,15 +920,33 @@ fn te_js32(t : TE) -> String {
 fn te_js64(t : TE) -> String {
   match t {
     C(v) => "BigInt.asIntN(64,BigInt(" + v.to_string() + "))"
-    Add(a, b) => "BigInt.asIntN(64," + te_js64(a) + "+" + te_js64(b) + ")"
-    Sub(a, b) => "BigInt.asIntN(64," + te_js64(a) + "-" + te_js64(b) + ")"
-    Mul(a, b) => "BigInt.asIntN(64," + te_js64(a) + "*" + te_js64(b) + ")"
+    Add(a, b) => "BigInt.asIntN(64," + te_js64(a) + " + " + te_js64(b) + ")"
+    Sub(a, b) => "BigInt.asIntN(64," + te_js64(a) + " - " + te_js64(b) + ")"
+    Mul(a, b) => "BigInt.asIntN(64," + te_js64(a) + " * " + te_js64(b) + ")"
     Div(a, b) => "BigInt.asIntN(64," + te_js64(a) + "/" + "(" + te_js64(b) + "||1n))"
     Mod(a, b) => "BigInt.asIntN(64," + te_js64(a) + "%" + "(" + te_js64(b) + "||1n))"
-    BAnd(a, b) => "BigInt.asIntN(64," + te_js64(a) + "&" + te_js64(b) + ")"
-    BOr(a, b) => "BigInt.asIntN(64," + te_js64(a) + "|" + te_js64(b) + ")"
-    BXor(a, b) => "BigInt.asIntN(64," + te_js64(a) + "^" + te_js64(b) + ")"
-    Shl(a, b) => "BigInt.asIntN(64," + te_js64(a) + "<<(" + te_js64(b) + "&63n))"
-    Shr(a, b) => "BigInt.asIntN(64," + te_js64(a) + ">>(" + te_js64(b) + "&63n))"
+    BAnd(a, b) => "BigInt.asIntN(64," + te_js64(a) + " & " + te_js64(b) + ")"
+    BOr(a, b) => "BigInt.asIntN(64," + te_js64(a) + " | " + te_js64(b) + ")"
+    BXor(a, b) => "BigInt.asIntN(64," + te_js64(a) + " ^ " + te_js64(b) + ")"
+    Shl(a, b) => "BigInt.asIntN(64," + te_js64(a) + "<< (" + te_js64(b) + " & 63n))"
+    Shr(a, b) => "BigInt.asIntN(64," + te_js64(a) + ">> (" + te_js64(b) + " & 63n))"
   }
+}
+
+///|
+fn gen_typed_deep(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(20)
+  let b = rng.int(20)
+  let c = rng.int(20)
+  let d = rng.int(20)
+  let src = "struct Leaf { v : Int }\nstruct Bucket { xs : Array[Leaf]; k : Int }\nenum Box[T] { Val(T) }\nenum Holder { Empty; Has(Box[Bucket]) }\nstruct Root { h : Holder; n : Int }\nfn main {\n  let r : Root = { h: Has(Box::Val({ xs: [{ v: " +
+    a.to_string() + " }, { v: " + b.to_string() + " }], k: " + c.to_string() +
+    " })), n: " + d.to_string() +
+    " }\n  let out = match r.h {\n    Empty => 0\n    Has(bx) => match bx {\n      Box::Val(bk) => bk.xs[1].v + bk.k + r.n\n    }\n  }\n  println(out.to_string())\n}\n"
+  let js = "const leafs=[{v:" + a.to_string() + "},{v:" + b.to_string() +
+    "}]; const bk={xs:leafs,k:" + c.to_string() +
+    "}; const r={h:{tag:'Has',p:{tag:'Val',v:bk}},n:" + d.to_string() +
+    "}; console.log((bk.xs[1].v+bk.k+r.n)|0);\n"
+  { family: "typed_deep", src, expected: [(b + c + d).to_string()], js, excluded: false }
 }
