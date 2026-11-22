@@ -1,0 +1,12 @@
+{
+  "issue": 596,
+  "category": "crash_ice",
+  "command": "moon run main.mbt --target wasm-gc",
+  "rc": 1,
+  "timed_out": false,
+  "ms": 54,
+  "stdout_tail": "",
+  "stderr_tail": "   │\n 2 │   val : @lib.Type\n   │         ────┬────  \n   │             ╰────── Cannot use `@lib`: package lib is not imported.\n───╯\nWarning: [0027]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/crash_ice/596/main.mbt:3:10 ]\n   │\n 3 │ } derive(Default)\n   │          ───┬───  \n   │             ╰───── Warning (deprecated_syntax): The syntax `derive(...)` for deriving trait implementations is deprecated. Use `#derive(...)` before the type declaration instead.\n───╯",
+  "status": "fixed",
+  "evidence": "rc1; Cannot use @lib / package not imported, no Unresolved_type_variable ICE"
+}

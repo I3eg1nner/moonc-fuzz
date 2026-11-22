@@ -1,0 +1,12 @@
+{
+  "issue": 1376,
+  "category": "lsp",
+  "command": "python3 /data/audit/mbtfuzz/poc/f12_lsp_frame_wedge/replay.py array",
+  "rc": 0,
+  "timed_out": false,
+  "ms": 5123,
+  "stdout_tail": "{\"alive\": true, \"elapsed_ms\": 2061, \"id2_answered\": false, \"id3_answered\": false, \"ids\": [], \"init_ok\": true, \"mode\": \"array\", \"server_cpu_pct\": 0.0, \"stderr\": \"Internal error: Uncaught exception.\", \"verdict\": \"WEDGED\"}",
+  "stderr_tail": "",
+  "status": "reproduced",
+  "evidence": "WEDGED; id2/id3 unanswered; stderr Internal error"
+}

@@ -1,0 +1,16 @@
+{
+  "issue": 860,
+  "title": "[Miscompilation] WASM type error while no error reported by frontend",
+  "state": "closed",
+  "createdAt": "2025-07-02T03:13:17Z",
+  "closedAt": "2025-07-22T02:14:30Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/860",
+  "category": "miscompile",
+  "expected": "WASM type error while frontend accepts",
+  "actual": "wasm validation error",
+  "backends": "wasm-gc",
+  "command": "moon run (needs @utils.List)",
+  "status": "unclear",
+  "notes": "",
+  "evidence": "rc1 Cannot use @utils: package utils is not imported; full List package not included"
+}

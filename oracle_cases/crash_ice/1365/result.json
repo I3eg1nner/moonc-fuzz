@@ -1,0 +1,12 @@
+{
+  "issue": 1365,
+  "category": "crash_ice",
+  "command": "rm -rf _build; moon check",
+  "rc": 1,
+  "timed_out": false,
+  "ms": 55,
+  "stdout_tail": "",
+  "stderr_tail": "   ---      -                \\ __\n  / X        /        ____   /   )\n  *_________/__/_____/______/ `--\nOops, the compiler has encountered an unexpected situation.\nThis is a bug in the compiler.\nA bug report containing the error description and relevant code would be\ngreatly appreciated. You can submit the bug report here:\n  https://github.com/moonbitlang/moonbit-docs/issues/new?template=ice.md\nError: Invalid_argument(\"Char.chr\")\nCompiler args: /home/user/.moon/bin/moonc check -error-format json /data/audit/mbtfuzz/oracle_cases/crash_ice/1365/cmd/main.mbt -o /data/audit/mbtfuzz/oracle_cases/crash_ice/1365/_build/wasm/debug/check/cmd/cmd.mi -pkg poc/f2/cmd -pkg-type executable -i /home/user/.moon/lib/core/_build/wasm/release/bundle/builtin/builtin.mi:moonbitlang/core/builtin -i /home/user/.moon/lib/core/_build/wasm/release/bundle/prelude/prelude.mi:prelude -pkg-sources poc/f2/cmd:/data/audit/mbtfuzz/oracle_cases/crash_ice/1365/cmd -target wasm -workspace-path /data/audit/mbtfuzz/oracle_cases/crash_ice/1365 -all-pkgs /data/audit/mbtfuzz/oracle_cases/crash_ice/1365/_build/wasm/debug/check/all_pkgs.json\nmoonc version: v0.10.20+65efd5b93\nError: failed when checking project",
+  "status": "reproduced",
+  "evidence": "rc 1; Error: Invalid_argument(\"Char.chr\")"
+}

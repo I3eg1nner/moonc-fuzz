@@ -1,0 +1,12 @@
+{
+  "issue": 1368,
+  "category": "crash_ice",
+  "command": "rm -rf _build; moon build --target native",
+  "rc": 255,
+  "timed_out": false,
+  "ms": 412,
+  "stdout_tail": "",
+  "stderr_tail": "Warning: [0007]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/crash_ice/1368/main.mbt:3:8 ]\n   │\n 3 │   priv f : (Int32) -> Int32\n   │        ┬  \n   │        ╰── Warning (unused_field): Field 'f' is never read\n───╯\nFailed with 2 warnings, 0 errors.\nError: failed to run build for target Native\n\nCaused by:\n    failed when building project",
+  "status": "reproduced",
+  "evidence": "rc 255; reject_export_type_containing_unsupported_callback"
+}

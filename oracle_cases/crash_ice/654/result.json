@@ -1,0 +1,12 @@
+{
+  "issue": 654,
+  "category": "crash_ice",
+  "command": "moon run main.mbt --target wasm-gc",
+  "rc": 1,
+  "timed_out": false,
+  "ms": 51,
+  "stdout_tail": "",
+  "stderr_tail": "   │   ┬  \n   │   ╰── Warning (unused_field): Field 'a' is never read\n───╯\nError: [4038]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/crash_ice/654/main.mbt:2:8 ]\n   │\n 2 │   a : &Eq\n   │        ─┬  \n   │         ╰── Trait object for Eq is not allowed:\n    `Self` occur multiple times in the type of method equal\n    `Self` occur multiple times in the type of method not_equal\n───╯",
+  "status": "fixed",
+  "evidence": "rc1; [4038] Trait object for Eq is not allowed, clean diagnostic"
+}

@@ -1,0 +1,16 @@
+{
+  "issue": 1366,
+  "title": "ICE: 19-byte parser input grows past 5 GiB and aborts (`moonc syncheck`)",
+  "state": "open",
+  "createdAt": "2026-11-13T07:52:20Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1366",
+  "category": "crash_ice",
+  "expected": "19 B parser 输入内存无限增长，6 GiB cap 下 rc 134",
+  "actual": "OOM/abort",
+  "backends": "wasm",
+  "command": "prlimit --as=6442450944 -- moonc syncheck main.mbt",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "rc -6 (SIGABRT); Fatal error: out of memory"
+}

@@ -1,0 +1,12 @@
+{
+  "issue": 1006,
+  "category": "miscompile",
+  "command": "moon test main.mbt --target wasm-gc",
+  "rc": 0,
+  "timed_out": false,
+  "ms": 187,
+  "stdout_tail": "Total tests: 1, passed: 1, failed: 0.",
+  "stderr_tail": "Warning: Standalone `.mbt` files are deprecated. Use `.mbtx` for scripts and declare imports in front matter.\nWarning: [0087]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/miscompile/1006/main.mbt:3:9 ]\n   │\n 3 │   guard s is [.., ch]\n   │         ──────┬──────  \n   │               ╰──────── Warning (guard_inexhaustive): This `guard` pattern is not exhaustive and will panic when it does not match. Missing cases:\n[]\nTo fix: add an `else { ... }` clause after the condition to handle those cases, or write `guard!` if the panic is intended.\n───╯",
+  "status": "fixed",
+  "evidence": "moon test rc0; Total tests 1 passed 1 failed 0"
+}

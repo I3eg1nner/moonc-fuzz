@@ -1,0 +1,12 @@
+{
+  "issue": 1322,
+  "category": "crash_ice",
+  "command": "rm -rf _build; moon run repro.mbt --target native",
+  "rc": 1,
+  "timed_out": false,
+  "ms": 465,
+  "stdout_tail": "",
+  "stderr_tail": "   │\n 2 │   Ref(String)\n   │   ─┬─  \n   │    ╰─── Warning (unused_constructor): Variant 'Ref' is never read\n───╯\nWarning: [0007]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/crash_ice/1322/repro.mbt:8:3 ]\n   │\n 8 │   kind : Kind\n   │   ──┬─  \n   │     ╰─── Warning (unused_field): Field 'kind' is never read\n───╯",
+  "status": "reproduced",
+  "evidence": "rc 1; lower_array_make; uninitialized non-null GC ref arrays are not lowered"
+}

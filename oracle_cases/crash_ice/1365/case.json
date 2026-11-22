@@ -1,0 +1,16 @@
+{
+  "issue": 1365,
+  "title": "ICE: invalid escape in a string literal reaches the typer as Invalid_argument(\"Char.chr\")",
+  "state": "open",
+  "createdAt": "2026-11-13T07:52:17Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1365",
+  "category": "crash_ice",
+  "expected": "字符串转义 `\\` + 非 Latin-1 触发 Invalid_argument(\"Char.chr\")",
+  "actual": "rc 199 ICE",
+  "backends": "wasm",
+  "command": "moon check",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "rc 1; Error: Invalid_argument(\"Char.chr\")"
+}

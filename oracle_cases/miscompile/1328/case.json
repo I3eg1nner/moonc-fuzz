@@ -1,0 +1,16 @@
+{
+  "issue": 1328,
+  "title": "moonc folds x + 0.0 to x, which is wrong for x = -0.0 (IEEE 754 6.3), on every backend",
+  "state": "open",
+  "createdAt": "2026-10-13T17:05:53Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1328",
+  "category": "miscompile",
+  "expected": "x + 0.0 被折叠为 x，x=-0.0 时结果错",
+  "actual": "+0 expected; -0 observed",
+  "backends": "wasm/wasm-gc/js/native",
+  "command": "moon run main.mbtx --target {wasm-gc,js,native} [-r]",
+  "status": "fixed",
+  "notes": "",
+  "evidence": "wasm-gc rc0; (nz+0.0) bits = 0, expected +0; no longer 8000000000000000"
+}

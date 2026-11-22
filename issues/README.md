@@ -1,5 +1,12 @@
 # 上游 issue 草稿
 
+## 2026-11-22 oracle asset snapshot
+
+历史 issue 的采集、归一和逐条复现见
+[`findings/issue_oracle_a_b.md`](../findings/issue_oracle_a_b.md)。原始 JSON 在
+`issues/raw/`，26 条派生最小复现和状态在 `oracle_cases/<category>/<issue>/`，
+索引是 `issues/curated.json`。本文件下面的 8 份草稿只是其中“我们提交过”的子集。
+
 这里的 8 份草稿对应 `poc/` 中已复现的缺陷。11 个 PoC 不拆成 11 条 issue：
 F1b、F2b、F4b 与各自的主缺陷共用栈顶或异常签名，作为同一条 issue 里的第二个
 witness。

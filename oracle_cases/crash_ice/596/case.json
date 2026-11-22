@@ -1,0 +1,16 @@
+{
+  "issue": 596,
+  "title": "[ICE] when deriving Default with inexisted fields",
+  "state": "closed",
+  "createdAt": "2025-03-29T07:13:40Z",
+  "closedAt": "2025-04-01T02:16:11Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/596",
+  "category": "crash_ice",
+  "expected": "derive(Default) + 未解析 @lib 字段触发 Unresolved_type_variable",
+  "actual": "clean error expected",
+  "backends": "all",
+  "command": "moon run main.mbt --target wasm-gc",
+  "status": "fixed",
+  "notes": "",
+  "evidence": "rc1; Cannot use @lib / package not imported, no Unresolved_type_variable ICE"
+}

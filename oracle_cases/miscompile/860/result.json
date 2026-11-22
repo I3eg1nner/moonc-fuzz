@@ -1,0 +1,12 @@
+{
+  "issue": 860,
+  "category": "miscompile",
+  "command": "moon run main.mbt --target wasm-gc",
+  "rc": 1,
+  "timed_out": false,
+  "ms": 53,
+  "stdout_tail": "",
+  "stderr_tail": "    │\n 10 │   let x = @utils.List::new();\n    │           ─────┬─────  \n    │                ╰─────── Cannot use `@utils`: package utils is not imported.\n────╯\nError: [4037]\n    ╭─[ /data/audit/mbtfuzz/oracle_cases/miscompile/860/main.mbt:11:25 ]\n    │\n 11 │   x.push_back(A :: { x: @utils.List::new() })\n    │                         ─────┬─────  \n    │                              ╰─────── Cannot use `@utils`: package utils is not imported.\n────╯",
+  "status": "unclear",
+  "evidence": "rc1 Cannot use @utils: package utils is not imported; full List package not included"
+}

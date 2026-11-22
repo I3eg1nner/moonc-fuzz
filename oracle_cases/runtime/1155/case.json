@@ -1,0 +1,16 @@
+{
+  "issue": 1155,
+  "title": "Native target: array length silently truncated to 28 bits, causing SIGABRT for allocations >= 256MB",
+  "state": "open",
+  "createdAt": "2026-03-15T10:46:42Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1155",
+  "category": "runtime",
+  "expected": "native 数组长度被截断到 28 bit，>=256MB 崩溃",
+  "actual": "length 268435456",
+  "backends": "native",
+  "command": "moon run main.mbt --target native",
+  "status": "fixed",
+  "notes": "",
+  "evidence": "native rc0; actual length 268435456; b[0]=42 (no truncation)"
+}

@@ -1,0 +1,12 @@
+{
+  "issue": 1369,
+  "category": "formatter",
+  "command": "moonfmt u.mbt -o f.mbt; moonc syncheck f.mbt",
+  "rc": 2,
+  "timed_out": false,
+  "ms": 20,
+  "stdout_tail": "",
+  "stderr_tail": "f.mbt:3:3-3:4 [E3001] Lexing error: unrecognized character \"~\" (U+007E)",
+  "status": "reproduced",
+  "evidence": "fmt rc0 -> f.mbt; reparse rc2 E3001 unrecognized \"~\""
+}

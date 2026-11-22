@@ -1,0 +1,16 @@
+{
+  "issue": 875,
+  "title": "[moonfmt] Incorrectly formatted for a type with the name `Option`",
+  "state": "closed",
+  "createdAt": "2025-07-11T09:04:03Z",
+  "closedAt": "2026-06-24T04:43:20Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/875",
+  "category": "formatter",
+  "expected": "类型名 Option 被 moonfmt 改成 Int?，重解析失败",
+  "actual": "keep Option[Int]",
+  "backends": "all",
+  "command": "moonfmt main.mbt -o f.mbt; moonc syncheck f.mbt",
+  "status": "not_reproducible",
+  "notes": "",
+  "evidence": "source now rejected: [E4003] \"Option\" is a reserved type name; cannot reconstruct valid original"
+}

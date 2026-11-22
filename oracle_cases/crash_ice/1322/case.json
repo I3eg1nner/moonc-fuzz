@@ -1,0 +1,16 @@
+{
+  "issue": 1322,
+  "title": "ICE: native debug Array::push of #valtype record with enum fails in lower_array_make",
+  "state": "open",
+  "createdAt": "2026-10-08T11:04:41Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1322",
+  "category": "crash_ice",
+  "expected": "native debug #valtype 数组 push 触发 lower_array_make",
+  "actual": "rc 1 ICE",
+  "backends": "native",
+  "command": "moon run repro.mbt --target native",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "rc 1; lower_array_make; uninitialized non-null GC ref arrays are not lowered"
+}

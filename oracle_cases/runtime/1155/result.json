@@ -1,0 +1,12 @@
+{
+  "issue": 1155,
+  "category": "runtime",
+  "command": "timeout 90 prlimit --as=2147483648 -- moon run main.mbt --target native -q",
+  "rc": 0,
+  "timed_out": false,
+  "ms": 662,
+  "stdout_tail": "requested size = 268435456\nactual length  = 268435456\nb[0] = b'\\x2A'",
+  "stderr_tail": "",
+  "status": "fixed",
+  "evidence": "native rc0; actual length 268435456; b[0]=42 (no truncation)"
+}

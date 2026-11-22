@@ -1,0 +1,16 @@
+{
+  "issue": 1344,
+  "title": "ICE: native debug 'aggregate stub wrapper arguments are not lowered' for extern \"C\" taking V128",
+  "state": "open",
+  "createdAt": "2026-10-30T10:55:02Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1344",
+  "category": "crash_ice",
+  "expected": "native debug extern C V128 参数触发 finish_stub_wrapper_shell",
+  "actual": "rc 1 ICE",
+  "backends": "native",
+  "command": "moon test --target native",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "rc 1; finish_stub_wrapper_shell; aggregate stub wrapper arguments are not lowered"
+}

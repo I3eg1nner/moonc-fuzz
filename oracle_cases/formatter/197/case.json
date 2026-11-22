@@ -1,0 +1,16 @@
+{
+  "issue": 197,
+  "title": "moonfmt: Unexpected format with indented comment",
+  "state": "closed",
+  "createdAt": "2024-05-03T14:12:51Z",
+  "closedAt": "2024-09-23T01:53:52Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/197",
+  "category": "formatter",
+  "expected": "缩进注释被移入 impl，期望移到下一个 impl 前",
+  "actual": "comment position preserved at top level",
+  "backends": "all",
+  "command": "moonfmt main.mbt -o f.mbt; moonfmt f.mbt -o f2.mbt",
+  "status": "fixed",
+  "notes": "",
+  "evidence": "fmt rc0, second fmt identical (idem=0), reparse rc0; comment moved to top level before Bool impl"
+}

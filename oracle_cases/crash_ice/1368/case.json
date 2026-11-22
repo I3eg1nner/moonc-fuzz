@@ -1,0 +1,16 @@
+{
+  "issue": 1368,
+  "title": "ICE: native link rejects an exported closure-containing type with an ICE instead of a diagnostic",
+  "state": "open",
+  "createdAt": "2026-11-13T07:52:24Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1368",
+  "category": "crash_ice",
+  "expected": "native 导出含闭包类型触发 reject_export_type_containing_unsupported_callback",
+  "actual": "rc 255 ICE",
+  "backends": "native",
+  "command": "moon build --target native",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "rc 255; reject_export_type_containing_unsupported_callback"
+}

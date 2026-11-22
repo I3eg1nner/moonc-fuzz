@@ -1,0 +1,12 @@
+{
+  "issue": 197,
+  "category": "formatter",
+  "command": "moonfmt main.mbt -o f.mbt; moonfmt f.mbt -o f2.mbt; cmp -s f.mbt f2.mbt; echo idem=$?; moonc syncheck f.mbt",
+  "rc": 0,
+  "timed_out": false,
+  "ms": 27,
+  "stdout_tail": "idem=0\n{\"toplevel\":{\"impl\":2,\"trait\":1},\"max-toplevel-span\":\"2-4\"}",
+  "stderr_tail": "",
+  "status": "fixed",
+  "evidence": "fmt rc0, second fmt identical (idem=0), reparse rc0; comment moved to top level before Bool impl"
+}

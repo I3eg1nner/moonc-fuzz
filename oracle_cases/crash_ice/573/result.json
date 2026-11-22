@@ -1,0 +1,12 @@
+{
+  "issue": 573,
+  "category": "crash_ice",
+  "command": "moon test main.mbt --target wasm-gc",
+  "rc": 1,
+  "timed_out": false,
+  "ms": 79,
+  "stdout_tail": "",
+  "stderr_tail": "Warning: Standalone `.mbt` files are deprecated. Use `.mbtx` for scripts and declare imports in front matter.\nError: [0044]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/crash_ice/573/main.mbt:1:1 ]\n   │\n 1 │ fn log(msg : String) -> Unit = \"console.log\"\n   │ ──────────────────────┬─────────────────────  \n   │                       ╰─────────────────────── Error Warning (invalid_inline_wasm): Invalid inline wasm: must be a single wasm function of the form `(func ..)`.\n───╯",
+  "status": "fixed",
+  "evidence": "rc1; [0044] invalid_inline_wasm, no Key_not_found ICE"
+}

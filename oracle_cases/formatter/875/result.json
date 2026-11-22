@@ -1,0 +1,12 @@
+{
+  "issue": 875,
+  "category": "formatter",
+  "command": "moonfmt main.mbt -o f.mbt; echo fmt=$?; moonc syncheck f.mbt",
+  "rc": 2,
+  "timed_out": false,
+  "ms": 19,
+  "stdout_tail": "fmt=0",
+  "stderr_tail": "f.mbt:2:6-2:12 [E4003] \"Option\" is a reserved type name. Cannot declare it as type\nf.mbt:2:13-2:14 [E0005] Warning (unused_type_variable): Unused generic type variable 'A'",
+  "status": "not_reproducible",
+  "evidence": "source now rejected: [E4003] \"Option\" is a reserved type name; cannot reconstruct valid original"
+}

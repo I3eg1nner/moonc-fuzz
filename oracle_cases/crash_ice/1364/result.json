@@ -1,0 +1,12 @@
+{
+  "issue": 1364,
+  "category": "crash_ice",
+  "command": "moonc syncheck doc.mbt.md",
+  "rc": 199,
+  "timed_out": false,
+  "ms": 13,
+  "stdout_tail": "",
+  "stderr_tail": "This is a bug in the compiler.\n\nA bug report containing the error description and relevant code would be\ngreatly appreciated. You can submit the bug report here:\n\n  https://github.com/moonbitlang/moonbit-docs/issues/new?template=ice.md\n\nError: Moonc.Basic_utf8_decode.MalFormed\n\nCompiler args: moonc syncheck doc.mbt.md\n\nmoonc version: v0.10.20+65efd5b93",
+  "status": "reproduced",
+  "evidence": "rc 199; Error: Moonc.Basic_utf8_decode.MalFormed"
+}

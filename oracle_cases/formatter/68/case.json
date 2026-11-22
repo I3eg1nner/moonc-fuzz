@@ -1,0 +1,16 @@
+{
+  "issue": 68,
+  "title": "code formatting breaks the code unexpectedly",
+  "state": "closed",
+  "createdAt": "2023-09-11T12:52:10Z",
+  "closedAt": "2023-09-14T07:34:34Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/68",
+  "category": "formatter",
+  "expected": "旧语法 func 的长表达式格式化后不可解析",
+  "actual": "format then reparse",
+  "backends": "all",
+  "command": "moonfmt main.mbt -o f.mbt",
+  "status": "needs_old_toolchain",
+  "notes": "",
+  "evidence": "rc2 E3002 on func/init; source uses 2023 syntax"
+}

@@ -1,0 +1,13 @@
+import {
+  "moonbitlang/core/uint",
+}
+
+test {
+  let data : UInt = 12345678912
+  inspect(data, content="3755744320")
+}
+
+test {
+  let data : UInt = @uint.max_value
+  inspect(data, content="4294967295")
+}

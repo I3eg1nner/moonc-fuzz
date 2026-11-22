@@ -1,0 +1,16 @@
+{
+  "issue": 968,
+  "title": "moonc parsing incorrect result for `UInt` integer literal",
+  "state": "closed",
+  "createdAt": "2025-09-10T07:32:07Z",
+  "closedAt": "2026-06-24T04:44:31Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/968",
+  "category": "typecheck",
+  "expected": "UInt 大整数字面量未正确报越界",
+  "actual": "E4095 expected",
+  "backends": "all",
+  "command": "moon test main.mbtx --target wasm-gc",
+  "status": "fixed",
+  "notes": "",
+  "evidence": "rc1; E4095 Integer literal 12345678912 is out of range (correct diagnostic)"
+}

@@ -1,0 +1,12 @@
+{
+  "issue": 1326,
+  "category": "miscompile",
+  "command": "moon run main.mbt --target native --release -q",
+  "rc": 0,
+  "timed_out": false,
+  "ms": 491,
+  "stdout_tail": "80000001\n2147483649\n40000000",
+  "stderr_tail": "",
+  "status": "fixed",
+  "evidence": "native --release rc0; 80000001 / 2147483649 / 40000000, matching expected"
+}

@@ -1,0 +1,16 @@
+{
+  "issue": 654,
+  "title": "[ICE] Using impossible trait objects in type definitions",
+  "state": "closed",
+  "createdAt": "2025-04-16T13:43:36Z",
+  "closedAt": "2025-05-15T10:07:03Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/654",
+  "category": "crash_ice",
+  "expected": "&Eq trait object 类型定义触发 ICE",
+  "actual": "clean diagnostic expected",
+  "backends": "wasm-gc",
+  "command": "moon run main.mbt --target wasm-gc",
+  "status": "fixed",
+  "notes": "",
+  "evidence": "rc1; [4038] Trait object for Eq is not allowed, clean diagnostic"
+}

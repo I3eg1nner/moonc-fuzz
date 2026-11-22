@@ -1,0 +1,12 @@
+{
+  "issue": 45,
+  "category": "formatter",
+  "command": "moonfmt main.mbt -o f.mbt; echo fmt=$?; moonc syncheck main.mbt",
+  "rc": 2,
+  "timed_out": false,
+  "ms": 19,
+  "stdout_tail": "fmt=0",
+  "stderr_tail": "main.mbt:5:1-5:5 [E3002] Parse error, unexpected token id (lowercase start), you may expect `pub`, `priv`, `type`, `suberror`, `extenum`, `async`, `fn`, `struct`, `enum`, `let`, `const`, `extern`, `test`, `impl`, `trait`, `enumview`, `#attribute`, `using` or `extend`.\nmain.mbt:6:8-6:9 [E3002] Parse error, unexpected token `{`, you may expect id (lowercase start).",
+  "status": "needs_old_toolchain",
+  "evidence": "rc2 E3002 on func and struct destructuring; 2023 syntax"
+}

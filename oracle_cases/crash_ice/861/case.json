@@ -1,0 +1,16 @@
+{
+  "issue": 861,
+  "title": "ICE on invalid: crash on malformed utf-8",
+  "state": "closed",
+  "createdAt": "2025-07-03T02:41:24Z",
+  "closedAt": "2025-07-03T07:45:54Z",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/861",
+  "category": "crash_ice",
+  "expected": ".mbt 非法 UTF-8 触发 Basic_utf8.MalFormed",
+  "actual": "E3001 expected, no ICE",
+  "backends": "wasm-gc",
+  "command": "moon run main.mbt --target wasm-gc",
+  "status": "fixed",
+  "notes": "",
+  "evidence": "rc1; [3001] invalid UTF-8 streams, no Basic_utf8.MalFormed ICE"
+}

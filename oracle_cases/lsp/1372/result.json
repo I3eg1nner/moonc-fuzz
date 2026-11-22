@@ -1,0 +1,12 @@
+{
+  "issue": 1372,
+  "category": "lsp",
+  "command": "python3 /data/audit/mbtfuzz/poc/f10_lsp_format_nth_hang/replay.py hang.json",
+  "rc": 0,
+  "timed_out": false,
+  "ms": 10089,
+  "stdout_tail": "init: ok\nHUNG (no response in 10s)",
+  "stderr_tail": "",
+  "status": "reproduced",
+  "evidence": "HUNG (no response in 10s); init ok"
+}

@@ -1,0 +1,12 @@
+{
+  "issue": 1367,
+  "category": "crash_ice",
+  "command": "moonc syncheck moon.pkg",
+  "rc": -11,
+  "timed_out": false,
+  "ms": 101,
+  "stdout_tail": "",
+  "stderr_tail": "",
+  "status": "reproduced",
+  "evidence": "rc -11 (SIGSEGV); no output"
+}

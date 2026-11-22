@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/core/v128",
+}
+
+options(
+  "native-stub": [ "stub.c" ],
+  targets: { "lib.mbt": [ "native" ] },
+)

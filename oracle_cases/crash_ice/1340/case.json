@@ -1,0 +1,16 @@
+{
+  "issue": 1340,
+  "title": "ICE: link-core assertion when an async function calls a `raise?` parameter after a suspension",
+  "state": "open",
+  "createdAt": "2026-10-29T05:43:40Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1340",
+  "category": "crash_ice",
+  "expected": "async 挂起后调用 raise? 参数触发 link-core assertion",
+  "actual": "moonc.ml:125623 Assertion failed",
+  "backends": "js/wasm/native",
+  "command": "moon test --target js",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "rc 1; File \"moonc.ml\", line 125623: Assertion failed"
+}

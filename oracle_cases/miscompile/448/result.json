@@ -1,0 +1,12 @@
+{
+  "issue": 448,
+  "category": "miscompile",
+  "command": "moon build --target native",
+  "rc": 255,
+  "timed_out": false,
+  "ms": 9,
+  "stdout_tail": "",
+  "stderr_tail": "Error: not in a Moon project (no moon.mod, moon.mod.json, or moon.work found starting from /data/audit/mbtfuzz/oracle_cases/miscompile/448 or its ancestors)",
+  "status": "unclear",
+  "evidence": "rc255 not in a Moon project; case needs a package + C stub not supplied"
+}

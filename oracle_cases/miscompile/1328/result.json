@@ -1,0 +1,12 @@
+{
+  "issue": 1328,
+  "category": "miscompile",
+  "command": "moon run main.mbtx --target wasm-gc -q",
+  "rc": 0,
+  "timed_out": false,
+  "ms": 127,
+  "stdout_tail": "0\n0\n8000000000000000",
+  "stderr_tail": "\n----\nimport {\n  \"path/to/package1\",\n  \"path/to/package2\",\n}\n----\n\nfn main {\n  ...\n}\n───╯",
+  "status": "fixed",
+  "evidence": "wasm-gc rc0; (nz+0.0) bits = 0, expected +0; no longer 8000000000000000"
+}

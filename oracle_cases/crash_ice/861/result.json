@@ -1,0 +1,12 @@
+{
+  "issue": 861,
+  "category": "crash_ice",
+  "command": "moon run main.mbt --target wasm-gc",
+  "rc": 1,
+  "timed_out": false,
+  "ms": 54,
+  "stdout_tail": "",
+  "stderr_tail": "Warning: Standalone `.mbt` files are deprecated. Use `.mbtx` for scripts and declare imports in front matter.\nError: [4067] Missing main function in the main package.\nfailed to read file `/data/audit/mbtfuzz/oracle_cases/crash_ice/861/main.mbt`, [3001] error: Could not read the file because it contains invalid UTF-8 streams.",
+  "status": "fixed",
+  "evidence": "rc1; [3001] invalid UTF-8 streams, no Basic_utf8.MalFormed ICE"
+}

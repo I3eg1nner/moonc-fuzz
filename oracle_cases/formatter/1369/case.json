@@ -1,0 +1,16 @@
+{
+  "issue": 1369,
+  "title": "`moon fmt` prints unary plus as `~+`, producing code that cannot be re-parsed",
+  "state": "open",
+  "createdAt": "2026-11-13T07:52:27Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1369",
+  "category": "formatter",
+  "expected": "moonfmt 把一元 + 打成 ~+，输出不可重解析",
+  "actual": "fmt rc0; reparse E3001",
+  "backends": "all",
+  "command": "moonfmt u.mbt -o f.mbt; moonc syncheck f.mbt",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "fmt rc0 -> f.mbt; reparse rc2 E3001 unrecognized \"~\""
+}

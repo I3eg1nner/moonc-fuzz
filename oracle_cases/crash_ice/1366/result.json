@@ -1,0 +1,12 @@
+{
+  "issue": 1366,
+  "category": "crash_ice",
+  "command": "prlimit --as=6442450944 -- moonc syncheck main.mbt",
+  "rc": -6,
+  "timed_out": false,
+  "ms": 16377,
+  "stdout_tail": "",
+  "stderr_tail": "Fatal error: out of memory",
+  "status": "reproduced",
+  "evidence": "rc -6 (SIGABRT); Fatal error: out of memory"
+}

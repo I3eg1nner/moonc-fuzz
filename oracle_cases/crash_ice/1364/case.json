@@ -1,0 +1,16 @@
+{
+  "issue": 1364,
+  "title": "ICE: invalid UTF-8 in a `.mbt.md` file reaches Basic_utf8_decode.MalFormed",
+  "state": "open",
+  "createdAt": "2026-11-13T07:52:15Z",
+  "closedAt": null,
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1364",
+  "category": "crash_ice",
+  "expected": ".mbt.md 非法 UTF-8 触发 Basic_utf8_decode.MalFormed",
+  "actual": "rc 199 ICE",
+  "backends": "all",
+  "command": "moonc syncheck doc.mbt.md",
+  "status": "reproduced",
+  "notes": "",
+  "evidence": "rc 199; Error: Moonc.Basic_utf8_decode.MalFormed"
+}

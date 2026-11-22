@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/core/env",
+}
+
+fn main {
+  let zero = @env.args().length() >> 30
+  let pz = 0.0 + zero.to_double()
+  let nz = -pz
+  println((nz + pz).reinterpret_as_uint64().to_string(radix=16))
+  println((nz + 0.0).reinterpret_as_uint64().to_string(radix=16))
+  println((nz - 0.0).reinterpret_as_uint64().to_string(radix=16))
+}

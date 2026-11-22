@@ -418,6 +418,7 @@ moon test --target native
 | 文件 | 内容 |
 |---|---|
 | `findings/defect_inventory.md` | 全部缺陷的根因归类、2026-11-22 逐项复核与记录修正 |
+| `findings/issue_oracle_a_b.md` | 历史 issue 采集/归一/复现：561→292→172→26，11 reproduced / 10 fixed |
 | `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |
 | `findings/fmt_nested_minus.md` | F13 候选：`moonfmt` 嵌套一元负号生成越界字面量 |
 | `findings/float32_nan_pilot.md` | Float32/qNaN 位型 pilot：API 更正、437 checks/后端、0 candidate、JS sNaN allowed |
