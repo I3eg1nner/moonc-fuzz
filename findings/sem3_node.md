@@ -27,7 +27,43 @@ Date: 2026-11-22. 工具链 pin 未改。
 - `--inject-all`：oracle_candidate，不产 witness；
 - float 与 min/-1 仍 excluded。
 
+## 全同步族 node 参考（第二批）
+
+- `i32`、`string_ascii`、`array_inbounds`、`array_oob`（node 显式 throw 模拟
+  trap，rc≠0 视为 trap 参考）、`loop_counter`、`expr_i32`（`|0` + d32/m32）、
+  `expr_i64`（BigInt.asIntN）、`var_use`、`if_else`、`func_call`、
+  `array_alias`、`array_nested`、`utf8_string`（`s.length` + `[...s].length`）
+  全部改为 node expected；
+- `boundary_i32/i64` 仍用 MoonBit 参考（min/-1 属 allowed_divergence，不参与
+  node 对比）；
+- 能力表（终版）：
+
+| 族 | expected 来源 | 经过 moonc? |
+|---|---|---|
+| i32/i64/expr_*/string/array/loop/var/if/func/alias/nested/utf8 | node (`-e` JS) | 否 |
+| struct/enum/generic Box/closure/typed_nested | node | 否 |
+| boundary_i32/i64 | MoonBit 参考（allowed 域） | 是 |
+| float | excluded | — |
+
 ## 30 分钟结果
+
+## 全同步族 node 参考（第二批）
+
+- `i32`、`string_ascii`、`array_inbounds`、`array_oob`（node 显式 throw 模拟
+  trap，rc≠0 视为 trap 参考）、`loop_counter`、`expr_i32`（`|0` + d32/m32）、
+  `expr_i64`（BigInt.asIntN）、`var_use`、`if_else`、`func_call`、
+  `array_alias`、`array_nested`、`utf8_string`（`s.length` + `[...s].length`）
+  全部改为 node expected；
+- `boundary_i32/i64` 仍用 MoonBit 参考（min/-1 属 allowed_divergence，不参与
+  node 对比）；
+- 能力表（终版）：
+
+| 族 | expected 来源 | 经过 moonc? |
+|---|---|---|
+| i32/i64/expr_*/string/array/loop/var/if/func/alias/nested/utf8 | node (`-e` JS) | 否 |
+| struct/enum/generic Box/closure/typed_nested | node | 否 |
+| boundary_i32/i64 | MoonBit 参考（allowed 域） | 是 |
+| float | excluded | — |
 
 ## 30 分钟结果（4,593 cases / unique_programs 2,903，seed 3）
 
