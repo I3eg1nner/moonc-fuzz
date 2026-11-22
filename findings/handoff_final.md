@@ -1,0 +1,139 @@
+# 移交给下一任维护者（一页式）
+
+最后更新：2026-11-22。工具链 pin：`moon 0.1.20261104 (940aa18)` /
+`moonc v0.10.20+65efd5b93`。**禁止改 pin、禁止向 moonbit 上游发 issue/评论**。
+
+## 1. 当前定位
+
+- **综合 6.8 / 10**：五轮独立复核对“证据质量 + 工程实现”的评分；
+- **成熟度 6.0 / 10**：距离成熟差分 fuzzer 的差距——覆盖域、oracle 独立性、
+  自动化闭环、资源/回归资产。
+- 两者都不是“缺陷发现数”评分。当前**没有已确认的编译器不一致**；最接近的
+  `min/-1` 经规范核对是 `allowed_impl_divergence`。
+
+## 2. 已验证能力（证据路径）
+
+| 能力 | findings | 原始证据/资产 | 门禁 |
+|---|---|---|---|
+| 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
+| 13 个已知缺陷回归（F1–F9 家族） | `p0_evidence.md`, `f8f9_trigger_surface.md` | `poc/`, `cmd/regress` | `regressions_13`, `seed_repro` |
+| semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
+| triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
+| formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
+| stub 未知 witness 晋级（t1） | `stub_control.md` | `scripts/stub_ice_triage.sh`, `/tmp/stub_final2` | `stub_ice_triage` |
+| 包模式（整包/单文件变异/原 argv） | `pkg_mode.md`, `pkg_t3.md` | `/tmp/pkg30`, `cmd/capsule` | （无门禁） |
+| 包语义回归（83 witness） | `pkg_semantic.md` | `regressions/pkg_semantic`, `scripts/replay_pkg_regressions.sh` | （无门禁） |
+| 三后端语义差分（node 独立参考） | `sem3_node.md`, `sem3_typed.md`, `sem3_final.md` | `/tmp/semnode30`, `/tmp/semtyped30`, `cmd/sem3` | （无门禁） |
+| 浮点位型 / async 确定性 | `float_async.md` | `/tmp/semfloat30`, `/tmp/asem30`, `cmd/asem` | （无门禁） |
+| backpressure + drain | `backpressure.md`, `cost_curve.md` | `/tmp/bp5`, `/tmp/bp6`, `/tmp/bp_dead2` | （无门禁） |
+| edge 身份/碰撞/饱和 | `edge_identity.md`, `edge_saturation.md` | `/tmp/edge_exp*` | （无门禁） |
+
+## 3. 未证明 / 负结果（不要当成功）
+
+- **edge 奖励无稳定收益**：30 min ×3 seeds，`adds/CPU-s` 1.938 vs 1.950、
+  t90 421 vs 488 s，差异在 seed 方差内（`feedback_ab2.md`）。
+- **83 个包 witness 全是用户代码语义变化**，不是 moonc 缺陷
+  （`pkg_semantic.md`, `pkg30.md`）。
+- **sem3 全域 0 witness**：域内（整数/字符串/数组/控制流/struct/enum/泛型/
+  闭包/typed 组合、Double 位型、async 固定顺序）三后端与 node 一致；
+  但域边界：`Float`(f32) 未测、NaN payload/signaling NaN 未测、async 只比
+  确定性顺序、trait/可变别名/指针未覆盖。
+- `min/-1`、除零是 **allowed_impl_divergence**（core int 文档 "no portable
+  result"），非缺陷（`int_min_divergence.md`）。
+
+## 4. 已作废结论（每条都有“为什么”）
+
+| 作废结论 | 为什么 |
+|---|---|
+| “1,960 是可达函数天花板” | 旧跑法 worker 结束即关队列，只完成 ~57 条 trace；drain+预算修正后 adds 2,851–2,985、edges 32.6k（`edge_plateau.md` 顶部横幅） |
+| “75% 可达函数是真实上限” | 同上，是 trace 完成数假象 |
+| “edge 奖励无收益/edge 已死” | 当时 9/9 `edge_saturated=true`、cap=50000，测到的是容量截断（`edge_saturation.md`） |
+| “sem3 0 witness = 完备通过” | 旧 sem3 静默跳过失败后端；观测修正后曾出现 26/25/34 inconclusive 与 18 oracle（`sem3_node.md`） |
+| “TEST_FAIL 按 build 命令重放” | 旧 `capsule.json` 存 pkg_argv；现改成存 `cmd/build_cmd/run_cmd`（`review5_fixes.md`） |
+| “24 秒饱和” | 实际第 7 个采样点（约 12–14 s，旧 stats 无 elapsed_ms）已饱和（`edge_saturation.md`） |
+| “可执行 trace 100% 能抬平台” | 100% 采样把 trace 完成数打到 63/49，平台反降（`trace100.md`） |
+
+## 5. 剩余缺口（P0/P1 + 验收标准）
+
+**P0**
+1. **corpus owner 事务/checkpoint 恢复**：跨 epoch 只恢复 by_key/边，父本
+   owner 与 checkpoint 未版本化。验收：epoch2 的 `coverage_adds` ≤ epoch1 的
+   10% 且只能来自真正新输入；state 有 schema/checksum/原子替换；owner 计数
+   可重放。
+2. **原配置 replay（包模式）**：TEST_FAIL 已存 run_cmd，但 triage 仍只按
+   签名判，未断言“replay 输出/断言与保存一致”。验收：保存的 test case
+   3/3 重放失败且断言文本匹配；门禁覆盖。
+3. **cgroup 取消与聚合资源**：`scripts/cgroup_run.sh` 有 SIGTERM/kill，但
+   本机 cgroup 只读，未实测；聚合上限仍只是逐进程 prlimit。验收：在可写
+   cgroup 主机跑 1 h，记录 memory.peak/pids/disk，kill 后无孤儿进程。
+
+**P1**
+4. Float(f32) bits、NaN payload/signaling NaN 排除域的正负控；
+5. async 随机 3–4 层组合与异常顺序；
+6. trait/可变别名/指针域；
+7. 用 headroom 指标（distinct T2/T3、time-to-threshold）重做 edge 实验，
+   并强制 trace 完成率 ≥80% 才计收益（benchstat 已支持 invalid）。
+
+## 6. 运行手册
+
+```bash
+# pin 检查
+moon version --all            # 期望包含 0.1.20261104 / 0.10.20+65efd5b93
+
+cd moonbit
+moon test --target native     # 期望 Total tests: 385, passed: 385, failed: 0
+
+# 完整验收（24 门）
+./_build/native/debug/build/cmd/accept/accept.exe /data/audit/mbtfuzz
+# 期望 {"ok":true,"checks":[...24...]}
+
+# 短 campaign（示例）
+./_build/native/debug/build/cmd/fuzz/fuzz.exe --root /data/audit/mbtfuzz \
+  --out /tmp/short --workers 2 --duration 120 --mode mbt --body-only \
+  --trace-t1 20 --trace-t2 20 --trace-workers 2 --trace-cpu 25
+
+# sem3（node 独立参考；正控 --inject-node / --inject-moon / --inject all）
+./_build/native/debug/build/cmd/sem3/sem3.exe --out /tmp/sem3 --duration 60 --seed 3
+# 期望 {"cases":...,"unique_programs":...,"unique_witness":0,"oracle_candidates":0,...}
+
+# async 固定 case（wasm-gc 零测试按 unsupported）
+./_build/native/debug/build/cmd/asem/asem.exe --out /tmp/asem --duration 60
+
+# 包模式 + triage
+./_build/native/debug/build/cmd/fuzz/fuzz.exe --root /data/audit/mbtfuzz \
+  --out /tmp/pkg --workers 2 --duration 300 --mode mbt \
+  --pkg-seed /tmp/cap_base --pkg-file repro/repro.mbt \
+  --pkg-argv "test --target js --build-only" --pkg-run-argv "test --target js" --triage
+
+# triage 单命令 / 控制
+./_build/native/debug/build/cmd/triage/triage.exe --case DIR --stage build --minimize BIN
+scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
+
+# benchstat（无效/饱和会输出 valid:false + invalid_reasons）
+./_build/native/debug/build/cmd/benchstat/benchstat.exe /tmp/ab_dir
+```
+
+## 7. 不要声称什么
+
+- 不要声称“发现/确认了编译器 bug”；`min/-1` 是 allowed divergence。
+- 不要声称“零 witness = 编译器无 bug”或“完备覆盖”。
+- 不要引用 1,960 / 75% 平台、旧 edge “无收益”、旧 sem3 0-witness 表。
+- 不要声称 Float(f32)/NaN/trait/指针已覆盖。
+- 不要声称 async 时序、异常 Display 已比较。
+- 不要声称 cgroup 聚合资源已实测。
+- 不要发上游 issue/评论；不要改 pin。
+
+## 8. 最终检查
+
+
+最终检查结果（2026-11-22 12:17 UTC）：
+
+```
+moon test   385 / 385（Total tests: 385, passed: 385, failed: 0）
+accept      24 / 24（ok=true, checks=24, 无失败）
+git         已提交并推送，worktree clean
+pin         未改动
+```
+
+HEAD 与推送结果见本次提交（`docs: final handoff`）。
+
