@@ -46,6 +46,8 @@ struct Case {
   family : String
   src : String
   expected : Array[String]
+  /// Independent node reference source; empty = use the MoonBit reference.
+  js : String
   excluded : Bool
 }
 
@@ -75,7 +77,7 @@ fn gen_i32(seed : UInt64) -> Case {
   let rhs = if op >= 6 { "(b & 7)" } else { "b" }
   let src = "fn main {\n  let a : Int = " + a.to_string() + "\n  let b : Int = " +
     b.to_string() + "\n  println((a " + opname + " " + rhs + ").to_string())\n}\n"
-  { family: "i32", src, expected: [e.to_string()], excluded: false }
+  { family: "i32", src, expected: [e.to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -88,7 +90,9 @@ fn gen_i64(seed : UInt64) -> Case {
   let opname = ["+", "-", "*"][op]
   let src = "fn main {\n  let a : Int64 = " + a.to_string() + "L\n  let b : Int64 = " +
     b.to_string() + "L\n  println((a " + opname + " b).to_string())\n}\n"
-  { family: "i64", src, expected: [e.to_string()], excluded: false }
+  let js = "const a=" + a.to_string() + "n; const b=" + b.to_string() +
+    "n; console.log(BigInt.asIntN(64, a " + opname + " b).toString());\n"
+  { family: "i64", src, expected: [e.to_string()], js, excluded: false }
 }
 
 ///|
@@ -108,7 +112,7 @@ fn gen_str(seed : UInt64) -> Case {
   let src = "fn main {\n  let a = \"" + a + "\"\n  let b = \"" + b +
     "\"\n  println(a + b)\n  println((a + b).length().to_string())\n  println((a == b).to_string())\n}\n"
   let eq = if a == b { "true" } else { "false" }
-  { family: "string_ascii", src, expected: [a + b, (a.length() + b.length()).to_string(), eq], excluded: false }
+  { family: "string_ascii", src, expected: [a + b, (a.length() + b.length()).to_string(), eq], js: "", excluded: false }
 }
 
 ///|
@@ -119,7 +123,7 @@ fn gen_array(seed : UInt64) -> Case {
   let src = "fn main {\n  let xs : Array[Int] = [" + vals[0].to_string() + ", " +
     vals[1].to_string() + ", " + vals[2].to_string() + ", " + vals[3].to_string() +
     "]\n  xs[2] = " + w.to_string() + "\n  println(xs[1].to_string())\n  println(xs[2].to_string())\n  println(xs.length().to_string())\n}\n"
-  { family: "array_inbounds", src, expected: [vals[1].to_string(), w.to_string(), "4"], excluded: false }
+  { family: "array_inbounds", src, expected: [vals[1].to_string(), w.to_string(), "4"], js: "", excluded: false }
 }
 
 ///|
@@ -128,7 +132,7 @@ fn gen_loop(seed : UInt64) -> Case {
   let n = rng.int(30)
   let src = "fn main {\n  let mut i = 0\n  let mut s = 0\n  while i <= " +
     n.to_string() + " {\n    s = s + i\n    i = i + 1\n  }\n  println(s.to_string())\n}\n"
-  { family: "loop_counter", src, expected: [((n * (n + 1)) / 2).to_string()], excluded: false }
+  { family: "loop_counter", src, expected: [((n * (n + 1)) / 2).to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -136,7 +140,7 @@ fn gen_oob(seed : UInt64) -> Case {
   let rng = @mutate.Rng::new(seed)
   let src = "fn main {\n  let xs : Array[Int] = [1, 2, 3]\n  let i = " +
     (rng.int(5) + 5).to_string() + "\n  println(xs[i].to_string())\n}\n"
-  { family: "array_oob", src, expected: ["<trap>"], excluded: false }
+  { family: "array_oob", src, expected: ["<trap>"], js: "", excluded: false }
 }
 
 ///|
@@ -144,7 +148,7 @@ fn gen_float(seed : UInt64) -> Case {
   let rng = @mutate.Rng::new(seed)
   let x = rng.int(10).to_double() / 3.0
   let src = "fn main {\n  println((" + x.to_string() + ").to_string())\n}\n"
-  { family: "float_format", src, expected: [], excluded: true }
+  { family: "float_format", src, expected: [], js: "", excluded: true }
 }
 
 ///|
@@ -187,6 +191,8 @@ fn next_case(family : String, seed : UInt64) -> Case {
     gen_box(seed)
   } else if family == "closure_capture" {
     gen_closure(seed)
+  } else if family == "typed_nested" {
+    gen_typed_nested(seed)
   } else {
     gen_float(seed)
   }
@@ -210,6 +216,19 @@ fn write_pkg(dir : String, src : String) -> Bool {
   @stager.write_text(join(dir, "moon.mod"), "name = \"sem3\"\nversion = \"0.1.0\"\n") &&
   @stager.write_text(join(dir, "moon.pkg"), "pkgtype(kind: \"executable\")\n") &&
   @stager.write_text(join(dir, "main.mbt"), src)
+}
+
+///|
+fn lines_of(s : String) -> Array[String] {
+  let out : Array[String] = []
+  for l in s.split("\n") { if l != "" { out.push(l.to_owned()) } }
+  out
+}
+
+///|
+async fn node_reference(js : String) -> (Array[String], Int32) {
+  let r = @exec.run("/usr/bin/env", ["node", "-e", js], "/tmp", 10000, max_output_bytes=65536)
+  (lines_of(r.stdout), r.rc)
 }
 
 ///|
@@ -272,7 +291,9 @@ async fn main {
   let limit = num_arg(args, "--limit", 100000)
   let seed_off = num_arg(args, "--seed", 1)
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
-  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "float_format"]
+  let inject_node = args.contains("--inject-node")
+  let inject_moon = args.contains("--inject-moon")
+  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "typed_nested", "float_format"]
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
@@ -308,6 +329,52 @@ async fn main {
     }
     let wd = join(out, "work")
     if !write_pkg(wd, c.src) { continue }
+    let moon_ref = if inject_moon {
+      let sh : Array[String] = []
+      for x in c.expected { sh.push(x + "9") }
+      sh
+    } else {
+      c.expected
+    }
+    let mut ref_expected = moon_ref
+    if c.js != "" {
+      let (ne, nrc) = node_reference(c.js)
+      if nrc != 0 || ne.length() == 0 {
+        let ev = join(join(out, "inconclusive"), cases.to_string())
+        ensure_dir(ev)
+        ignore(@stager.write_text(join(ev, "node.js"), c.js))
+        ignore(save_case(ev, "node_reference_failed", c.src, c.expected, c.js, "node -e ..."))
+        counts.set(family, (at + 1, wi, ex, inc + 1))
+        continue
+      }
+      // Two independent references disagree: this is the most valuable
+      // oracle candidate, not a backend witness.
+      let mut same = ne.length() == moon_ref.length()
+      if same {
+        for i, x in moon_ref { if ne[i] != x { same = false } }
+      }
+      if !same {
+        let ev = join(join(out, "reference_disagree"), cases.to_string())
+        let saved = save_case(
+          ev,
+          "reference_disagree",
+          c.src,
+          c.expected,
+          "moon_ref=" + moon_ref.join("|") + "\nnode_ref=" + ne.join("|"),
+          "node -e ...",
+        )
+        if !saved { println("{\"ok\":false,\"error\":\"ref evidence save failed\"}"); @env.exit(2) }
+        oracle_candidates += 1
+        counts.set(family, (at + 1, wi, ex, inc))
+        continue
+      }
+      ref_expected = ne
+      if inject_node {
+        let shifted : Array[String] = []
+        for x in ne { shifted.push(x + "9") }
+        ref_expected = shifted
+      }
+    }
     let obs : Array[Obs] = []
     for t in targets {
       let r = @exec.run_isolated(
@@ -352,7 +419,7 @@ async fn main {
         let mut matched_count = 0
         for i, o in obs {
           let want : Array[String] = []
-          for x in c.expected {
+          for x in ref_expected {
             want.push(
               if inject == "all" || (inject != "" && targets[i] == inject) {
                 x + "9"
@@ -372,7 +439,10 @@ async fn main {
         if matched_count == obs.length() {
           verdict = "pass"
         } else if same_out && matched_count == 0 {
-          verdict = "oracle"
+          // With the node reference, three backends agreeing but differing
+          // from an independent oracle is a compiler/reference divergence.
+          // With the MoonBit reference it is only an oracle candidate.
+          verdict = if c.js != "" { "witness" } else { "oracle" }
         } else {
           verdict = "witness"
         }
@@ -589,7 +659,7 @@ fn gen_expr(seed : UInt64, bits : Int32) -> Case {
   // cast instead: Int64 conversion of the rendered Int expression.
   let expr = if bits == 32 { lit } else { te_render64(t) }
   let src = "fn main {\n  println((" + expr + ").to_string())\n}\n"
-  { family: if bits == 32 { "expr_i32" } else { "expr_i64" }, src, expected: [e.to_string()], excluded: false }
+  { family: if bits == 32 { "expr_i32" } else { "expr_i64" }, src, expected: [e.to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -611,7 +681,7 @@ fn gen_boundary(seed : UInt64) -> Case {
   let i = rng.int(cases.length())
   let (expr, exp) = cases[i]
   let src = "fn main {\n  println((" + expr + ").to_string())\n}\n"
-  { family: "boundary_i32", src, expected: [exp], excluded: false }
+  { family: "boundary_i32", src, expected: [exp], js: "", excluded: false }
 }
 
 ///|
@@ -632,7 +702,7 @@ fn gen_boundary64(seed : UInt64) -> Case {
   let i = rng.int(cases.length())
   let (expr, exp) = cases[i]
   let src = "fn main {\n  println((" + expr + ").to_string())\n}\n"
-  { family: "boundary_i64", src, expected: [exp], excluded: false }
+  { family: "boundary_i64", src, expected: [exp], js: "", excluded: false }
 }
 
 ///|
@@ -642,7 +712,7 @@ fn gen_alias(seed : UInt64) -> Case {
   let src = "fn main {\n  let xs : Array[Int] = [" + v.to_string() +
     "]\n  let ys = xs\n  ys[0] = " + (v + 1).to_string() +
     "\n  println(xs[0].to_string())\n}\n"
-  { family: "array_alias", src, expected: [(v + 1).to_string()], excluded: false }
+  { family: "array_alias", src, expected: [(v + 1).to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -657,7 +727,7 @@ fn gen_utf8(seed : UInt64) -> Case {
   // "aé🙂"=4/3, "日本語"=3/3.
   let units = if s == "🙂" { 2 } else if s == "aé🙂" { 4 } else if s == "éa" { 2 } else if s == "日本語" { 3 } else { 1 }
   let chars = if s == "🙂" { 1 } else if s == "aé🙂" { 3 } else if s == "éa" { 2 } else if s == "日本語" { 3 } else { 1 }
-  { family: "utf8_string", src, expected: [units.to_string(), chars.to_string()], excluded: false }
+  { family: "utf8_string", src, expected: [units.to_string(), chars.to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -667,7 +737,7 @@ fn gen_var(seed : UInt64) -> Case {
   let v = te_eval(t, 32)
   let src = "fn main {\n  let x = " + te_render(t) +
     "\n  let y = x + x\n  println(y.to_string())\n}\n"
-  { family: "var_use", src, expected: [te_wrap32(v + v).to_string()], excluded: false }
+  { family: "var_use", src, expected: [te_wrap32(v + v).to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -682,7 +752,7 @@ fn gen_if(seed : UInt64) -> Case {
   let src = "fn main {\n  let x = if (" + te_render(a) + " < " + te_render(b) +
     ") { " + te_render(a) + " } else { " + te_render(b) +
     " }\n  println(x.to_string())\n}\n"
-  { family: "if_else", src, expected: [v.to_string()], excluded: false }
+  { family: "if_else", src, expected: [v.to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -694,7 +764,7 @@ fn gen_func(seed : UInt64) -> Case {
   let src = "fn add(a : Int, b : Int) -> Int { a + b }\nfn main {\n  let x = " +
     a.to_string() + "\n  let y = " + b.to_string() +
     "\n  println(add(x, y).to_string())\n}\n"
-  { family: "func_call", src, expected: [v.to_string()], excluded: false }
+  { family: "func_call", src, expected: [v.to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -704,7 +774,7 @@ fn gen_nested_array(seed : UInt64) -> Case {
   let b = rng.int(10)
   let src = "fn main {\n  let xs : Array[Array[Int]] = [[" + a.to_string() +
     ", " + b.to_string() + "], [3, 4]]\n  println(xs[0][1].to_string())\n}\n"
-  { family: "array_nested", src, expected: [b.to_string()], excluded: false }
+  { family: "array_nested", src, expected: [b.to_string()], js: "", excluded: false }
 }
 
 ///|
@@ -715,7 +785,9 @@ fn gen_struct(seed : UInt64) -> Case {
   let src = "struct P { x : Int; y : Int }\nfn sum(p : P) -> Int { p.x + p.y }\nfn main {\n  let p : P = { x: " +
     a.to_string() + ", y: " + b.to_string() +
     " }\n  println(p.x.to_string())\n  println(p.y.to_string())\n  println(sum(p).to_string())\n}\n"
-  { family: "struct_fields", src, expected: [a.to_string(), b.to_string(), (a + b).to_string()], excluded: false }
+  let js = "const p={x:" + a.to_string() + ",y:" + b.to_string() +
+    "}; console.log(p.x); console.log(p.y); console.log((p.x+p.y)|0);\n"
+  { family: "struct_fields", src, expected: [a.to_string(), b.to_string(), (a + b).to_string()], js, excluded: false }
 }
 
 ///|
@@ -726,7 +798,9 @@ fn gen_nested_struct(seed : UInt64) -> Case {
   let src = "struct Inner { v : Int }\nstruct Outer { a : Inner; b : Int }\nfn main {\n  let o : Outer = { a: { v: " +
     a.to_string() + " }, b: " + b.to_string() +
     " }\n  println(o.a.v.to_string())\n  println(o.b.to_string())\n}\n"
-  { family: "struct_nested", src, expected: [a.to_string(), b.to_string()], excluded: false }
+  let js = "const i={v:" + a.to_string() + "}; const o={a:i,b:" + b.to_string() +
+    "}; console.log(o.a.v); console.log(o.b);\n"
+  { family: "struct_nested", src, expected: [a.to_string(), b.to_string()], js, excluded: false }
 }
 
 ///|
@@ -737,16 +811,16 @@ fn gen_enum(seed : UInt64) -> Case {
   let y = rng.int(30)
   if tag == 0 {
     let src = "enum E { A; B(Int); C(Int, Int) }\nfn main {\n  let e : E = A\n  let r = match e {\n    A => 0\n    B(n) => n\n    C(a, b) => a + b\n  }\n  println(r.to_string())\n}\n"
-    { family: "enum_match", src, expected: ["0"], excluded: false }
+    { family: "enum_match", src, expected: ["0"], js: "console.log(0);\n", excluded: false }
   } else if tag == 1 {
     let src = "enum E { A; B(Int); C(Int, Int) }\nfn main {\n  let e : E = B(" + x.to_string() +
       ")\n  let r = match e {\n    A => 0\n    B(n) => n\n    C(a, b) => a + b\n  }\n  println(r.to_string())\n}\n"
-    { family: "enum_match", src, expected: [x.to_string()], excluded: false }
+    { family: "enum_match", src, expected: [x.to_string()], js: "console.log(" + x.to_string() + ");\n", excluded: false }
   } else {
     let src = "enum E { A; B(Int); C(Int, Int) }\nfn main {\n  let e : E = C(" + x.to_string() +
       ", " + y.to_string() +
       ")\n  let r = match e {\n    A => 0\n    B(n) => n\n    C(a, b) => a + b\n  }\n  println(r.to_string())\n}\n"
-    { family: "enum_match", src, expected: [(x + y).to_string()], excluded: false }
+    { family: "enum_match", src, expected: [(x + y).to_string()], js: "console.log(" + (x + y).to_string() + ");\n", excluded: false }
   }
 }
 
@@ -757,7 +831,7 @@ fn gen_box(seed : UInt64) -> Case {
   let src = "enum Box[T] { Val(T) }\nfn main {\n  let b : Box[Int] = Box::Val(" +
     v.to_string() +
     ")\n  match b { Box::Val(x) => println(x.to_string()) }\n}\n"
-  { family: "generic_box", src, expected: [v.to_string()], excluded: false }
+  { family: "generic_box", src, expected: [v.to_string()], js: "console.log(" + v.to_string() + ");\n", excluded: false }
 }
 
 ///|
@@ -768,5 +842,20 @@ fn gen_closure(seed : UInt64) -> Case {
   let src = "fn main {\n  let k = " + k.to_string() +
     "\n  let f = fn(x : Int) -> Int { x + k }\n  println(f(" + x.to_string() +
     ").to_string())\n}\n"
-  { family: "closure_capture", src, expected: [(k + x).to_string()], excluded: false }
+  let js = "const k=" + k.to_string() + "; const f=(x)=>x+k; console.log(f(" +
+    x.to_string() + "));\n"
+  { family: "closure_capture", src, expected: [(k + x).to_string()], js, excluded: false }
+}
+
+///|
+fn gen_typed_nested(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(30)
+  let b = rng.int(30)
+  let src = "struct Inner { v : Int }\nenum Box[T] { Val(T) }\nenum E { A; B(Box[Inner]) }\nstruct Outer { e : E; k : Int }\nfn main {\n  let o : Outer = { e: B(Box::Val({ v: " +
+    a.to_string() + " })), k: " + b.to_string() +
+    " }\n  let r = match o.e {\n    A => 0\n    B(bx) => match bx {\n      Box::Val(i) => i.v + o.k\n    }\n  }\n  println(r.to_string())\n}\n"
+  let js = "const i={v:" + a.to_string() + "}; const bx={tag:'Val',v:i}; const o={e:{tag:'B',p:bx},k:" +
+    b.to_string() + "}; console.log((o.k+i.v)|0);\n"
+  { family: "typed_nested", src, expected: [(a + b).to_string()], js, excluded: false }
 }
