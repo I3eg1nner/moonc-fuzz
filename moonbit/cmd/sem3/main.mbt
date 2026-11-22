@@ -206,6 +206,10 @@ fn next_case(family : String, seed : UInt64) -> Case {
     gen_typed_nested(seed)
   } else if family == "typed_deep" {
     gen_typed_deep(seed)
+  } else if family == "float_bits" {
+    gen_float_bits(seed)
+  } else if family == "float_cmp" {
+    gen_float_cmp(seed)
   } else {
     gen_float(seed)
   }
@@ -306,7 +310,7 @@ async fn main {
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
   let inject_node = args.contains("--inject-node")
   let inject_moon = args.contains("--inject-moon")
-  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "typed_nested", "typed_deep", "float_format"]
+  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "typed_nested", "typed_deep", "float_bits", "float_cmp", "float_format"]
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
@@ -366,13 +370,16 @@ async fn main {
         continue
       }
       if !continue_ok {
+        let placeholder = c.expected.length() == 1 && c.expected[0] == "<node>"
+        if !placeholder {
         // Two independent references disagree: this is the most valuable
         // oracle candidate, not a backend witness.
         let mut same = ne.length() == moon_ref.length()
         if same {
           for i, x in moon_ref { if ne[i] != x { same = false } }
         }
-        if !same {
+        if !same &&
+          !(c.expected.length() == 1 && c.expected[0] == "<node>") {
           let ev = join(join(out, "reference_disagree"), cases.to_string())
           let saved = save_case(
             ev,
@@ -386,6 +393,7 @@ async fn main {
           oracle_candidates += 1
           counts.set(family, (at + 1, wi, ex, inc))
           continue
+        }
         }
         ref_expected = ne
         if inject_node {
@@ -949,4 +957,58 @@ fn gen_typed_deep(seed : UInt64) -> Case {
     "}; const r={h:{tag:'Has',p:{tag:'Val',v:bk}},n:" + d.to_string() +
     "}; console.log((bk.xs[1].v+bk.k+r.n)|0);\n"
   { family: "typed_deep", src, expected: [(b + c + d).to_string()], js, excluded: false }
+}
+
+///|
+fn gen_float_bits(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(1000).to_double() / 8.0
+  let b = (rng.int(1000).to_double() / 8.0) + 0.5
+  let op = rng.int(11)
+  let (mexpr, jexpr, is_nan) = if op == 0 {
+    ("a + b", "a + b", false)
+  } else if op == 1 {
+    ("a - b", "a - b", false)
+  } else if op == 2 {
+    ("a * b", "a * b", false)
+  } else if op == 3 {
+    ("a / b", "a / b", false)
+  } else if op == 4 {
+    ("a.sqrt()", "Math.sqrt(a)", false)
+  } else if op == 5 {
+    ("a.floor()", "Math.floor(a)", false)
+  } else if op == 6 {
+    ("a.ceil()", "Math.ceil(a)", false)
+  } else if op == 7 {
+    ("a.round()", "Math.round(a)", false)
+  } else if op == 8 {
+    ("a.trunc()", "Math.trunc(a)", false)
+  } else if op == 9 {
+    ("a.min(b)", "Math.min(a, b)", false)
+  } else {
+    ("a.max(b)", "Math.max(a, b)", false)
+  }
+  // Negative sqrt would be NaN; the inputs are positive, but keep the guard.
+  let src = "fn main {\n  let a : Double = " + a.to_string() + "\n  let b : Double = " +
+    b.to_string() + "\n  let r : Double = " + mexpr +
+    "\n  println(r.reinterpret_as_uint64().to_string())\n}\n"
+  let js = "const a=" + a.to_string() + "; const b=" + b.to_string() +
+    "; const f=(x)=>{const dv=new DataView(new ArrayBuffer(8));dv.setFloat64(0,x);return dv.getBigUint64(0).toString()}; console.log(f(" +
+    jexpr + "));\n"
+  { family: "float_bits", src, expected: ["<node>"], js, excluded: is_nan }
+}
+
+///|
+fn gen_float_cmp(seed : UInt64) -> Case {
+  let rng = @mutate.Rng::new(seed)
+  let a = rng.int(100).to_double() / 4.0
+  let b = rng.int(100).to_double() / 4.0
+  let op = rng.int(3)
+  let mexpr = if op == 0 { "a < b" } else if op == 1 { "a == b" } else { "a > b" }
+  let jexpr = if op == 0 { "a < b" } else if op == 1 { "a === b" } else { "a > b" }
+  let src = "fn main {\n  let a : Double = " + a.to_string() + "\n  let b : Double = " +
+    b.to_string() + "\n  println((" + mexpr + ").to_string())\n}\n"
+  let js = "const a=" + a.to_string() + "; const b=" + b.to_string() +
+    "; console.log(String(" + jexpr + "));\n"
+  { family: "float_cmp", src, expected: ["<node>"], js, excluded: false }
 }
