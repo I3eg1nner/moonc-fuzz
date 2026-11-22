@@ -1,0 +1,4 @@
+#deprecated("old7")
+#alias(alias7)
+pub fn f() -> Int { 7 }
+fn main { println(f()) }

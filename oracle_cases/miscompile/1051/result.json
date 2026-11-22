@@ -1,0 +1,10 @@
+{
+  "issue": 1051,
+  "category": "miscompile",
+  "command": "moon build --target js",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "Warning: [0001]\n   ╭─[ /data/audit/mbtfuzz/oracle_cases/miscompile/1051/a.mbt:4:16 ]\n   │\n 4 │ extern \"js\" fn abs_ffi(n : I) -> Int = \"(n) => Math.abs(n)\"\n   │                ───┬───  \n   │                   ╰───── Warning (unused_value): Unused function 'abs_ffi'\n───╯\nFinished. moon: ran 1 task, now up to date (2 warnings, 0 errors)",
+  "status": "fixed",
+  "evidence": "rc0; js build with I=Int and extern js stub"
+}

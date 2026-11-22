@@ -1,1 +1,1 @@
-{"expected_codes": [], "note": "same-package use must not warn (1294 shape)"}
+{"expected_codes": [], "note": "same-package use must not warn (1294 shape)", "family": "skip_current"}

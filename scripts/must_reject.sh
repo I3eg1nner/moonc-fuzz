@@ -36,4 +36,4 @@ fams=$(printf '%s' "$families" | tr ',' '\n' | sort -u | wc -l)
 jq -n --argjson pos "$pos" --argjson acc "$acc" --argjson wrong "$wrong" --argjson neg "$neg" --argjson negbad "$negbad" --argjson fams "$fams" --argjson ctl "$ctl" \
  '{positives:$pos,transforms:$fams,accepted:$acc,wrong_diagnostic:$wrong,negative_controls:$neg,negative_bad:$negbad,control_rc:$ctl}' > "${OUT%.jsonl}.summary.json"
 cat "${OUT%.jsonl}.summary.json"
-[[ "$pos" -ge 300 && "$fams" -ge 10 && "$acc" -eq 0 && "$negbad" -eq 0 && "$ctl" -ne 0 ]]
+[[ "$pos" -ge 350 && "$fams" -ge 12 && "$acc" -eq 0 && "$negbad" -eq 0 && "$ctl" -ne 0 ]]

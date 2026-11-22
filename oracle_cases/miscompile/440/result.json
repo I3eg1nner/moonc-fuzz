@@ -1,0 +1,10 @@
+{
+  "issue": 440,
+  "category": "crash_ice",
+  "command": "moon check --target native",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "Finished. moon: ran 2 tasks, now up to date",
+  "status": "fixed",
+  "evidence": "rc0; Array::make(3, extern_ref) typechecks"
+}

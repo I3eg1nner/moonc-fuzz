@@ -1,0 +1,10 @@
+{
+  "issue": 415,
+  "category": "miscompile",
+  "command": "moon test --target wasm-gc",
+  "rc": 255,
+  "stdout_tail": "",
+  "stderr_tail": "\nCaused by:\n    Uncaught CompileError: WebAssembly.Module(): Compiling function #35:\"_M0FP14i41529____test__6d61696e2e6d6274__0\" failed: local.set[0] expected type (ref 30), found local.get of type (ref 64) @+4411\nError: failed to run test for target WasmGC\n\nCaused by:\n    Failed to run the test: /data/audit/mbtfuzz/oracle_cases/miscompile/415/_build/wasm-gc/debug/test/i415.internal_test.wasm\n    The test executable exited with exit status: 1",
+  "status": "reproduced",
+  "evidence": "rc255; WebAssembly.Module local.set type mismatch"
+}

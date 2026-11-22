@@ -1,0 +1,10 @@
+{
+  "issue": 1339,
+  "category": "crash_ice",
+  "command": "moon test --target native (needs MoonPlot repo)",
+  "rc": 0,
+  "stdout_tail": "",
+  "stderr_tail": "not run",
+  "status": "unclear",
+  "evidence": "blocked_by_deps: external repo/CI logs only"
+}

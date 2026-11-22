@@ -1,0 +1,19 @@
+{
+  "issue": 440,
+  "title": "Array::make ExternRef compiler error",
+  "state": "closed",
+  "category": "crash_ice",
+  "status": "fixed",
+  "backends": "native",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/440",
+  "command": "moon check --target native",
+  "notes": "check passes; link still needs C stub, not a compiler defect",
+  "evidence": "rc0; Array::make(3, extern_ref) typechecks",
+  "bug_symptom": "issue says native Array::make ExternRef compiler error",
+  "pin_observed": "moon check rc0",
+  "assertion": {
+    "kind": "exit_and_stdout",
+    "rc": 0,
+    "contains": ""
+  }
+}

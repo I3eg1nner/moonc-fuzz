@@ -1,0 +1,19 @@
+{
+  "issue": 415,
+  "title": "%identity function-typed coercion invalid wasm module",
+  "state": "open",
+  "category": "miscompile",
+  "status": "reproduced",
+  "backends": "wasm-gc",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/415",
+  "command": "moon test --target wasm-gc",
+  "notes": "current generic syntax adapted; invalid module reproduced",
+  "evidence": "rc255; WebAssembly.Module local.set type mismatch",
+  "bug_symptom": "issue says wasm-gc %identity coercion produces invalid module",
+  "pin_observed": "rc255 CompileError expected type",
+  "assertion": {
+    "kind": "exit_and_stderr",
+    "rc": 255,
+    "contains": "CompileError"
+  }
+}

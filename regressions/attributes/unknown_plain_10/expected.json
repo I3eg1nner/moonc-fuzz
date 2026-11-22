@@ -1,1 +1,1 @@
-{"expected_codes": ["0042"], "note": "unknown attribute must warn"}
+{"expected_codes": ["0042"], "note": "unknown attribute must warn", "family": "unknown_plain"}

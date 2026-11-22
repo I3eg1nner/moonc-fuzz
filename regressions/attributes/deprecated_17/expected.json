@@ -1,1 +1,1 @@
-{"expected_codes": ["0020"], "note": "deprecated use must warn"}
+{"expected_codes": ["0020"], "note": "deprecated use must warn", "family": "deprecated"}

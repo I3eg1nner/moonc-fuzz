@@ -425,6 +425,7 @@ moon test --target native
 | `findings/issue_oracle_f.md` | F1 4 条 + F2 36/20 重做 + F3 跨仓库 + F4 60 条；严格召回 8/100 |
 | `findings/issue_oracle_g.md` | must-reject 124/37、accepted=0、must_reject_sensitivity |
 | `findings/issue_oracle_h.md` | 300/10 变换、wrong=0、100 attribute、29 gates |
+| `findings/issue_oracle_final.md` | 38 curated 最终表、L1 14/14、L2 5/15、召回 8/100、残余风险 |
 | `findings/python_inventory.md` | 20 个已跟踪 .py 的分类与更正后的不变量 |
 | `issues/triage_172.md` | 172 条粗筛 keep/drop 理由 |
 | `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |

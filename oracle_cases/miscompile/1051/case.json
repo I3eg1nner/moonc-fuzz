@@ -1,0 +1,19 @@
+{
+  "issue": 1051,
+  "title": "FFI declaration bug",
+  "state": "closed",
+  "category": "miscompile",
+  "status": "fixed",
+  "backends": "js",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1051",
+  "command": "moon build --target js",
+  "notes": "2025 type I Int no longer parses; current type I = Int equivalent",
+  "evidence": "rc0; js build with I=Int and extern js stub",
+  "bug_symptom": "issue says `type I Int` + extern js fails Invalid stub type",
+  "pin_observed": "type I = Int equivalent builds",
+  "assertion": {
+    "kind": "exit_and_stdout",
+    "rc": 0,
+    "contains": ""
+  }
+}

@@ -335,7 +335,7 @@ async fn main {
   let mr_acc = json_int(mr_sum, "accepted")
   let mr_negbad = json_int(mr_sum, "negative_bad")
   let mr_ctl = json_int(mr_sum, "control_rc")
-  let must_ok = mr.rc == 0 && mr_pos >= 300 && mr_fams >= 10 &&
+  let must_ok = mr.rc == 0 && mr_pos >= 350 && mr_fams >= 12 &&
     mr_acc == 0 &&
     mr_negbad == 0 && mr_ctl != 0
   results.push(
@@ -359,13 +359,14 @@ async fn main {
   )
   let at_sum = read_text("/tmp/mbtfuzz_accept_attribute_" + tag + ".summary.json")
   let at_cases = json_int(at_sum, "cases")
+  let at_fams = json_int(at_sum, "families")
   let at_missing = json_int(at_sum, "missing_warning")
-  let at_ok = at.rc == 0 && at_cases >= 100
+  let at_ok = at.rc == 0 && at_cases >= 160 && at_fams >= 8
   results.push(
     check(
       "attribute_sensitivity",
       at_ok,
-      "cases=" + at_cases.to_string() + " missing_warning=" +
+      "cases=" + at_cases.to_string() + " families=" + at_fams.to_string() + " missing_warning=" +
       at_missing.to_string() + " rc=" + at.rc.to_string(),
     ),
   )

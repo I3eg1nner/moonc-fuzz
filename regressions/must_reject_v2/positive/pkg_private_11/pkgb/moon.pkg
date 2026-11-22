@@ -1,0 +1,2 @@
+import { "ppkg11/pkga" }
+options("is-main": false)

@@ -227,6 +227,24 @@
     "dir": "oracle_cases/crash_ice/573"
   },
   {
+    "issue": 1339,
+    "title": "MoonPlot link-core stack overflow",
+    "state": "open",
+    "category": "crash_ice",
+    "status": "unclear",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/1339",
+    "command": "moon test --target native (needs MoonPlot repo)",
+    "rc": 0,
+    "evidence": "blocked_by_deps: external repo/CI logs only",
+    "bug_symptom": "link-core stack overflow in MoonPlot ticker tests",
+    "pin_observed": "not run: missing MoonPlot repo",
+    "assertion": {
+      "kind": "skip",
+      "reason": "blocked_by_deps: external MoonPlot repo"
+    },
+    "dir": "oracle_cases/crash_ice/1339"
+  },
+  {
     "issue": 1369,
     "title": "`moon fmt` prints unary plus as `~+`, producing code that cannot be re-parsed",
     "state": "open",
@@ -506,6 +524,63 @@
       "contains": "BUG"
     },
     "dir": "oracle_cases/miscompile/1347"
+  },
+  {
+    "issue": 1051,
+    "title": "FFI declaration bug",
+    "state": "closed",
+    "category": "miscompile",
+    "status": "fixed",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/1051",
+    "command": "moon build --target js",
+    "rc": 0,
+    "evidence": "rc0; js build with I=Int and extern js stub",
+    "bug_symptom": "issue says `type I Int` + extern js fails Invalid stub type",
+    "pin_observed": "type I = Int equivalent builds",
+    "assertion": {
+      "kind": "exit_and_stdout",
+      "rc": 0,
+      "contains": ""
+    },
+    "dir": "oracle_cases/miscompile/1051"
+  },
+  {
+    "issue": 440,
+    "title": "Array::make ExternRef compiler error",
+    "state": "closed",
+    "category": "crash_ice",
+    "status": "fixed",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/440",
+    "command": "moon check --target native",
+    "rc": 0,
+    "evidence": "rc0; Array::make(3, extern_ref) typechecks",
+    "bug_symptom": "issue says native Array::make ExternRef compiler error",
+    "pin_observed": "moon check rc0",
+    "assertion": {
+      "kind": "exit_and_stdout",
+      "rc": 0,
+      "contains": ""
+    },
+    "dir": "oracle_cases/miscompile/440"
+  },
+  {
+    "issue": 415,
+    "title": "%identity function-typed coercion invalid wasm module",
+    "state": "open",
+    "category": "miscompile",
+    "status": "reproduced",
+    "url": "https://github.com/moonbitlang/moonbit-docs/issues/415",
+    "command": "moon test --target wasm-gc",
+    "rc": 255,
+    "evidence": "rc255; WebAssembly.Module local.set type mismatch",
+    "bug_symptom": "issue says wasm-gc %identity coercion produces invalid module",
+    "pin_observed": "rc255 CompileError expected type",
+    "assertion": {
+      "kind": "exit_and_stderr",
+      "rc": 255,
+      "contains": "CompileError"
+    },
+    "dir": "oracle_cases/miscompile/415"
   },
   {
     "issue": 968,

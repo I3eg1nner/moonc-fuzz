@@ -1,0 +1,18 @@
+{
+  "issue": 1339,
+  "title": "MoonPlot link-core stack overflow",
+  "state": "open",
+  "category": "crash_ice",
+  "status": "unclear",
+  "backends": "native",
+  "url": "https://github.com/moonbitlang/moonbit-docs/issues/1339",
+  "command": "moon test --target native (needs MoonPlot repo)",
+  "notes": "needs external repo moonbit-community/moonplot@38ed2c954",
+  "evidence": "blocked_by_deps: external repo/CI logs only",
+  "bug_symptom": "link-core stack overflow in MoonPlot ticker tests",
+  "pin_observed": "not run: missing MoonPlot repo",
+  "assertion": {
+    "kind": "skip",
+    "reason": "blocked_by_deps: external MoonPlot repo"
+  }
+}
