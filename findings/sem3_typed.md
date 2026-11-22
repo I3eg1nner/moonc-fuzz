@@ -35,4 +35,23 @@ sem3 不混入 async。仓库已有独立的 `cmd/xdiff --family async` harness
 
 ## 30 分钟结果
 
-见下。
+## 30 分钟结果（4,746 cases / unique_programs 2,938）
+
+| family group | attempts each | witness | oracle_candidate | excluded | inconclusive |
+|---|---:|---:|---:|---:|---:|
+| i32/i64/string/array/loop/oob/expr/var/if/func/nested | 215–216 | 0 | 0 | 0 | 0 |
+| struct_fields / struct_nested / enum_match / generic_box / closure_capture | 215–216 | 0 | 0 | 0 | 0 |
+| boundary_i32 / boundary_i64 | 216 | 0 | 0 | 20 / 20（min/-1 allowed） | 0 |
+| float_format | 215 | 0 | 0 | 215 | 0 |
+
+- `unique_witness=0`，`oracle_candidates=0`，`inconclusive=0`；
+- 正控（inject js）对每个新族命中 3/3；`--inject all` 只产 oracle；
+- 结论仍只能是"窄域三后端差分能力已建立"：**没有** compiler
+  inconsistency candidate；域已扩到 struct/enum/泛型/闭包/嵌套数组/控制流，
+  但仍无指针、结构体可变别名、trait、async、真实包语义；i64 参考虽改用
+  UInt64，仍与被测编译器同源（共模风险未消除）；
+- async 未并入 sem3，仍由独立 `cmd/xdiff --family async` 覆盖。
+
+## 复现
+
+`scripts/replay_sem3.sh WITNESS`；本轮 witness 为 0，无新资产。
