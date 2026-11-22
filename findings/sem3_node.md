@@ -29,4 +29,32 @@ Date: 2026-11-22. 工具链 pin 未改。
 
 ## 30 分钟结果
 
-见下。
+## 30 分钟结果（4,593 cases / unique_programs 2,903，seed 3）
+
+| 组 | attempts each | witness | oracle_candidate | excluded | inconclusive |
+|---|---:|---:|---:|---:|---:|
+| 22 个同步族（含 typed_nested、i64） | 199–200 | 0 | 0 | 0 | 0 |
+| boundary_i32 / boundary_i64 | 200 | 0 | 0 | 18 / 18（min/-1 allowed） | 0 |
+| float_format | 199 | 0 | 0 | 199 | 0 |
+
+`unique_witness=0`，`reference_disagree` 目录 0，`oracle_candidates=0`。
+
+## 能力表（参考实现是否经过 moonc）
+
+| 族 | expected 来源 | 经过 moonc? |
+|---|---|---|
+| struct_fields / struct_nested / enum_match / generic_box / closure_capture / typed_nested | node 执行 JS；MoonBit 参考做交叉检查 | **否** |
+| i64（常量对） | node BigInt.asIntN(64) + MoonBit 交叉检查 | **否** |
+| i32/string/array/control/loop/expr_* 等其余同步族 | MoonBit 参考求值器 | 是（共模风险仍在） |
+| float | excluded | — |
+| min/-1、除零 | excluded_domain（allowed） | — |
+
+## 结论
+
+- 独立参考已落地到 typed 族与 i64 基础族：三后端 + node 三方比较，
+  node 与 MoonBit 参考不一致会单独进 `reference_disagree` 并计
+  oracle_candidate；本轮为 0；
+- 30 分钟仍 **0 compiler inconsistency witness**；
+- 域已扩到 struct/enum/泛型 Box/闭包/嵌套组合，但仍是模板级组合
+  （0–2 层），不是完整 typed AST + 泛型单态化；其余同步族仍用 MoonBit
+  参考，共模风险未完全消除；async 仍由独立 xdiff harness 覆盖。
