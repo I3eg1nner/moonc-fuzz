@@ -217,3 +217,9 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 - aitne: wasm route.wasm invalid（`local.set` ref 类型不一致），js/最小 repro 均 rc0；最小 14 行，3/3 invalid；与 415 同 `%identity` 根因类，CONFIRMED 但不列新候选。
 - H 口径修正：150 packages, buildable 111, wasm_only 1(ajson), js_only 0, invalid 1(aitne), test_compile_fail 1(aitne), differential 1；旧 103/2/1 已修正。
 - 下一步换 oracle 面，不再只加包。
+
+## Discovery J
+
+- 400 模块扫描：buildable 281；invalid artifact 3 包（aitne 4 个、zlib 2 个）；wasm_only3、js_only3、different_codes7、test_compile_fail4、test differential1。
+- 签名桶：`local.set|ref<-ref|identity` 5（415+aitne，同根因）；`fallthru|stack2|extern-wasm-body` 2（zlib 自身 WAT 不合法，js 也不通过，排除）。
+- 无新根因 candidate；静默非法产物密度约 3/281。下一步类型导向生成/运行时差分。

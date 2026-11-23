@@ -1,0 +1,18 @@
+{
+  "modules_registry": 386,
+  "modules_scanned": 400,
+  "buildable_both": 281,
+  "wasm_only": 3,
+  "js_only": 3,
+  "different_codes": 7,
+  "invalid_artifact": 3,
+  "test_attempted": 200,
+  "test_compile_fail": 4,
+  "differential": 1,
+  "signature_buckets": [
+    {"signature":"local.set|ref<-ref|identity","artifacts":5,"packages":["415","Arcelyth/aitne"]},
+    {"signature":"fallthru|stack2|extern-wasm-body","artifacts":2,"packages":["mizchi/zlib/component"]}
+  ],
+  "new_root_candidate": null,
+  "compact_invalid_density": "3/281"
+}

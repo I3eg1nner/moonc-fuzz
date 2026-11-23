@@ -1,31 +1,51 @@
 {
-  "modules": 150,
-  "attempted": 150,
-  "buildable_both": 111,
-  "wasm_only": 1,
-  "js_only": 0,
-  "different_codes": 1,
-  "invalid_artifact": 1,
-  "test_attempted": 61,
-  "test_compile_fail": 1,
+  "modules": 400,
+  "attempted": 400,
+  "buildable_both": 281,
+  "wasm_only": 3,
+  "js_only": 3,
+  "different_codes": 7,
+  "invalid_artifact": 3,
+  "test_attempted": 200,
+  "test_compile_fail": 0,
   "differential": 1,
-  "differential_pkgs": [
-    {
-      "pkg": ".mooncakes/Arcelyth/aitne",
-      "test": "build/load"
-    }
-  ],
+  "differential_pkgs": [],
   "test_compile_fail_pkgs": [
-    ".mooncakes/Arcelyth/aitne"
+    ".mooncakes/Arcelyth/aitne",
+    ".mooncakes/jaredzhou/libs",
+    ".mooncakes/jaredzhou/pony/.mooncakes/jaredzhou/libs",
+    ".mooncakes/jaredzhou/pony"
   ],
   "wasm_only_pkgs": [
     {
       "pkg": ".mooncakes/bobzhang/ajson",
       "first": "Error: [4021] Value run_async_main not found in package `moonbitlang/core/async`."
+    },
+    {
+      "pkg": ".mooncakes/KKKIIO/moondark",
+      "first": "Error: [4021]"
+    },
+    {
+      "pkg": ".mooncakes/moonbit-community/js-ffi",
+      "first": "Error: [4156]"
     }
   ],
-  "js_only_pkgs": [],
+  "js_only_pkgs": [
+    {
+      "pkg": ".mooncakes/gaato/mttp",
+      "first": ""
+    },
+    {
+      "pkg": ".mooncakes/mizchi/svg/component",
+      "first": ""
+    },
+    {
+      "pkg": ".mooncakes/mizchi/zlib/component",
+      "first": ""
+    }
+  ],
   "invalid_pkgs": [
-    ".mooncakes/Arcelyth/aitne"
+    ".mooncakes/Arcelyth/aitne",
+    ".mooncakes/mizchi/zlib/component"
   ]
 }
