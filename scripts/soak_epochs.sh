@@ -20,6 +20,7 @@ WORKERS=${WORKERS:-4}
 TRACE_T1=${TRACE_T1:-5}
 TRACE_T2=${TRACE_T2:-5}
 RSS_MB=${RSS_MB:-1800}
+SUP_MAX=${MAX_PROCS:-$((WORKERS*4+8))}
 
 [ -x "$BIN" ] || { echo "build first" >&2; exit 2; }
 mkdir -p "$OUT"
@@ -38,8 +39,8 @@ for i in $(seq 1 "$EPOCHS"); do
   if [ -f "$POOL/coverage_state.jsonl" ]; then
     state_args=(--coverage-state "$POOL/coverage_state.jsonl")
   fi
-  "$ROOT/scripts/supervisor.sh" --json-out "$OUT/e$i.sup.json" \
-    --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "${MAX_PROCS:-8}" --deadline "${SUPERVISOR_DEADLINE:-1200}" -- \
+  if "$ROOT/scripts/supervisor.sh" --json-out "$OUT/e$i.sup.json" \
+    --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "$SUP_MAX" --deadline "${SUPERVISOR_DEADLINE:-1200}" -- \
     /usr/bin/time -q -o "$OUT/e$i.time" -f "%M" \
     "$BIN" --root "$ROOT" --out "$run" --workers "$WORKERS" --duration "$SECS" \
       "${state_args[@]}" \
@@ -49,10 +50,8 @@ for i in $(seq 1 "$EPOCHS"); do
       --baseline-trace-max-mb 256 \
       --coverage-cap 200 --persist-cap 400 --parent-cap 2000 --edge-cap 50000 \
       --rss-limit-mb "$RSS_MB" --qemu "${QEMU:-/tmp/AFLplusplus/afl-qemu-trace}" \
-      > "$OUT/e$i.log" 2>&1 || true
+      > "$OUT/e$i.log" 2>&1; then sup_rc=0; else sup_rc=$?; fi
   sup=$(cat "$OUT/e$i.sup.json" 2>/dev/null || echo '{}')
-  sup_rc=$?
-  sup_rc=$(jq -r '.rc // .leader_rc // 90' <<<"$sup" 2>/dev/null || echo 90)
   sup_inc=$(jq -r '.incomplete // 1' <<<"$sup" 2>/dev/null || echo 1)
   sup_orph=$(jq -r '.orphans // 0' <<<"$sup" 2>/dev/null || echo 0)
   sup_reason=$(jq -r '.reason // ""' <<<"$sup" 2>/dev/null || echo "")

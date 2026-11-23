@@ -531,3 +531,5 @@ Apache-2.0，见 `LICENSE`。仓库内的第三方 fixture（如
 ## P0-3 supervisor
 
 `supervisor.sh --json-out FILE` 只写 JSON 到文件，子进程 stdout/stderr 继承；run.sh 和 soak_epochs 已默认经过 supervisor。setsid 逃逸仍 unsupported。
+
+run.sh 的 supervisor 默认 `max_procs=WORKERS+8`、`deadline=DUR+120`；`SUPERVISOR_DRYRUN=1` 只写 `supervisor.limits`。soak 的默认 `max_procs=WORKERS*4+8`。

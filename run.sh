@@ -66,15 +66,26 @@ case "$CAMPAIGN" in
   hybrid)        P_DEEP="${P_DEEP:-50}";  P_RUN="${P_RUN:-10}" ;;
 esac
 
+OUT_DIR="${OUT:-$ROOT/out/mb_runs}"
+mkdir -p "$OUT_DIR"
+SUP_MAX=$((WORKERS + 8))
+SUP_DEADLINE=$((DUR + 120))
+SUP_AGG=${AGG_RSS_MB:-0}
+SUP_MAX_ACTUAL=${MAX_PROCS:-$SUP_MAX}
+SUP_DEADLINE_ACTUAL=${SUPERVISOR_DEADLINE:-$SUP_DEADLINE}
+printf '{"agg_rss_mb":%s,"max_procs":%s,"deadline":%s}\n' "$SUP_AGG" "$SUP_MAX_ACTUAL" "$SUP_DEADLINE_ACTUAL" > "$OUT_DIR/supervisor.limits"
+if [ "${SUPERVISOR_DRYRUN:-0}" = 1 ]; then
+  echo "supervisor dryrun: $OUT_DIR/supervisor.limits"
+  exit 0
+fi
+
 # Always invoke the incremental build.  Reusing a release binary just because
 # it exists silently runs stale code after a source edit.
 moon -C "$ROOT/moonbit" build cmd/fuzz --target native --release
 
-OUT_DIR="${OUT:-$ROOT/out/mb_runs}"
-mkdir -p "$OUT_DIR"
 exec "$ROOT/scripts/supervisor.sh" \
   --json-out "$OUT_DIR/supervisor.json" \
-  --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "${MAX_PROCS:-8}" --deadline "${SUPERVISOR_DEADLINE:-120}" \
+  --agg-rss-mb "$SUP_AGG" --max-procs "$SUP_MAX_ACTUAL" --deadline "$SUP_DEADLINE_ACTUAL" \
   -- "$ROOT/moonbit/_build/native/release/build/cmd/fuzz/fuzz.exe" \
   --root "$ROOT" \
   --out "$OUT_DIR" \

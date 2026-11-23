@@ -76,7 +76,7 @@
 - TEST_FAIL replay：`original_config_e2e` 直接调用 triage，不再复制比较逻辑；normal confirmed 3/3、stage=test，三个负控非 confirmed。
 - original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 行为复验闭环：真实 campaign TEST_FAIL，stage=test，triage confirmed 3/3；expected/pkg/baseline 三控制均 inconclusive；argv/env 篡改 confirmed → 记 not_sensitive（行为未变）。manifest 只做 provenance warning，不参与判定。
 
-P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor；soak_epochs 每 epoch 经 supervisor，epochs.csv 增 sup_rc/incomplete/orphans，incomplete/rc 非零 stop_reason=supervisor_<reason>；`supervisor_process_tree` gate a–e 全绿（clean/exit7/leader后child/外层存活/1 epoch soak）。setsid 仍 unsupported。
+P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor：`max_procs=WORKERS+8`、`deadline=DUR+120`，实际值写 `supervisor.limits`；`SUPERVISOR_DRYRUN=1` 只写 limits。soak_epochs 每 epoch 经 supervisor，默认 `max_procs=WORKERS*4+8`，CSV 的 sup_rc 用真实退出码；`supervisor_process_tree` gate a–f 全绿（含 48 workers/600s dryrun limits 720/56）。setsid 仍 unsupported。
 - 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿但明确 **setsid 逃逸不支持**，没有 `process_tree` gate；组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。
 - F13：`fmt_f13` gate 固定 `-(-2147483648)`、i64 min、triple nested；moonfmt 输出 `moon check` 均 `[4095]`，healthy `-(-1)` 通过；分类 `compiler_inconsistency_candidate`。
