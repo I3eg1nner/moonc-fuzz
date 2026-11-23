@@ -1045,6 +1045,13 @@ struct TraceUniverse {
   /// Shared budget for full-input evidence on disk (`--persist-cap`).  It is
   /// campaign-wide, so every worker and every trace path uses this object.
   persist : PersistBudget
+  /// Checkpoint metadata written with the state: schema epoch, cumulative
+  /// cases, parent owner count, and the last admitted input hash.
+  mut state_epoch : Int32
+  mut checkpoint_cases : Int32
+  mut checkpoint_owners : Int32
+  mut last_input_hash : String
+  mut checkpoint_adds : Int32
 }
 
 ///|
@@ -1072,6 +1079,11 @@ fn trace_universe_new() -> TraceUniverse {
     edge_collided: Map([]),
     edge_collisions: 0,
     persist: persist_budget_new(PERSIST_CAP_DEFAULT, 4000),
+    state_epoch: 1,
+    checkpoint_cases: 0,
+    checkpoint_owners: 0,
+    last_input_hash: "",
+    checkpoint_adds: 0,
   }
 }
 
@@ -3445,6 +3457,36 @@ fn json_str_array_field(line : String, key : String) -> Array[String] {
 }
 
 ///|
+fn json_int_field(line : String, key : String) -> Int32 {
+  let pat = "\"" + key + "\":"
+  let i = match line.find(pat) {
+    None => return -1
+    Some(i) => i + pat.length()
+  }
+  let mut j = i
+  while j < line.length() && line.get_char(j) == Some(' ') {
+    j += 1
+  }
+  let mut v = 0
+  let mut any = false
+  while j < line.length() {
+    match line.get_char(j) {
+      Some(c) => {
+        if c >= '0' && c <= '9' {
+          v = v * 10 + (c.to_int() - 48)
+          any = true
+          j += 1
+        } else {
+          break
+        }
+      }
+      None => break
+    }
+  }
+  if any { v } else { -1 }
+}
+
+///|
 fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let text = @stager.read_text(cfg.coverage_state)
   // A state file without its checksum, or with a mismatch, is not trusted:
@@ -3454,7 +3496,14 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
     .to_owned()
   if text != "" &&
     (expected == "" || @corpus.sha1_hex(text) != expected) {
-    // A state file without a checksum is as untrusted as a corrupted one.
+    // Quarantine the old file instead of silently starting from empty.  The
+    // copy preserves bytes; the original is removed only after the copy lands.
+    let corrupt = cfg.coverage_state + ".corrupt." + @env.now().to_string()
+    if @stager.write_text(corrupt, text) {
+      @fs.remove_file(cfg.coverage_state) catch { _ => () }
+      @fs.remove_file(cfg.coverage_state + ".sha256") catch { _ => () }
+      println("[state] quarantine " + cfg.coverage_state + " -> " + corrupt)
+    }
     return (0, 0)
   }
   let mut keys = 0
@@ -3463,7 +3512,18 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
     return (0, 0)
   }
   for line in text.split("\n") {
-    if line.contains("\"key\":") {
+    if line.contains("\"schema\":") {
+      let e = json_int_field(line.to_owned(), "epoch")
+      let c = json_int_field(line.to_owned(), "cases")
+      let o = json_int_field(line.to_owned(), "owners")
+      let a = json_int_field(line.to_owned(), "adds")
+      if e >= 0 { cov.state_epoch = e + 1 }
+      if a >= 0 { cov.checkpoint_adds = a }
+      if c >= 0 { cov.checkpoint_cases = c }
+      if o >= 0 { cov.checkpoint_owners = o }
+      let last = json_str_field(line.to_owned(), "last")
+      if last != "" { cov.last_input_hash = last }
+    } else if line.contains("\"key\":") {
       let key = json_str_field(line.to_owned(), "key")
       if key != "" {
         cov.by_key.set(
@@ -3504,12 +3564,20 @@ async fn save_coverage_state(cov : TraceUniverse, out : String) -> Bool {
   }
   edges.sort()
   lines.push("{\"edges\":" + @trace.json_string_array(edges) + "}")
-  let body = lines.join("\n") + "\n"
+  let header = "{\"schema\":\"coverage_state/v2\",\"version\":1,\"epoch\":" +
+    cov.state_epoch.to_string() +
+    ",\"cases\":" + cov.checkpoint_cases.to_string() +
+    ",\"owners\":" + cov.checkpoint_owners.to_string() +
+    ",\"adds\":" + cov.checkpoint_adds.to_string() +
+    ",\"last\":\"" + @stager.escape(cov.last_input_hash) + "\"}"
+  let body = header + "\n" + lines.join("\n") + "\n"
   let target = join(out, "coverage_state.jsonl")
   let tmp = target + ".tmp"
   if !@stager.write_text(tmp, body) {
     return false
   }
+  // Flush the temp file before the rename; the rename is the atomic step.
+  let _ = @exec.run("/bin/sh", ["-c", "sync"], out, 5000)
   // Atomic replace: a reader never sees a half-written state, and the hash
   // makes a truncated file detectable.
   let mv = @exec.run(
@@ -3639,10 +3707,25 @@ async fn monitor(
   cov : TraceUniverse,
   q : TraceQueue,
   out : String,
+  feed : Feedback,
 ) -> Stats {
   let mon_start = @env.now()
+  let mut last_ck = mon_start
+  let mut last_cases = 0
   while prog.done < cfg.workers {
     @async.sleep(2000)
+    if cfg.coverage_state != "" &&
+      (prog.it - last_cases >= 100 || @env.now() - last_ck >= 5000UL) {
+      cov.checkpoint_cases = prog.it
+      cov.checkpoint_owners = feed.feature_owners.length()
+      cov.checkpoint_adds = cov.coverage_adds
+      if feed.entries.length() > 0 {
+        cov.last_input_hash = feed.entries[feed.entries.length() - 1].hash
+      }
+      let _ = save_coverage_state(cov, out)
+      last_ck = @env.now()
+      last_cases = prog.it
+    }
     if cfg.rss_limit_mb > 0 && prog.stop_reason == "" {
       let now = rss_mb()
       if now > cfg.rss_limit_mb.to_int64() {
@@ -4273,7 +4356,7 @@ async fn main {
     let w = id
     tasks.push(() => trace_worker(cfg, w, q, feed, cov, covctx, prog))
   }
-  tasks.push(() => monitor(cfg, prog, cov, q, out))
+  tasks.push(() => monitor(cfg, prog, cov, q, out, feed))
   let results = @conc.all_limited(tasks, cfg.workers + cfg.trace_workers + 1)
   let total = stats_new()
   for r in results {
@@ -4345,6 +4428,12 @@ async fn main {
   }
   // Persist coverage for the next epoch: inputs alone are not enough.  A
   // failed write is an infrastructure error, not a silent empty state.
+  cov.checkpoint_cases = total.it
+  cov.checkpoint_owners = feed.feature_owners.length()
+  cov.checkpoint_adds = cov.coverage_adds
+  if feed.entries.length() > 0 {
+    cov.last_input_hash = feed.entries[feed.entries.length() - 1].hash
+  }
   if !save_coverage_state(cov, out) {
     println(
       "{\"ok\":false,\"error\":\"coverage_state write failed\",\"out\":\"" +

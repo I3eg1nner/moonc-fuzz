@@ -371,6 +371,20 @@ async fn main {
     ),
   )
 
+  // 2a6. Checkpoint kill -9 / resume / quarantine.
+  let sr = @exec.run(
+    "bash",
+    [join(root, "scripts/state_recovery_test.sh"), root],
+    root,
+    600000,
+  )
+  let sr_out = sr.stdout.trim().to_owned()
+  let sr_ok = sr.rc == 0 && sr_out.contains("\"ok\": 1") &&
+    sr_out.contains("\"duplicates\": 0") &&
+    sr_out.contains("\"lost\": 0") &&
+    sr_out.contains("\"quarantine_ok\": 1")
+  results.push(check("state_recovery", sr_ok, sr_out))
+
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
   // rather than quietly changing `regressions_13`.  Six serial cases with one
