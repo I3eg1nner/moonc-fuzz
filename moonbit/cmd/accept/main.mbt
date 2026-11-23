@@ -427,18 +427,6 @@ async fn main {
     ac_out.contains("setsid_escape") && ac_out.contains("unsupported")
   results.push(check("aggregate_cancel", ac_ok, ac_out))
 
-  // 2a10. sem3 incomplete-observation unit gate.
-  let sm = @exec.run(
-    "moon",
-    ["test", "cmd/sem3", "--target", "native"],
-    join(root, "moonbit"),
-    300000,
-  )
-  let sm_out = sm.stdout.trim().to_owned()
-  let sm_ok = sm.rc == 0 && sm_out.contains("Total tests: 2") &&
-    sm_out.contains("passed: 2")
-  results.push(check("sem3_observation", sm_ok, sm_out))
-
   // 2a11. F13 formatter regression: valid source must stay reparsable.
   let f13 = @exec.run(
     "bash",
@@ -451,6 +439,20 @@ async fn main {
     f13_out.contains("\"positives\": 3") &&
     f13_out.contains("\"negative_ok\": 1")
   results.push(check("fmt_f13", f13_ok, f13_out))
+
+  // 2a10. sem3 five-matrix backend fault injection.
+  let sm = @exec.run(
+    "bash",
+    [join(root, "scripts/sem3_matrix_test.sh"), root],
+    root,
+    300000,
+  )
+  let sm_out = sm.stdout.trim().to_owned()
+  let sm_ok = sm.rc == 0 && sm_out.contains("\"ok\": 1") &&
+    sm_out.contains("\"A\"") && sm_out.contains("\"B\"") &&
+    sm_out.contains("\"C\"") && sm_out.contains("\"D\"") &&
+    sm_out.contains("\"E\"")
+  results.push(check("sem3_observation", sm_ok, sm_out))
 
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check

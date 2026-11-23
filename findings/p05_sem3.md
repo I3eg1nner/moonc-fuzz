@@ -1,23 +1,37 @@
-# P0-5 sem3：三后端完整 observation
+# P0-5 sem3：真实 backend 注入与五矩阵
 
 Date: 2026-11-23. Pin 不变。
 
-## 修改
+## 入口
 
-`moonbit/cmd/sem3/main.mbt`：
+`sem3 --backend-cmd target=CMD`（可重复）与环境 `MODE_<TARGET>`；
+覆盖时把程序路径作为最后一个参数传给 CMD。默认仍是
+`moon run main.mbt --target T`。
 
-- 新增 `observations_complete(classes)`：必须 3 个 backend，且每个 class 只能是
-  `ok` 或 `trap`；
-- `timeout`、`compile_error`、`truncated`、`ice`、`runtime_error` 任一出现，
-  verdict 直接 `inconclusive`，不再进入 `any_ok && any_trap` 的 witness 分支；
-- 该检查在 `array_oob` 分支之前，因此 `array_oob` 也要求三后端完整 trap；
-- 单元测试：`sem3_wbtest.mbt` 覆盖 ok/trap/compile_error/timeout/truncated/ice
-  和只有两个 backend 的情况。
+`scripts/fake_backend.sh` 支持：ok / trap（rc134）/ compile_error
+（`Error: [E9999]`）/ timeout（sleep10）/ truncated（>1MB 无换行）/
+ice（`Oops, the compiler`）。
+
+## Obs
+
+逐 backend 记录：`target,class,stage,rc,timed_out,truncated,ice,bytes`。
+`target_class` 先看 timed_out/truncated/rc，关键词只辅助。
+summary 的 `backend_obs` 打 ok/trap/other/timeout/truncated。
+
+## 五矩阵（真实 sem3 入口）
+
+| case | modes | 结果 |
+|---|---|---|
+| A | 2 ok + timeout | inconclusive=1, witness=0 |
+| B | ok + trap + compile_error | inconclusive=1, witness=0 |
+| C | 3 trap (`array_oob`) | witness=1 |
+| D | 3 ok 同输出 | witness=0, inconclusive=0（equal） |
+| E | 3 ok 不同输出 | witness=1 |
+
+脚本 `scripts/sem3_matrix_test.sh`，accept gate `sem3_observation` 直接跑它。
 
 ## 边界
 
-- 单元测试覆盖 verdict 前提；没有在真实三后端上注入 timeout/compile_error
-  的 campaign 正负控。
-- `target_class` 仍是 stderr 关键词分类（review6 P0-5 的剩余部分）；
-  summary 不逐 backend 记 rc/超时/截断。
-- 未改 pin、未发上游、未新增 `.py`。
+- `target_class` 仍关键词辅助；`ice` 由 class 判定。
+- truncated 用 >1MB 输出触发，不是真实 moonc 截断。
+- 未改 pin、未发上游。

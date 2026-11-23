@@ -252,8 +252,13 @@ async fn node_reference(js : String) -> (Array[String], Int32) {
 struct Obs {
   target : String
   class : String
+  stage : String
   out : String
   rc : Int32
+  timed_out : Bool
+  truncated : Bool
+  ice : Bool
+  bytes : Int
 }
 
 ///|
@@ -323,11 +328,33 @@ async fn main {
   let inject = match arg_value(args, "--inject") { Some(s) => s; None => "" }
   let inject_node = args.contains("--inject-node")
   let inject_moon = args.contains("--inject-moon")
-  let families = ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "typed_nested", "typed_deep", "float_bits", "float_cmp", "float_format"]
+  let forced_family = match arg_value(args, "--family") { Some(s) => s; None => "" }
+  let expected_override = match arg_value(args, "--expected") { Some(s) => s; None => "" }
+  let backend_timeout = num_arg(args, "--backend-timeout-ms", 30000)
+  let no_node = args.contains("--no-node")
+  let backend_cmds : Map[String, String] = Map([])
+  let mut bi = 0
+  while bi < args.length() {
+    if args[bi] == "--backend-cmd" && bi + 1 < args.length() {
+      let spec = args[bi + 1]
+      match spec.find("=") {
+        Some(eq) => backend_cmds.set(spec[0:eq].to_owned(), spec[eq + 1:].to_owned())
+        None => ()
+      }
+      bi += 2
+    } else { bi += 1 }
+  }
+  let families = if forced_family != "" {
+    [forced_family]
+  } else {
+    ["i32", "i64", "string_ascii", "array_inbounds", "loop_counter", "array_oob", "expr_i32", "expr_i64", "boundary_i32", "boundary_i64", "array_alias", "utf8_string", "var_use", "if_else", "func_call", "array_nested", "struct_fields", "struct_nested", "enum_match", "generic_box", "closure_capture", "typed_nested", "typed_deep", "float_bits", "float_cmp", "float_format"]
+  }
   @stager.rm_rf(out)
   ensure_dir(out)
   let deadline = @env.now() + duration.to_uint64() * 1000UL
   let targets = ["js", "wasm-gc", "native"]
+  let backend_stats : Map[String, (Int32, Int32, Int32, Int32, Int32)] = Map([])
+  for t in targets { backend_stats.set(t, (0, 0, 0, 0, 0)) }
   let counts : Map[String, (Int32, Int32, Int32, Int32)] = Map([]) // attempts,witness,excluded,inconclusive
   for f in families { counts.set(f, (0, 0, 0, 0)) }
   let mut cases = 0
@@ -338,10 +365,15 @@ async fn main {
   while @env.now() < deadline && cases < limit {
     cases += 1
     let family = families[cases % families.length()]
-    let c = next_case(
+    let c0 = next_case(
       family,
       0x9e3779b97f4a7c15UL * cases.to_uint64() + seed_off.to_uint64() * 131UL,
     )
+    let c = if expected_override != "" {
+      { family: c0.family, src: c0.src, expected: [expected_override], js: c0.js, excluded: c0.excluded }
+    } else {
+      c0
+    }
     // MoonBit core documents min/-1 (either operator) as having no portable
     // result ("may abort or get an arbitrary value"); backend divergence here
     // is allowed, so it is excluded_domain rather than a witness.
@@ -368,7 +400,7 @@ async fn main {
     }
     let mut continue_ok = false
     let mut ref_expected = moon_ref
-    if c.js != "" {
+    if c.js != "" && !no_node {
       let (ne, nrc) = node_reference(c.js)
       if nrc != 0 && c.expected.length() == 1 && c.expected[0] == "<trap>" {
         ref_expected = ["<trap>"]
@@ -418,20 +450,46 @@ async fn main {
     }
     let obs : Array[Obs] = []
     for t in targets {
-      let r = @exec.run_isolated(
-        @stager.moon_path(), ["run", "main.mbt", "--target", t], wd,
-        30000, max_output_bytes=1048576, mem_mb=2048,
-      )
+      let cmd = backend_cmds.get(t)
+      let r = match cmd {
+        Some(c) => @exec.run_isolated(
+          c, [t, join(wd, "main.mbt")], wd,
+          backend_timeout, max_output_bytes=1048576, mem_mb=2048,
+        )
+        None => @exec.run_isolated(
+          @stager.moon_path(), ["run", "main.mbt", "--target", t], wd,
+          backend_timeout, max_output_bytes=1048576, mem_mb=2048,
+        )
+      }
+      let cls = target_class(r.rc, r.timed_out, r.stdout_truncated, r.stderr)
       obs.push({
         target: t,
-        class: target_class(r.rc, r.timed_out, r.stdout_truncated, r.stderr),
+        class: cls,
+        stage: if cls == "compile_error" || cls == "ice" { "compile" } else { "run" },
         out: r.stdout.trim_end().to_owned(),
         rc: r.rc,
+        timed_out: r.timed_out,
+        truncated: r.stdout_truncated,
+        ice: cls == "ice",
+        bytes: r.stdout.length(),
       })
     }
     let mut classes = ""
-    for o in obs { classes = classes + o.target + "=" + o.class + " " }
-    let actual = obs.map(fn(o) { o.target + "[" + o.class + "] rc=" + o.rc.to_string() + "\n" + o.out }).join("\n---\n")
+    for o in obs {
+      classes = classes + o.target + "=" + o.class + " "
+      let (okc, trapc, other, to, tr) = backend_stats.get(o.target).unwrap()
+      let no = if o.class == "ok" { okc + 1 } else { okc }
+      let nt = if o.class == "trap" { trapc + 1 } else { trapc }
+      let no2 = if o.class != "ok" && o.class != "trap" { other + 1 } else { other }
+      let nto = if o.timed_out { to + 1 } else { to }
+      let ntr = if o.truncated { tr + 1 } else { tr }
+      backend_stats.set(o.target, (no, nt, no2, nto, ntr))
+    }
+    let actual = obs.map(fn(o) {
+      o.target + "[" + o.class + "] stage=" + o.stage + " rc=" + o.rc.to_string() +
+      " timed_out=" + o.timed_out.to_string() + " truncated=" + o.truncated.to_string() +
+      " ice=" + o.ice.to_string() + " bytes=" + o.bytes.to_string() + "\n" + o.out
+    }).join("\n---\n")
     let argv = @stager.moon_path() + " run main.mbt --target js|wasm-gc|native\n"
     let mut verdict = "pass"
     let class_arr = obs.map(fn(o) { o.class })
@@ -442,7 +500,9 @@ async fn main {
     } else if family == "array_oob" {
       // Every backend must have actually executed and trapped; a compile
       // error/timeout is not a trap and must not be reported as pass.
-      for o in obs { if o.class != "trap" { verdict = "inconclusive" } }
+      let mut all_trap = true
+      for o in obs { if o.class != "trap" { all_trap = false } }
+      if all_trap { verdict = "witness" } else { verdict = "inconclusive" }
     } else {
       let mut any_ok = false
       let mut any_trap = false
@@ -523,6 +583,17 @@ async fn main {
   b.write_string(",\"unique_programs\":" + unique_programs.to_string())
   b.write_string(",\"unique_witness\":" + witness_hashes.length().to_string())
   b.write_string(",\"oracle_candidates\":" + oracle_candidates.to_string())
+  b.write_string(",\"backend_obs\":{")
+  let mut bfirst = true
+  for t in targets {
+    if !bfirst { b.write_string(",") }
+    bfirst = false
+    let (okc, trapc, other, to, tr) = backend_stats.get(t).unwrap()
+    b.write_string("\"" + t + "\":{\"ok\":" + okc.to_string() + ",\"trap\":" + trapc.to_string() +
+      ",\"other\":" + other.to_string() + ",\"timeout\":" + to.to_string() +
+      ",\"truncated\":" + tr.to_string() + "}")
+  }
+  b.write_string("}")
   b.write_string(",\"families\":{")
   let mut first = true
   for f in families {
