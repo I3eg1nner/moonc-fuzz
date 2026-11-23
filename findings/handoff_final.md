@@ -156,7 +156,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 
 ```
 moon test   386 / 386（Total tests: 386, passed: 386, failed: 0）
-accept      35 / 35（ok=true, checks=35, 无失败）
+accept      36 / 36（ok=true, checks=36, 无失败）
 git         已提交并推送，worktree clean
 pin         未改动
 ```
@@ -188,3 +188,12 @@ TEST_FAIL findings 已改为 `findings/test/TEST_FAIL/<test sig>`，seed 只保�
 - 相对 `--coverage-state` 控制仍未绿：实际 state 未写到预期相对路径；C5 未闭环。
 - capsule.stage 与 meta.stage 一致校验已加，但未加独立负控；C6 部分闭环。
 - fuzz/triage 的 test signature 已共享到 `cluster.test_signature`；本地实现删除；C1/C2 闭环。
+
+## D0 冻结口径
+
+P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真缺陷”关闭。限制：setsid unsupported、cgroup 只读、无密钥 checksum 只防损坏、witness 非 hermetic（`.mooncakes` 保留）、TEST_FAIL 是受控 lane、sem3 compile_error 不晋级。
+
+## D1/D2/D4
+
+- INVALID_WASM：415 正控 confirmed，语法/干净负控 0 witness；known issue，不是新发现。
+- 语料 N=94，尝试 90，wasm/js 失败 69/68，build-only WebAssembly.Module=0，成功中位 35/34ms。pilot 四计数见 `findings/discovery_pilot.json`/`discovery_d2.md`。

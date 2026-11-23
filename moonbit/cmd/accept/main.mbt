@@ -412,6 +412,21 @@ async fn main {
     e2e_out.contains("\"no_build\": 1")
   results.push(check("original_config_e2e", e2e_ok, e2e_out))
 
+  // 2a8b. INVALID_WASM oracle: 415 positive, syntax/clean negatives.
+  let iw = @exec.run(
+    "bash",
+    [join(root, "scripts/invalid_wasm_test.sh"), root],
+    root,
+    300000,
+  )
+  let iw_out = iw.stdout.trim().to_owned()
+  let iw_ok = iw.rc == 0 && iw_out.contains("\"ok\": 1") &&
+    iw_out.contains("\"positive_kind\": \"INVALID_WASM\"") &&
+    iw_out.contains("\"positive_status\": \"confirmed\"") &&
+    iw_out.contains("\"syntax_invalid_witness\": 0") &&
+    iw_out.contains("\"clean_invalid_witness\": 0")
+  results.push(check("invalid_wasm", iw_ok, iw_out))
+
   // 2a8c. Process-tree/exit propagation and real soak wrapper.
   let spt = @exec.run(
     "bash",

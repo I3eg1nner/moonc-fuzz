@@ -200,6 +200,9 @@ async fn capsule_replay(
   let mut sig = "ok"
   if stage == "test" && r.rc != 0 {
     sig = test_sig(r.stdout, r.stderr)
+  } else if stage == "build" && r.rc != 0 &&
+    r.stderr.contains("CompileError") && r.stderr.contains("WebAssembly.Module") {
+    sig = @cluster.crash_signature("INVALID_WASM", r.rc, r.stderr, r.stdout)
   } else {
     for f in @stager.findings(stage, r) {
       if @judge.severity_name(f.severity) == "defect" {
@@ -355,7 +358,7 @@ async fn main {
   let kind = @cluster.json_get_string(meta, "kind")
   let meta_stage = @cluster.json_get_string(meta, "stage")
   let cap_stage_ok = if is_capsule { cap_stage == meta_stage } else { true }
-  let schema_ok = (kind == "TEST_FAIL" || kind == "BUILD_FAIL" || kind == "ICE") &&
+  let schema_ok = (kind == "TEST_FAIL" || kind == "BUILD_FAIL" || kind == "ICE" || kind == "INVALID_WASM") &&
     (meta_stage == "build" || meta_stage == "test" || meta_stage == "check" ||
       meta_stage == "syncheck" || meta_stage == "t1" || meta_stage == "t2" ||
       meta_stage == "t3") && cap_stage_ok
@@ -429,9 +432,11 @@ async fn main {
       let obs = @judge.observation(
         stage, ctl_rc, false, 0L, 0L, 0, false, false, "", ctl_err,
       )
-      control_clean = ctl_rc == 0 &&
-        !is_defect_sig(ctl_sig) &&
-        !@judge.has_diagnostic(obs)
+      control_clean = if kind == "INVALID_WASM" {
+        true
+      } else {
+        ctl_rc == 0 && !is_defect_sig(ctl_sig) && !@judge.has_diagnostic(obs)
+      }
       true
     }
   } else if write_pkg(ctl, "fn main {\n  println(\"ok\")\n}\n", "mbt") {

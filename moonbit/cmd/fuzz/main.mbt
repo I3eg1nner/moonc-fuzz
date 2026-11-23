@@ -2891,10 +2891,17 @@ async fn worker(
               // Semantic (test) failures also enter the save -> triage chain;
               // they are not crash-class, so triage must keep them
               // inconclusive rather than promote them.
-              let tsig = @cluster.test_signature(rr.stdout, rr.stderr)
+              let invalid_wasm = rr.stderr.contains("CompileError") &&
+                rr.stderr.contains("WebAssembly.Module")
+              let wkind = if invalid_wasm { "INVALID_WASM" } else { "TEST_FAIL" }
+              let wsig = if invalid_wasm {
+                @cluster.crash_signature("INVALID_WASM", rr.rc, rr.stderr, rr.stdout)
+              } else {
+                @cluster.test_signature(rr.stdout, rr.stderr)
+              }
               ignore(
                 save_pkg_witness(
-                  cfg, moon, tsig, "TEST_FAIL", cfg.pkg_run_argv, src,
+                  cfg, moon, wsig, wkind, cfg.pkg_run_argv, src,
                   baseline, wd, cfg.pkg_file, rr.rc, rr.stdout, rr.stderr,
                 ),
               )

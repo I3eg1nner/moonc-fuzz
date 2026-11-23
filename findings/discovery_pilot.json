@@ -1,0 +1,12 @@
+{
+  "N": 94,
+  "attempted": 90,
+  "wasm_fail": 69,
+  "js_fail": 68,
+  "webassembly_module": 0,
+  "wasm_ok": 21,
+  "js_ok": 22,
+  "wasm_ms_median": 35,
+  "js_ms_median": 34,
+  "note": "build scan; no witness/triage"
+}

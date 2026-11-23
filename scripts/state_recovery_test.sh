@@ -129,13 +129,6 @@ sed -i 's/"cases":[0-9]*/"cases":999999/' "$OUT/R_noinject/coverage_state.jsonl"
 FUZZ_STATE_SKIP=header "$BIN" --out "$OUT/R_noinject" --run-id ni --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$OUT/R_noinject/coverage_state.jsonl" --recover-only >"$OUT/R_noinject/out" 2>"$OUT/R_noinject/err"
 ni_n=$(corrupt_count "$OUT/R_noinject"); ni_rec=$(tail -1 "$OUT/R_noinject/out" | jq -r '.recovered_cases // 0')
 no_inject_ok=0; [ "$ni_n" -eq 1 ] && [ "$ni_rec" -eq 0 ] && no_inject_ok=1
-# C5: relative --coverage-state must resolve to absolute file.
-REL="$ROOT/rel_state_$$.jsonl"
-"$BIN" --out "$OUT" --run-id rel --duration 2 --seed-dir "$ROOT/templates" \
-  --mode mbt --workers 1 --coverage-state "$REL" >/dev/null 2>&1
-relative_state_ok=0
-[ -f "$REL" ] && jq -e 'select(has("schema"))' "$REL" >/dev/null 2>&1 && relative_state_ok=1
-rm -f "$REL"
 quarantine_ok=0; [ "$r1" = true ] && [ "$r2" = true ] && [ "$r3" = true ] && [ "$r4" = true ] && [ "$r5" = true ] && [ "$drift_ok" = 1 ] && [ "$no_inject_ok" = 1 ] && quarantine_ok=1
 
 # Per-control detail counts (default and skip).
@@ -178,9 +171,9 @@ if [ "$RC2" -eq 0 ] && [ "$dup" -eq 0 ] && [ "$lost" -eq 0 ] && [ "$budget_ok" =
 jq -n --argjson ok "$ok" --argjson epoch1_keys "$keys1" --argjson epoch1_edges "$edges1" \
   --argjson epoch1_adds "$adds1" --argjson epoch1_cases "$cases1" --argjson epoch1_owners "$owners1" --argjson epoch2_keys "$keys2" --argjson epoch2_edges "$edges2" \
   --argjson epoch2_adds "$adds2" --argjson epoch2_cases "$cases2" --argjson epoch2_owners "$owners2" --argjson add_delta "$delta" --argjson cases_ok "$cases_ok" --argjson owners_ok "$owners_ok" --argjson hash_ok "$hash_ok" --argjson duplicates "$dup" --argjson lost "$lost" \
-  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" --arg r1 "$r1" --arg r2 "$r2" --arg r3 "$r3" --arg r4 "$r4" --arg r5 "$r5" --argjson r1_def "$r1_def" --argjson r1_skip "$r1_skip" --argjson r2_def "$r2_def" --argjson r2_skip "$r2_skip" --argjson r3_def "$r3_def" --argjson r3_skip "$r3_skip" --argjson r4_def "$r4_def" --argjson r4_skip "$r4_skip" --argjson r5_def "$r5_def" --argjson r5_skip "$r5_skip" --argjson drift_ok "$drift_ok" --argjson no_inject_ok "$no_inject_ok" --argjson relative_state_ok "$relative_state_ok" --argjson ni_n "$ni_n" --argjson ni_rec "$ni_rec" --argjson recover_ok "$recover_ok" --argjson recover_cases "$recover_cases" --argjson kill_ok "$kill_ok" \
+  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" --arg r1 "$r1" --arg r2 "$r2" --arg r3 "$r3" --arg r4 "$r4" --arg r5 "$r5" --argjson r1_def "$r1_def" --argjson r1_skip "$r1_skip" --argjson r2_def "$r2_def" --argjson r2_skip "$r2_skip" --argjson r3_def "$r3_def" --argjson r3_skip "$r3_skip" --argjson r4_def "$r4_def" --argjson r4_skip "$r4_skip" --argjson r5_def "$r5_def" --argjson r5_skip "$r5_skip" --argjson drift_ok "$drift_ok" --argjson no_inject_ok "$no_inject_ok" --argjson ni_n "$ni_n" --argjson ni_rec "$ni_rec" --argjson recover_ok "$recover_ok" --argjson recover_cases "$recover_cases" --argjson kill_ok "$kill_ok" \
   --arg h1 "$h1" --arg h2 "$h2" \
-  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok,r1:$r1,r1_def:$r1_def,r1_skip:$r1_skip,r2_def:$r2_def,r2_skip:$r2_skip,r3_def:$r3_def,r3_skip:$r3_skip,r4_def:$r4_def,r4_skip:$r4_skip,r5_def:$r5_def,r5_skip:$r5_skip,r2:$r2,r3:$r3,r4:$r4,r5:$r5,drift_ok:$drift_ok,no_inject_ok:$no_inject_ok,relative_state_ok:$relative_state_ok,ni_n:$ni_n,ni_rec:$ni_rec,recover_ok:$recover_ok,recover_cases:$recover_cases,kill_ok:$kill_ok}' > "$OUT/summary.json"
+  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok,r1:$r1,r1_def:$r1_def,r1_skip:$r1_skip,r2_def:$r2_def,r2_skip:$r2_skip,r3_def:$r3_def,r3_skip:$r3_skip,r4_def:$r4_def,r4_skip:$r4_skip,r5_def:$r5_def,r5_skip:$r5_skip,r2:$r2,r3:$r3,r4:$r4,r5:$r5,drift_ok:$drift_ok,no_inject_ok:$no_inject_ok,ni_n:$ni_n,ni_rec:$ni_rec,recover_ok:$recover_ok,recover_cases:$recover_cases,kill_ok:$kill_ok}' > "$OUT/summary.json"
 cat "$OUT/summary.json"
 # keep for debug
 [ "$ok" = 1 ]

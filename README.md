@@ -536,4 +536,6 @@ run.sh 的 supervisor 默认 `max_procs=WORKERS+8`、`deadline=DUR+120`；`SUPER
 
 state checksum 无密钥，只防意外损坏，不防重算篡改；`FUZZ_STATE_SKIP` 需同时 `FUZZ_STATE_TEST_INJECT=1`，仅测试注入。
 
-accept 实际 35 项；TEST_FAIL 是 passed→failed 受控 lane；witness 非 hermetic（`.mooncakes` 保留）；checksum 无密钥只防损坏。
+accept 实际 36 项；TEST_FAIL 是 passed→failed 受控 lane；witness 非 hermetic（`.mooncakes` 保留）；checksum 无密钥只防损坏。
+
+P0 按 fail-closed + 限制已文档化关闭，不按自动发现关闭；INVALID_WASM 415 是正控，不是新发现。
