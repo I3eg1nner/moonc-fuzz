@@ -200,3 +200,7 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 - F2 69 失败：3005=45、4037=15、4023=2、4156=2、无码=5；均为 ours 语料错误，不是依赖解析。wasm-only 1051、differential 415，均 known。
 - F3 500 mutant：build_ok 470、both_fail 30、wasm-only/js-only/different/invalid=0；差分密度 0/500。
 - sem3 compile_error 接线、C6 负控仍未闭环。
+
+## Discovery G
+
+真实第三方：registry 清单 29 个 module@version；`.mooncakes` 31 个模块，buildable both=21，wasm-only/js-only/differential/invalid=0，test 19 个/compile fail 0。G3 官方 300 mutant：build_ok 210、both-fail 90、差分 0/300；探索性超跑有 1 条 `moonstl/site/bridge` 4032 wasm-only，未最小化，不列候选。

@@ -1,0 +1,9 @@
+{
+  "mutants": 300,
+  "build_ok": 210,
+  "wasm_only": 0,
+  "js_only": 0,
+  "both_fail": 90,
+  "different_codes": 0,
+  "diff": []
+}

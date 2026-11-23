@@ -1,0 +1,15 @@
+{
+  "modules": 31,
+  "attempted": 31,
+  "buildable_both": 21,
+  "wasm_only": 0,
+  "js_only": 0,
+  "different_codes": 0,
+  "invalid_artifact": 0,
+  "test_attempted": 19,
+  "test_compile_fail": 0,
+  "differential": 0,
+  "wasm_only_pkgs": [],
+  "js_only_pkgs": [],
+  "invalid_pkgs": []
+}
