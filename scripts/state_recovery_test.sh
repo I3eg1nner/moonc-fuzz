@@ -72,40 +72,49 @@ resign() {
 # Independent R1-R5 controls with skip-injection.
 corrupt_count() { ls "$1"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l; }
 run_control() {
-  local name="$1" reason="$2" skip="$3" tamper="$4" seed="$5" strict="$6"
-  local d="$OUT/R_$name"; mkdir -p "$d"; cp "$STATE1" "$d/coverage_state.jsonl"
-  eval "$tamper"
+  local name="$1" reason="$2" skip="$3" tamper="$4" seed="$5" strict="$6" expect_cases="$7"
+  local dd="$OUT/R_${name}_def" sd="$OUT/R_${name}_skip"
+  mkdir -p "$dd" "$sd"
+  cp "$STATE1" "$dd/coverage_state.jsonl"; cp "$STATE1" "$sd/coverage_state.jsonl"
+  D="$dd/coverage_state.jsonl" eval "$tamper"
+  D="$sd/coverage_state.jsonl" eval "$tamper"
+  local defout skipout
   if [ "$strict" = 1 ]; then
-    "$BIN" --out "$d" --run-id "$name" --duration 2 --seed-dir "$seed" --require-same-corpus \
-      --mode mbt --workers 1 --coverage-state "$d/coverage_state.jsonl" >"$d/out" 2>"$d/err"
+    "$BIN" --out "$dd" --run-id "${name}d" --duration 2 --seed-dir "$seed" --require-same-corpus \
+      --mode mbt --workers 1 --coverage-state "$dd/coverage_state.jsonl" --recover-only >"$dd/out" 2>"$dd/err"
   else
-    "$BIN" --out "$d" --run-id "$name" --duration 2 --seed-dir "$seed" \
-      --mode mbt --workers 1 --coverage-state "$d/coverage_state.jsonl" >"$d/out" 2>"$d/err"
+    "$BIN" --out "$dd" --run-id "${name}d" --duration 2 --seed-dir "$seed" \
+      --mode mbt --workers 1 --coverage-state "$dd/coverage_state.jsonl" --recover-only >"$dd/out" 2>"$dd/err"
   fi
-  local n; n=$(corrupt_count "$d")
-  local hit; hit=$(ls "$d"/coverage_state.jsonl.corrupt.* 2>/dev/null | grep -c ".corrupt.$reason.")
-  # Skipped run must not quarantine and must keep a loadable active state.
-  FUZZ_STATE_SKIP="$skip" "$BIN" --out "$d" --run-id "${name}s" --duration 2 --seed-dir "$seed" \
-    --require-same-corpus --mode mbt --workers 1 --coverage-state "$d/coverage_state.jsonl" >"$d/sout" 2>"$d/serr"
-  local sn; sn=$(corrupt_count "$d")
-  if [ "$n" -eq 1 ] && [ "$hit" -eq 1 ] && [ -f "$d/coverage_state.jsonl" ] && [ "$sn" -eq 1 ]; then
+  if [ "$strict" = 1 ]; then
+    FUZZ_STATE_SKIP="$skip" "$BIN" --out "$sd" --run-id "${name}s" --duration 2 --seed-dir "$seed" --require-same-corpus \
+      --mode mbt --workers 1 --coverage-state "$sd/coverage_state.jsonl" --recover-only >"$sd/out" 2>"$sd/err"
+  else
+    FUZZ_STATE_SKIP="$skip" "$BIN" --out "$sd" --run-id "${name}s" --duration 2 --seed-dir "$seed" \
+      --mode mbt --workers 1 --coverage-state "$sd/coverage_state.jsonl" --recover-only >"$sd/out" 2>"$sd/err"
+  fi
+  local dnc dhit drec snc srec
+  dnc=$(corrupt_count "$dd"); dhit=$(ls "$dd"/coverage_state.jsonl.corrupt.* 2>/dev/null | grep -c ".corrupt.$reason.")
+  drec=$(tail -1 "$dd/out" | jq -r '.recovered_cases // 0')
+  snc=$(corrupt_count "$sd"); srec=$(tail -1 "$sd/out" | jq -r '.recovered_cases // 0')
+  if [ "$dnc" -eq 1 ] && [ "$dhit" -eq 1 ] && [ "$drec" -eq 0 ] && [ "$snc" -eq 0 ] && [ "$srec" -eq "$expect_cases" ]; then
     echo true
   else
-    echo "n=$n hit=$hit active=$([ -f "$d/coverage_state.jsonl" ] && echo 1 || echo 0) sn=$sn" >&2
+    echo "def_n=$dnc def_hit=$dhit def_rec=$drec skip_n=$snc skip_rec=$srec expect=$expect_cases" >&2
     echo false
   fi
 }
 # R1 cases change, payload untouched.
-r1=$(run_control r1 header header "sed -i 's/\"cases\":[0-9]*/\"cases\":999999/' '$OUT/R_r1/coverage_state.jsonl'" "$ROOT/templates" 0)
+r1=$(run_control r1 header header "sed -i 's/\"cases\":[0-9]*/\"cases\":999999/' \"\$D\"" "$ROOT/templates" 0 999999)
 # R2 missing pin.
-r2=$(run_control r2 identity identity "sed -i 's/,\"pin_hash\":\"[^\"]*\"//' '$OUT/R_r2/coverage_state.jsonl'" "$ROOT/templates" 0)
+r2=$(run_control r2 identity identity "sed -i 's/,\"pin_hash\":\"[^\"]*\"//' \"\$D\"" "$ROOT/templates" 0 "$cases1")
 # R3 pin change + canonical checksum recompute.
-r3=$(run_control r3 pin pin "sed -i 's/\"pin_hash\":\"[^\"]*\"/\"pin_hash\":\"deadbeef\"/' '$OUT/R_r3/coverage_state.jsonl'; resign '$OUT/R_r3/coverage_state.jsonl'" "$ROOT/templates" 0)
+r3=$(run_control r3 pin pin "sed -i 's/\"pin_hash\":\"[^\"]*\"/\"pin_hash\":\"deadbeef\"/' \"\$D\"; resign \"\$D\"" "$ROOT/templates" 0 "$cases1")
 # R4 missing corpus.
-r4=$(run_control r4 identity identity "sed -i 's/,\"corpus_hash\":\"[^\"]*\"//' '$OUT/R_r4/coverage_state.jsonl'" "$ROOT/templates" 0)
+r4=$(run_control r4 identity identity "sed -i 's/,\"corpus_hash\":\"[^\"]*\"//' \"\$D\"" "$ROOT/templates" 0 "$cases1")
 # R5 seed content change, strict.
 mkdir -p "$OUT/seeds2"; cp "$ROOT/templates/01_int_ops.mbt" "$OUT/seeds2/01_int_ops.mbt"; printf '\n' >> "$OUT/seeds2/01_int_ops.mbt"
-r5=$(run_control r5 corpus corpus "true" "$OUT/seeds2" 1)
+r5=$(run_control r5 corpus corpus "true" "$OUT/seeds2" 1 "$cases1")
 # R5 default drift must load counts.
 mkdir -p "$OUT/R_r5d"; cp "$STATE1" "$OUT/R_r5d/coverage_state.jsonl"
 "$BIN" --out "$OUT/R_r5d" --run-id r5d --duration 2 --seed-dir "$OUT/seeds2" \
@@ -113,8 +122,16 @@ mkdir -p "$OUT/R_r5d"; cp "$STATE1" "$OUT/R_r5d/coverage_state.jsonl"
 drift=$(jq -r '.corpus_drift' "$OUT/R_r5d"/*/summary.json 2>/dev/null | tail -1)
 drcase=$(jq -r 'select(has("schema"))|.cases' "$OUT/R_r5d/coverage_state.jsonl" 2>/dev/null || echo 0)
 drown=$(jq -r 'select(has("schema"))|.owners' "$OUT/R_r5d/coverage_state.jsonl" 2>/dev/null || echo 0)
-drift_ok=0; [ "${drift:-0}" = 1 ] && [ "$drcase" -gt 0 ] && [ "$drown" -gt 0 ] && drift_ok=1
+drift_ok=0; [ "${drift:-0}" = 1 ] && [ "$drcase" -eq "$cases1" ] && [ "$drown" -eq "$owners1" ] && grep -q 'corpus-drift' "$OUT/R_r5d/out" && drift_ok=1
 quarantine_ok=0; [ "$r1" = true ] && [ "$r2" = true ] && [ "$r3" = true ] && [ "$r4" = true ] && [ "$r5" = true ] && [ "$drift_ok" = 1 ] && quarantine_ok=1
+quarantine_ok=0; [ "$r1" = true ] && [ "$r2" = true ] && [ "$r3" = true ] && [ "$r4" = true ] && [ "$r5" = true ] && [ "$drift_ok" = 1 ] && quarantine_ok=1
+
+# Per-control detail counts (default and skip).
+r1_def=$(tail -1 "$OUT/R_r1_def/out" | jq -r '.recovered_cases // 0'); r1_skip=$(tail -1 "$OUT/R_r1_skip/out" | jq -r '.recovered_cases // 0')
+r2_def=$(tail -1 "$OUT/R_r2_def/out" | jq -r '.recovered_cases // 0'); r2_skip=$(tail -1 "$OUT/R_r2_skip/out" | jq -r '.recovered_cases // 0')
+r3_def=$(tail -1 "$OUT/R_r3_def/out" | jq -r '.recovered_cases // 0'); r3_skip=$(tail -1 "$OUT/R_r3_skip/out" | jq -r '.recovered_cases // 0')
+r4_def=$(tail -1 "$OUT/R_r4_def/out" | jq -r '.recovered_cases // 0'); r4_skip=$(tail -1 "$OUT/R_r4_skip/out" | jq -r '.recovered_cases // 0')
+r5_def=$(tail -1 "$OUT/R_r5_def/out" | jq -r '.recovered_cases // 0'); r5_skip=$(tail -1 "$OUT/R_r5_skip/out" | jq -r '.recovered_cases // 0')
 
 # --recover: remove active, keep a valid .corrupt, expect counts restored.
 REC="$OUT/recover"; mkdir -p "$REC"
@@ -149,9 +166,9 @@ if [ "$RC2" -eq 0 ] && [ "$dup" -eq 0 ] && [ "$lost" -eq 0 ] && [ "$budget_ok" =
 jq -n --argjson ok "$ok" --argjson epoch1_keys "$keys1" --argjson epoch1_edges "$edges1" \
   --argjson epoch1_adds "$adds1" --argjson epoch1_cases "$cases1" --argjson epoch1_owners "$owners1" --argjson epoch2_keys "$keys2" --argjson epoch2_edges "$edges2" \
   --argjson epoch2_adds "$adds2" --argjson epoch2_cases "$cases2" --argjson epoch2_owners "$owners2" --argjson add_delta "$delta" --argjson cases_ok "$cases_ok" --argjson owners_ok "$owners_ok" --argjson hash_ok "$hash_ok" --argjson duplicates "$dup" --argjson lost "$lost" \
-  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" --arg r1 "$r1" --arg r2 "$r2" --arg r3 "$r3" --arg r4 "$r4" --arg r5 "$r5" --argjson drift_ok "$drift_ok" --argjson recover_ok "$recover_ok" --argjson recover_cases "$recover_cases" --argjson kill_ok "$kill_ok" \
+  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" --arg r1 "$r1" --arg r2 "$r2" --arg r3 "$r3" --arg r4 "$r4" --arg r5 "$r5" --argjson r1_def "$r1_def" --argjson r1_skip "$r1_skip" --argjson r2_def "$r2_def" --argjson r2_skip "$r2_skip" --argjson r3_def "$r3_def" --argjson r3_skip "$r3_skip" --argjson r4_def "$r4_def" --argjson r4_skip "$r4_skip" --argjson r5_def "$r5_def" --argjson r5_skip "$r5_skip" --argjson drift_ok "$drift_ok" --argjson recover_ok "$recover_ok" --argjson recover_cases "$recover_cases" --argjson kill_ok "$kill_ok" \
   --arg h1 "$h1" --arg h2 "$h2" \
-  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok,r1:$r1,r2:$r2,r3:$r3,r4:$r4,r5:$r5,drift_ok:$drift_ok,recover_ok:$recover_ok,recover_cases:$recover_cases,kill_ok:$kill_ok}' > "$OUT/summary.json"
+  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok,r1:$r1,r1_def:$r1_def,r1_skip:$r1_skip,r2_def:$r2_def,r2_skip:$r2_skip,r3_def:$r3_def,r3_skip:$r3_skip,r4_def:$r4_def,r4_skip:$r4_skip,r5_def:$r5_def,r5_skip:$r5_skip,r2:$r2,r2:$r2,r3:$r3,r4:$r4,r5:$r5,drift_ok:$drift_ok,recover_ok:$recover_ok,recover_cases:$recover_cases,kill_ok:$kill_ok}' > "$OUT/summary.json"
 cat "$OUT/summary.json"
 # keep for debug
 [ "$ok" = 1 ]
