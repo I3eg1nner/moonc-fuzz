@@ -420,10 +420,24 @@ async fn main {
   )
   let ac_out = ac.stdout.trim().to_owned()
   let ac_ok = ac.rc == 0 && ac_out.contains("\"ok\": 1") &&
-    ac_out.contains("\"positive_incomplete\": 1") &&
-    ac_out.contains("\"positive_orphans\": 0") &&
-    ac_out.contains("\"negative_incomplete\": 0")
+    ac_out.contains("\"agg_incomplete\": 1") &&
+    ac_out.contains("\"agg_orphans\": 0") &&
+    ac_out.contains("\"max_incomplete\": 1") &&
+    ac_out.contains("\"negative_incomplete\": 0") &&
+    ac_out.contains("setsid_escape") && ac_out.contains("unsupported")
   results.push(check("aggregate_cancel", ac_ok, ac_out))
+
+  // 2a10. sem3 incomplete-observation unit gate.
+  let sm = @exec.run(
+    "moon",
+    ["test", "cmd/sem3", "--target", "native"],
+    join(root, "moonbit"),
+    300000,
+  )
+  let sm_out = sm.stdout.trim().to_owned()
+  let sm_ok = sm.rc == 0 && sm_out.contains("Total tests: 2") &&
+    sm_out.contains("passed: 2")
+  results.push(check("sem3_observation", sm_ok, sm_out))
 
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check

@@ -8,3 +8,12 @@ test "first write into a nested witness directory is durable" {
   assert_true(@fs.path_exists(base + "/a/b/c/main.mbt"))
   @stager.rm_rf(base)
 }
+
+test "incomplete backend observation is not a witness" {
+  assert_true(observations_complete(["ok", "trap", "ok"]))
+  assert_false(observations_complete(["ok", "trap", "compile_error"]))
+  assert_false(observations_complete(["ok", "trap", "timeout"]))
+  assert_false(observations_complete(["ok", "trap", "truncated"]))
+  assert_false(observations_complete(["ok", "trap", "ice"]))
+  assert_false(observations_complete(["ok", "trap"]))
+}

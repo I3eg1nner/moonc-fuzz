@@ -1,25 +1,20 @@
 #!/bin/bash
 set -uo pipefail
-ROOT="${1:-/data/audit/mbtfuzz}"
-SUP="$ROOT/scripts/supervisor.sh"
-OUT=/tmp/agg_cancel_$$; mkdir -p "$OUT"
-# Positive: 4 workers allocate 120 MiB each; aggregate cap 100 MiB must kill.
-"$SUP" --agg-rss-mb 100 --max-procs 20 --deadline 10 -- \
-  /bin/sh -c 'for i in 1 2 3 4; do python3 -c "import time; a=bytearray(120*1024*1024); time.sleep(20)" & done; wait' >"$OUT/pos.json" 2>"$OUT/pos.err"
-prc=$?
-pos=$(cat "$OUT/pos.json")
-inc=$(jq -r '.incomplete' <<<"$pos"); orph=$(jq -r '.orphans' <<<"$pos"); ms=$(jq -r '.elapsed_ms' <<<"$pos")
-# Negative: one small worker must finish normally.
-"$SUP" --agg-rss-mb 1000 --max-procs 5 --deadline 10 -- /bin/sh -c 'sleep 1' >"$OUT/neg.json" 2>"$OUT/neg.err"
-nrc=$?
-neg=$(cat "$OUT/neg.json"); ninc=$(jq -r '.incomplete' <<<"$neg")
-# cgroup evidence: report mount and writability, never claim if read-only.
-CG=$(findmnt -n -o FSTYPE,TARGET /sys/fs/cgroup 2>/dev/null | head -1)
-writable=0; [ -w /sys/fs/cgroup ] && writable=1
+ROOT="${1:-/data/audit/mbtfuzz}"; SUP="$ROOT/scripts/supervisor.sh"; OUT=/tmp/agg_cancel_$$; mkdir -p "$OUT"
+"$SUP" --agg-rss-mb 100 --max-procs 20 --deadline 10 -- /bin/sh -c 'for i in 1 2 3 4; do python3 -c "import time; a=bytearray(120*1024*1024); time.sleep(20)" & done; wait' >"$OUT/agg" 2>/dev/null; arc=$?
+"$SUP" --agg-rss-mb 1000 --max-procs 3 --deadline 10 -- /bin/sh -c 'for i in 1 2 3 4 5 6; do sleep 10 & done; wait' >"$OUT/max" 2>/dev/null; mrc=$?
+"$SUP" --agg-rss-mb 1000 --max-procs 10 --deadline 2 -- sleep 10 >"$OUT/dl" 2>/dev/null; drc=$?
+"$SUP" --agg-rss-mb 1000 --max-procs 5 --deadline 10 -- sleep 1 >"$OUT/neg" 2>/dev/null; nrc=$?
+a=$(cat "$OUT/agg"); m=$(cat "$OUT/max"); d=$(cat "$OUT/dl"); n=$(cat "$OUT/neg")
+ai=$(jq -r .incomplete <<<"$a"); ao=$(jq -r .orphans <<<"$a"); am=$(jq -r .elapsed_ms <<<"$a")
+mi=$(jq -r .incomplete <<<"$m"); mo=$(jq -r .orphans <<<"$m")
+di=$(jq -r .incomplete <<<"$d"); do_=$(jq -r .orphans <<<"$d"); dm=$(jq -r .elapsed_ms <<<"$d")
+ni=$(jq -r .incomplete <<<"$n")
 ok=0
-if [ "$prc" = 42 ] && [ "$inc" = 1 ] && [ "$orph" = 0 ] && [ "$ms" -lt 10000 ] && [ "$nrc" = 0 ] && [ "$ninc" = 0 ]; then ok=1; fi
-jq -n --argjson ok "$ok" --argjson positive_incomplete "$inc" --argjson orphans "$orph" --argjson killed_ms "$ms" --argjson negative_incomplete "$ninc" --arg cgroup "$CG" --argjson cgroup_writable "$writable" \
-  '{ok:$ok,positive_incomplete:$positive_incomplete,positive_orphans:$orphans,positive_killed_ms:$killed_ms,negative_incomplete:$negative_incomplete,cgroup_mount:$cgroup,cgroup_writable:$cgroup_writable}' > "$OUT/summary.json"
-cat "$OUT/summary.json"
-rm -rf "$OUT"
-[ "$ok" = 1 ]
+if [ "$arc" = 90 ] && [ "$ai" = 1 ] && [ "$ao" = 0 ] && [ "$am" -lt 10000 ] &&
+   [ "$mrc" = 90 ] && [ "$mi" = 1 ] && [ "$mo" = 0 ] &&
+   [ "$drc" = 90 ] && [ "$di" = 1 ] && [ "$do_" = 0 ] && [ "$dm" -ge 1500 ] && [ "$dm" -le 4000 ] &&
+   [ "$nrc" = 0 ] && [ "$ni" = 0 ]; then ok=1; fi
+CG=$(findmnt -n -o FSTYPE,TARGET /sys/fs/cgroup 2>/dev/null | head -1); w=0; [ -w /sys/fs/cgroup ] && w=1
+jq -n --argjson ok "$ok" --argjson agg_incomplete "$ai" --argjson agg_orphans "$ao" --argjson agg_ms "$am" --argjson max_incomplete "$mi" --argjson max_orphans "$mo" --argjson deadline_ms "$dm" --argjson negative_incomplete "$ni" --arg cgroup "$CG" --argjson cgroup_writable "$w" '{ok:$ok,agg_incomplete:$agg_incomplete,agg_orphans:$agg_orphans,agg_ms:$agg_ms,max_incomplete:$max_incomplete,max_orphans:$max_orphans,deadline_ms:$deadline_ms,negative_incomplete:$negative_incomplete,setsid_escape:"unsupported",cgroup_mount:$cgroup,cgroup_writable:$cgroup_writable}' > "$OUT/sum.json"
+cat "$OUT/sum.json"; rm -rf "$OUT"; [ "$ok" = 1 ]

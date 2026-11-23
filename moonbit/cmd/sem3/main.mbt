@@ -282,6 +282,19 @@ fn target_class(rc : Int32, timed_out : Bool, truncated : Bool, err : String) ->
 }
 
 ///|
+fn observations_complete(classes : Array[String]) -> Bool {
+  if classes.length() != 3 {
+    return false
+  }
+  for c in classes {
+    if c != "ok" && c != "trap" {
+      return false
+    }
+  }
+  true
+}
+
+///|
 fn save_case(
   ev : String,
   kind : String,
@@ -421,7 +434,12 @@ async fn main {
     let actual = obs.map(fn(o) { o.target + "[" + o.class + "] rc=" + o.rc.to_string() + "\n" + o.out }).join("\n---\n")
     let argv = @stager.moon_path() + " run main.mbt --target js|wasm-gc|native\n"
     let mut verdict = "pass"
-    if family == "array_oob" {
+    let class_arr = obs.map(fn(o) { o.class })
+    if !observations_complete(class_arr) {
+      // A timeout/compile_error/truncated/ICE/runtime_error backend means the
+      // three-backend observation is incomplete; never call it a witness.
+      verdict = "inconclusive"
+    } else if family == "array_oob" {
       // Every backend must have actually executed and trapped; a compile
       // error/timeout is not a trap and must not be reported as pass.
       for o in obs { if o.class != "trap" { verdict = "inconclusive" } }
