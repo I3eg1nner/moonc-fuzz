@@ -439,6 +439,19 @@ async fn main {
     sm_out.contains("passed: 2")
   results.push(check("sem3_observation", sm_ok, sm_out))
 
+  // 2a11. F13 formatter regression: valid source must stay reparsable.
+  let f13 = @exec.run(
+    "bash",
+    [join(root, "scripts/fmt_f13_test.sh"), root],
+    root,
+    120000,
+  )
+  let f13_out = f13.stdout.trim().to_owned()
+  let f13_ok = f13.rc == 0 && f13_out.contains("\"ok\": 1") &&
+    f13_out.contains("\"positives\": 3") &&
+    f13_out.contains("\"negative_ok\": 1")
+  results.push(check("fmt_f13", f13_ok, f13_out))
+
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
   // rather than quietly changing `regressions_13`.  Six serial cases with one
