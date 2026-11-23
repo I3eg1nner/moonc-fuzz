@@ -1,0 +1,35 @@
+{
+  "N": 94,
+  "pkgs_wasm_ok": 21,
+  "wasm_artifacts": 6,
+  "invalid_artifacts": 0,
+  "invalid_packages": [],
+  "test_attempted": 21,
+  "test_compile_fail": 3,
+  "differential": 1,
+  "differential_packages": [
+    "oracle_cases/miscompile/415"
+  ],
+  "buckets": {
+    "missing_dep": 0,
+    "old_syntax": 0,
+    "wasm_only": 1,
+    "other_backend": 68
+  },
+  "wasm_only": [
+    {
+      "pkg": "oracle_cases/miscompile/1051",
+      "first": "Error: [4156] (wasm-only; js rc0)"
+    }
+  ],
+  "error_codes": {
+    "3005": 45,
+    "4037": 15,
+    "4023": 2,
+    "4156": 2,
+    "no_code": 5
+  },
+  "attempted": 90,
+  "wasm_fail": 69,
+  "js_fail": 68
+}

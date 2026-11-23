@@ -47,3 +47,10 @@ Date: 2026-11-23. Pin: `moon 0.1.20261104 (940aa18)`,
 - 不声称编译器无缺陷；
 - 不把普通编译错误、已知 415、setsid/cgroup 限制算发现；
 - 不新增 `.py`，不改 pin，不发上游。
+
+## Amendment 1（方法修订，不改判据）
+
+原 pilot 只跑 `moon build`，不能判别 invalid-wasm；415 在 test 加载阶段才失败。
+方法改为：wasm build 成功后用 `WebAssembly.validate` 校验所有 `.wasm`，并对
+可测包跑 `moon test --target wasm-gc`，与 js 对照。成功判据不变；这只是测量
+方法修正，不是改判据。
