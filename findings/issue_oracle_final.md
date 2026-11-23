@@ -7,10 +7,10 @@ Date: 2026-11-22. Pin: `moon 0.1.20261104 (940aa18)`,
 
 | 口径 | curated | reproduced | fixed | unclear | L1 | L2 |
 |---|---:|---:|---:|---:|---:|---:|
-| F 收尾时 | 33 | 12 | 13 | 2（612/1175） | **12/12** | **5/12** |
+| F 收尾时 | 33 | 12 | 13 | 2（旧口径；612 后归 needs_old_toolchain） | **12/12** | **5/12** |
 | I1 新增后 | **38** | **15** | **15** | **4 unclear + 3 needs_old_toolchain(68/45/612) + 1 not_reproducible(875)** | **14/14**（light） | **5/15 = 33.3%** |
 
-F 行的 unclear 旧口径含 needs_old_toolchain，以 `curated.json` 为准；612 不属于 unclear。
+F 行三列合计 27/33，其余为 needs_old_toolchain/not_reproducible/待定，均以 `curated.json` 为准；612 不属于 unclear。
 
 I1 的 4 条：
 
