@@ -229,3 +229,8 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 - 类型形状生成器正控 2/2 命中 identity 桶（415/aitne）。
 - 600 程序（16 workers）：build_ok 525、invalid 525、桶表仅 `local.set|ref<-ref|identity`；无新桶/candidate。
 - 结论：5 类形状内 pin 上静默非法产物仅一个根因；下一步换运行时输出差分或停线。
+
+## Discovery L
+
+- 合法语义生成 600：legal 550/550 valid（100%），identity 50/600 (8.3%) 单列；invalid 50 全为 identity；legal discordant 0；identity discordant 50 是已知 415/aitne 桶。
+- 无新 candidate；下一步扩语义族或停线。

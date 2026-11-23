@@ -1,0 +1,410 @@
+{
+  "generated": 600,
+  "identity_samples": 50,
+  "build_valid": 550,
+  "valid_legal": 550,
+  "invalid_artifact": 50,
+  "discordant": 50,
+  "discordant_details": [
+    {
+      "pkg": "p11",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p23",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p35",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p47",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p59",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p71",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p83",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p95",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p107",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p119",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p131",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p143",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p155",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p167",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p179",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p191",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p203",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p215",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p227",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p239",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p251",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p263",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p275",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p287",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p299",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p311",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p323",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p335",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p347",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p359",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p371",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p383",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p395",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p407",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p419",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p431",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p443",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p455",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p467",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p479",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p491",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p503",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p515",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p527",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p539",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p551",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p563",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p575",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p587",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    },
+    {
+      "pkg": "p599",
+      "seed": "11",
+      "wasm_out": "",
+      "js_out": "Total tests: 1, passed: 0, failed: 1.",
+      "wasm_test_rc": 255,
+      "js_test_rc": 2
+    }
+  ]
+}
