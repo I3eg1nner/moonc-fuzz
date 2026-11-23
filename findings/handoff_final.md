@@ -196,4 +196,7 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 ## D1/D2/D4
 
 - INVALID_WASM：415 正控 confirmed，语法/干净负控 0 witness；known issue，不是新发现。
-- 语料 N=94，尝试 90，wasm/js 失败 69/68，build-only WebAssembly.Module=0，成功中位 35/34ms。pilot 四计数见 `findings/discovery_pilot.json`/`discovery_d2.md`。
+- F1 分母：third-party N=2（buildable 2），ours 92（buildable 19）；yield 只算 third-party。
+- F2 69 失败：3005=45、4037=15、4023=2、4156=2、无码=5；均为 ours 语料错误，不是依赖解析。wasm-only 1051、differential 415，均 known。
+- F3 500 mutant：build_ok 470、both_fail 30、wasm-only/js-only/different/invalid=0；差分密度 0/500。
+- sem3 compile_error 接线、C6 负控仍未闭环。

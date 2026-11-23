@@ -1,0 +1,10 @@
+{
+  "mutants": 500,
+  "build_ok": 470,
+  "wasm_only": 0,
+  "js_only": 0,
+  "both_fail": 30,
+  "different_codes": 0,
+  "invalid_artifact": 0,
+  "diff": []
+}
