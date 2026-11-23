@@ -71,8 +71,8 @@
    cgroup 主机跑 1 h，记录 memory.peak/pids/disk，kill 后无孤儿进程。
 
 **P0 状态（2026-11-23）**
-- corpus owner 事务/checkpoint：J1 已实现 schema/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536，epoch2 793/536）。
-- original-config replay：J2/J2b 已实现 original snapshot/manifest + 真实 package e2e + 3/3 replay + live/tamper 控制；`original_config_replay` e2e=1、`original_config_e2e` 通过。
+- corpus owner 事务/checkpoint：J1 已实现 header schema/checksum/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536、epoch2 796/536；最新 197/803）。P0-2 仍缺 `--recover` 和 tmp/mv 两个 kill 点的独立注入。
+- original-config replay：J2 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 已闭环。
 - 聚合资源/取消：J3 supervisor `--agg-rss-mb/--max-procs/--deadline`，SIGTERM→2s→SIGKILL、reap、orphans=0、incomplete=1；cgroup2 只读，未跑 60s peak，未声称 cgroup 实测。
 
 **P1**

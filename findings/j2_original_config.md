@@ -69,4 +69,8 @@ findings/build/BUILD_FAIL/<sig>/original/{moon.mod,moon.pkg,source.mbt,argv.txt,
 - gate `original_config_replay` detail 的 `e2e=1`；另有独立
   `original_config_e2e` gate。
 
-实测：`{"e2e":1,"replayed":3,"matched":3}`。
+实测：`{"e2e":1,"replayed":3,"matched":3,"baseline_mismatch":1}`。
+manifest 对 `moon.mod/moon.pkg/source.mbt/argv.json/paths.json/expected.json`
+逐项非空校验；e2e replay 读 `argv.json` + `paths.json` + `expected.json`，
+不读 argv.txt，不硬编码 build-only。`baseline_mismatch=1` 是负控：把
+`source.mbt` 换成 baseline 后 rc/错误码不一致。

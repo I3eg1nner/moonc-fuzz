@@ -32,12 +32,12 @@ Date: 2026-11-23. Pin 不变。
 ```json
 {"ok":1,
  "epoch1":{"by_key":1,"edges":26412,"coverage_adds":536,"cases":200,"owners":536},
- "epoch2":{"by_key":1,"edges":26412,"coverage_adds":536,"cases":793,"owners":536},
+ "epoch2":{"by_key":1,"edges":26412,"coverage_adds":536,"cases":796,"owners":536},
  "duplicates":0,"lost":0,"budget_ok":1,"quarantine_ok":1}
 ```
 
 - by_key 无重复、无丢失；
-- epoch2 cases=793 ≥ epoch1 200，owners=536 >0，last hash 变化；
+- epoch2 cases=796 ≥ epoch1 200，owners=536 >0，last hash 变化；
 - epoch2 coverage_adds 增量 0 ≤ epoch1 的 10%（floor 1）；
 - 两个损坏注入都 quarantine，不静默丢数据；
 - `state_recovery` gate：`ok=true`，detail 带上述 counts。
@@ -47,8 +47,10 @@ Date: 2026-11-23. Pin 不变。
 - epoch1 用 `--baseline-seeds 0` + trace 快速进入 mutation：cases=200、
   owners=536；checkpoint 是 case 级，不是 baseline-only。
 - epoch2 用同样入口，cases=793、owners=536；证明 case 不回退、owner 不丢。
-- `fsync` 用 `sync` 实现（文件系统层面），不是对单个 fd 调用 `fsync`；
-  因此只声称“顺序 + kill 后可恢复”，不写成严格 per-fd atomic。
+- 没有开放单 fd `fsync` API；用进程级 `sync`，因此不写成严格 per-fd atomic。
+- `--coverage-state` 现在是精确写入路径；`--coverage-state-out` 用于 epoch2
+  避免覆盖输入。header 内嵌 checksum，sidecar 不再在 rename 后单独写。
+- 未实现 `--recover`（从 `.corrupt.*` 主动恢复）；当前只能 quarantine + fresh-start。
 - `owners` 字段当前为 `feed.feature_owners.length()`；epoch1 无父本，故 0。
 
 ## 状态
