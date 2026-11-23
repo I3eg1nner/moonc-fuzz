@@ -132,6 +132,7 @@ struct Config {
   /// edge universe.  Without it, an epoch restart resets by_key and every
   /// carried input looks novel again.
   mut coverage_state : String
+  mut coverage_write : String
   /// Package lane: a whole package (moon.pkg/deps/argv) instead of flat files.
   mut pkg_seed : String
   mut pkg_file : String
@@ -1055,6 +1056,9 @@ struct TraceUniverse {
   mut checkpoint_owners : Int32
   mut last_input_hash : String
   mut checkpoint_adds : Int32
+  mut state_config_hash : String
+  mut state_pin_hash : String
+  mut state_corpus_hash : String
 }
 
 ///|
@@ -1090,6 +1094,9 @@ fn trace_universe_new() -> TraceUniverse {
     checkpoint_owners: 0,
     last_input_hash: "",
     checkpoint_adds: 0,
+    state_config_hash: "",
+    state_pin_hash: "",
+    state_corpus_hash: "",
   }
 }
 
@@ -2540,6 +2547,26 @@ fn split_spaces(s : String) -> Array[String] {
 
 ///|
 /// Save a package-lane failure in the same layout triage's capsule mode reads.
+///|
+fn find_named(dir : String, name : String, prefix : String) -> String {
+  let direct = join(dir, name)
+  if @fs.path_exists(direct) {
+    return prefix + name
+  }
+  for n in @stager.try_read_dir(dir) {
+    let child = join(dir, n)
+    let isdir = @fs.is_dir(child) catch { _ => false }
+    if isdir {
+      let got = find_named(child, name, prefix + n + "/")
+      if got != "" {
+        return got
+      }
+    }
+  }
+  ""
+}
+
+///|
 fn save_pkg_witness(
   cfg : Config,
   moon : String,
@@ -2548,65 +2575,111 @@ fn save_pkg_witness(
   cmd : String,
   src : String,
   baseline : String,
-  pkg : String,
+  wd : String,
   file : String,
+  rc : Int32,
+  out : String,
+  err : String,
 ) -> Bool {
   let fd = join(
     join(join(join(cfg.out, "findings"), "build"), kind),
     @corpus.dir_slug(sig),
   )
-  let probe = join(fd, "meta.json")
-  if @fs.path_exists(probe) {
+  if @fs.path_exists(join(fd, "meta.json")) {
     return false
   }
   @corpus.ensure_dir(fd)
-  ignore(@stager.write_text(join(fd, "in.mbt"), src))
-  ignore(@stager.write_text(join(fd, "baseline.mbt"), baseline))
-  ignore(@stager.copy_tree(pkg, join(fd, "pkg")))
-  // J2: snapshot the original config/source/argv next to the witness.  This
-  // is deliberately redundant with `pkg`; replay must be able to ignore a
-  // mutated live package and use these bytes.
   let orig = join(fd, "original")
   @corpus.ensure_dir(orig)
-  let mod_src = @stager.read_text(join(pkg, "moon.mod"))
-  let pkg_src = @stager.read_text(join(pkg, "moon.pkg"))
-  ignore(@stager.write_text(join(orig, "moon.mod"), mod_src))
-  ignore(@stager.write_text(join(orig, "moon.pkg"), pkg_src))
-  ignore(@stager.write_text(join(orig, "source.mbt"), baseline))
-  ignore(@stager.write_text(join(orig, "argv.txt"), cmd))
-  let manifest = "{\"moon.mod\":\"" + @corpus.sha1_hex(mod_src) +
-    "\",\"moon.pkg\":\"" + @corpus.sha1_hex(pkg_src) +
-    "\",\"source.mbt\":\"" + @corpus.sha1_hex(baseline) +
-    "\",\"argv.txt\":\"" + @corpus.sha1_hex(cmd) + "\"}"
-  ignore(@stager.write_text(join(orig, "manifest.json"), manifest))
-  ignore(
-    @stager.write_text(
-      join(fd, "capsule.json"),
-      "{\"moon\":\"" +
-      @stager.escape(moon) +
-      "\",\"cmd\":\"" +
-      @stager.escape(cmd) +
-      "\",\"build_cmd\":\"" +
-      @stager.escape(cfg.pkg_argv) +
-      "\",\"run_cmd\":\"" +
-      @stager.escape(cfg.pkg_run_argv) +
-      "\",\"file\":\"" +
-      @stager.escape(file) +
-      "\",\"original\":\"original\",\"stage\":\"build\",\"target\":\"\",\"signature\":\"" +
-      @stager.escape(sig) +
-      "\"}",
-    ),
-  )
-  ignore(
-    @stager.write_text(
-      join(fd, "meta.json"),
-      "{\"stage\":\"build\",\"kind\":\"" +
-      kind +
-      "\",\"status\":\"candidate\",\"signature\":\"" +
-      @stager.escape(sig) +
-      "\"}",
-    ),
-  )
+  // The failure scene is the working copy `wd`; `original/source.mbt` is the
+  // mutant `src`, never the baseline.
+  if !@stager.write_text(join(fd, "in.mbt"), src) ||
+    !@stager.write_text(join(fd, "baseline.mbt"), baseline) {
+    @stager.rm_rf(fd)
+    return false
+  }
+  let copied_pkg = @stager.copy_tree(wd, join(orig, "pkg"))
+  let copied_top = @stager.copy_tree(wd, join(fd, "pkg"))
+  if !copied_pkg || !copied_top {
+    @stager.rm_rf(fd)
+    return false
+  }
+  let mod_rel = find_named(wd, "moon.mod", "")
+  let pkg_rel = find_named(wd, "moon.pkg", "")
+  if mod_rel == "" || pkg_rel == "" {
+    @stager.rm_rf(fd)
+    return false
+  }
+  let mod_src = @stager.read_text(join(wd, mod_rel))
+  let pkg_src = @stager.read_text(join(wd, pkg_rel))
+  let paths = "{\"moon_mod\":\"" + @stager.escape(mod_rel) +
+    "\",\"moon_pkg\":\"" + @stager.escape(pkg_rel) +
+    "\",\"source\":\"" + @stager.escape(file) + "\"}"
+  let argv_parts = split_spaces(cmd)
+  let argv_json = "[" + argv_parts.map(fn(x) { "\"" + @stager.escape(x) + "\"" }).join(",") + "]"
+  let expected = "{\"rc\":" + rc.to_string() +
+    ",\"stdout\":\"" + @stager.escape(out) +
+    "\",\"stderr\":\"" + @stager.escape(err) + "\"}"
+  // Every required file must exist and be non-empty; otherwise fail closed.
+  let files : Array[(String, String)] = [
+    (join(orig, "moon.mod"), mod_src),
+    (join(orig, "moon.pkg"), pkg_src),
+    (join(orig, "source.mbt"), src),
+    (join(orig, "argv.txt"), cmd),
+    (join(orig, "argv.json"), argv_json),
+    (join(orig, "paths.json"), paths),
+    (join(orig, "expected.json"), expected),
+  ]
+  for (path, text) in files {
+    if text == "" || !@stager.write_text(path, text) {
+      @stager.rm_rf(fd)
+      return false
+    }
+  }
+  let manifest = "{\"moon_mod\":\"" + @corpus.sha1_hex(mod_src) +
+    "\",\"moon_pkg\":\"" + @corpus.sha1_hex(pkg_src) +
+    "\",\"source\":\"" + @corpus.sha1_hex(src) +
+    "\",\"argv\":\"" + @corpus.sha1_hex(argv_json) +
+    "\",\"paths\":\"" + @corpus.sha1_hex(paths) +
+    "\",\"expected\":\"" + @corpus.sha1_hex(expected) + "\"}"
+  if !@stager.write_text(join(orig, "manifest.json"), manifest) {
+    @stager.rm_rf(fd)
+    return false
+  }
+  let capsule = "{\"moon\":\"" +
+    @stager.escape(moon) +
+    "\",\"cmd\":\"" +
+    @stager.escape(cmd) +
+    "\",\"build_cmd\":\"" +
+    @stager.escape(cfg.pkg_argv) +
+    "\",\"run_cmd\":\"" +
+    @stager.escape(cfg.pkg_run_argv) +
+    "\",\"file\":\"" +
+    @stager.escape(file) +
+    "\",\"original\":\"original\",\"stage\":\"build\",\"target\":\"\",\"signature\":\"" +
+    @stager.escape(sig) +
+    "\"}"
+  if !@stager.write_text(join(fd, "capsule.json"), capsule) {
+    @stager.rm_rf(fd)
+    return false
+  }
+  let meta = "{\"stage\":\"build\",\"kind\":\"" +
+    kind +
+    "\",\"status\":\"candidate\",\"signature\":\"" +
+    @stager.escape(sig) +
+    "\"}"
+  if !@stager.write_text(join(fd, "meta.json"), meta) {
+    @stager.rm_rf(fd)
+    return false
+  }
+  // Re-check the required files after write; a directory that merely exists
+  // is not a saved witness.
+  for (path, _) in files {
+    if !@fs.path_exists(path) || @stager.read_text(path) == "" {
+      @stager.rm_rf(fd)
+      return false
+    }
+  }
   true
 }
 
@@ -2764,7 +2837,7 @@ async fn worker(
               ignore(
                 save_pkg_witness(
                   cfg, moon, tsig, "TEST_FAIL", cfg.pkg_run_argv, src,
-                  baseline, cfg.pkg_seed, cfg.pkg_file,
+                  baseline, wd, cfg.pkg_file, rr.rc, rr.stdout, rr.stderr,
                 ),
               )
             }
@@ -2781,8 +2854,8 @@ async fn worker(
           }
           let sig = @cluster.crash_signature(kind, r.rc, r.stderr, r.stdout)
           if save_pkg_witness(
-            cfg, moon, sig, kind, cfg.pkg_argv, src, baseline, cfg.pkg_seed,
-            cfg.pkg_file,
+            cfg, moon, sig, kind, cfg.pkg_argv, src, baseline, wd, cfg.pkg_file,
+            r.rc, r.stdout, r.stderr,
           ) {
             ps.witnesses += 1
             prog.witnesses += 1
@@ -3516,8 +3589,10 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let expected = @stager.read_text(cfg.coverage_state + ".sha256")
     .trim()
     .to_owned()
-  if text != "" &&
+  if text != "" && !text.contains("\"schema\":\"coverage_state/v2\"") &&
     (expected == "" || @corpus.sha1_hex(text) != expected) {
+    // Old (headerless) state: sidecar is authoritative.  New state has a
+    // header checksum and must not depend on a sidecar that may be lost.
     // Quarantine the old file instead of silently starting from empty.  The
     // copy preserves bytes; the original is removed only after the copy lands.
     let corrupt = cfg.coverage_state + ".corrupt." + @env.now().to_string()
@@ -3532,6 +3607,36 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let mut edges = 0
   if text == "" {
     return (0, 0)
+  }
+  // Header checksum is self-contained: a state file is valid even if the
+  // sidecar was never renamed.  Old files without a header checksum may use
+  // the sidecar; anything else is quarantined.
+  let header_nl = match text.find("\n") { Some(i) => i; None => text.length() }
+  let first = text[0:header_nl].to_owned()
+  if first.contains("\"schema\":") {
+    if !first.contains("\"schema\":\"coverage_state/v2\"") ||
+      json_int_field(first, "version") != 1 {
+      return (0, 0)
+    }
+    let want = json_str_field(first, "checksum")
+    let nl = if header_nl < text.length() { header_nl + 1 } else { text.length() }
+    let payload = text[nl:].to_owned()
+    let ch = json_str_field(first, "config_hash")
+    let ph = json_str_field(first, "pin_hash")
+    let coh = json_str_field(first, "corpus_hash")
+    let bad_cfg = ch != "" && ch != cov.state_config_hash
+    let bad_pin = ph != "" && ph != cov.state_pin_hash
+    let bad_corpus = coh != "" && coh != cov.state_corpus_hash
+    if want == "" || @corpus.sha1_hex(payload) != want ||
+      bad_cfg || bad_pin || bad_corpus {
+      let corrupt = cfg.coverage_state + ".corrupt." + @env.now().to_string()
+      if @stager.write_text(corrupt, text) {
+        @fs.remove_file(cfg.coverage_state) catch { _ => () }
+        @fs.remove_file(cfg.coverage_state + ".sha256") catch { _ => () }
+        println("[state] quarantine " + cfg.coverage_state + " -> " + corrupt)
+      }
+      return (0, 0)
+    }
   }
   for line in text.split("\n") {
     if line.contains("\"schema\":") {
@@ -3569,7 +3674,19 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
 }
 
 ///|
-async fn save_coverage_state(cov : TraceUniverse, out : String) -> Bool {
+fn parent_dir(path : String) -> String {
+  let mut i = path.length()
+  while i > 0 {
+    i -= 1
+    if path.get_char(i) == Some('/') {
+      return path[0:i].to_owned()
+    }
+  }
+  "."
+}
+
+///|
+async fn save_coverage_state(cfg : Config, cov : TraceUniverse, out : String) -> Bool {
   let lines : Array[String] = []
   for k, v in cov.by_key {
     lines.push(
@@ -3586,22 +3703,34 @@ async fn save_coverage_state(cov : TraceUniverse, out : String) -> Bool {
   }
   edges.sort()
   lines.push("{\"edges\":" + @trace.json_string_array(edges) + "}")
+  let payload = lines.join("\n") + "\n"
+  let checksum = @corpus.sha1_hex(payload)
   let header = "{\"schema\":\"coverage_state/v2\",\"version\":1,\"epoch\":" +
     cov.state_epoch.to_string() +
     ",\"cases\":" + cov.checkpoint_cases.to_string() +
     ",\"owners\":" + cov.checkpoint_owners.to_string() +
     ",\"adds\":" + cov.checkpoint_adds.to_string() +
-    ",\"last\":\"" + @stager.escape(cov.last_input_hash) + "\"}"
-  let body = header + "\n" + lines.join("\n") + "\n"
-  let target = join(out, "coverage_state.jsonl")
+    ",\"config_hash\":\"" + @stager.escape(cov.state_config_hash) +
+    "\",\"pin_hash\":\"" + @stager.escape(cov.state_pin_hash) +
+    "\",\"corpus_hash\":\"" + @stager.escape(cov.state_corpus_hash) +
+    "\",\"checksum\":\"" + checksum +
+    "\",\"last\":\"" + @stager.escape(cov.last_input_hash) + "\"}"
+  let body = header + "\n" + payload
+  let target = if cfg.coverage_write != "" {
+    cfg.coverage_write
+  } else if cfg.coverage_state != "" {
+    cfg.coverage_state
+  } else {
+    join(out, "coverage_state.jsonl")
+  }
+  @corpus.ensure_dir(parent_dir(target))
   let tmp = target + ".tmp"
   if !@stager.write_text(tmp, body) {
     return false
   }
-  // Flush the temp file before the rename; the rename is the atomic step.
+  // Flush before rename; no per-fd fsync API is exposed here.
   let _ = @exec.run("/bin/sh", ["-c", "sync"], out, 5000)
-  // Atomic replace: a reader never sees a half-written state, and the hash
-  // makes a truncated file detectable.
+  // Atomic replace: header checksum is inside the renamed body.
   let mv = @exec.run(
     "/bin/sh",
     ["-c", "mv -f \"$1\" \"$2\"", "sh", tmp, target],
@@ -3611,7 +3740,7 @@ async fn save_coverage_state(cov : TraceUniverse, out : String) -> Bool {
   if mv.rc != 0 {
     return false
   }
-  @stager.write_text(target + ".sha256", @corpus.sha1_hex(body) + "\n")
+  true
 }
 
 ///|
@@ -3744,7 +3873,7 @@ async fn monitor(
       if feed.entries.length() > 0 {
         cov.last_input_hash = feed.entries[feed.entries.length() - 1].hash
       }
-      let _ = save_coverage_state(cov, out)
+      let _ = save_coverage_state(cfg, cov, out)
       last_ck = @env.now()
       last_cases = prog.it
     }
@@ -3967,6 +4096,7 @@ async fn main {
     triage_only: "",
     emit_finding: "",
     coverage_state: "",
+    coverage_write: "",
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
@@ -4110,6 +4240,9 @@ async fn main {
       i += 2
     } else if a == "--coverage-state" && i + 1 < args.length() {
       cfg.coverage_state = args[i + 1]
+      i += 2
+    } else if a == "--coverage-state-out" && i + 1 < args.length() {
+      cfg.coverage_write = args[i + 1]
       i += 2
     } else {
       main_usage()
@@ -4258,6 +4391,9 @@ async fn main {
   q.deadline = @env.now() + (cfg.duration_s.to_uint64() + 120UL) * 1000UL
   let cov = trace_universe_new()
   cov.edge_cap = cfg.edge_cap
+  cov.state_config_hash = config_hash
+  cov.state_pin_hash = @corpus.sha1_hex("moonc v0.10.20+65efd5b93")
+  cov.state_corpus_hash = @corpus.sha1_hex(seeds.length().to_string())
   let (restored_keys, restored_edges) = if cfg.coverage_state != "" {
     load_coverage_state(cfg, cov)
   } else {
@@ -4456,7 +4592,7 @@ async fn main {
   if feed.entries.length() > 0 {
     cov.last_input_hash = feed.entries[feed.entries.length() - 1].hash
   }
-  if !save_coverage_state(cov, out) {
+  if !save_coverage_state(cfg, cov, out) {
     println(
       "{\"ok\":false,\"error\":\"coverage_state write failed\",\"out\":\"" +
       @stager.escape(out) +

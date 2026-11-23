@@ -126,6 +126,7 @@ fn trace_test_cfg() -> Config {
     triage_only: "",
     emit_finding: "",
     coverage_state: "",
+    coverage_write: "",
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
@@ -1148,8 +1149,8 @@ async test "coverage state roundtrip, checksum and atomic file" {
   let cov = trace_universe_new()
   cov.by_key.set("k|accepted|cfg", @cov.FuncSet::new(["f1", "f2"]))
   cov.edge_seen.set("e1", ())
-  ignore(save_coverage_state(cov, out))
   let cfg = trace_test_cfg()
+  ignore(save_coverage_state(cfg, cov, out))
   cfg.coverage_state = out + "/coverage_state.jsonl"
   let cov2 = trace_universe_new()
   let (keys, edges) = load_coverage_state(cfg, cov2)
@@ -1195,16 +1196,25 @@ async test "coverage state without checksum is rejected; edges respect the cap" 
   let cov = trace_universe_new()
   cov.edge_seen.set("e1", ())
   cov.by_key.set("k", @cov.FuncSet::new(["f"]))
-  ignore(save_coverage_state(cov, out))
   let cfg = trace_test_cfg()
+  ignore(save_coverage_state(cfg, cov, out))
   cfg.coverage_state = out + "/coverage_state.jsonl"
-  // Remove the checksum: the body exists but must not be trusted.
-  @fs.remove_file(cfg.coverage_state + ".sha256") catch { _ => () }
+  // Corrupt the header checksum: the body exists but must not be trusted.
+  let txt = @stager.read_text(cfg.coverage_state)
+  let nl = match txt.find("\n") { Some(i) => i + 1; None => txt.length() }
+  let payload = txt[nl:].to_owned()
+  ignore(
+    @stager.write_text(
+      cfg.coverage_state,
+      "{\"schema\":\"coverage_state/v2\",\"version\":1,\"checksum\":\"0000000000000000000000000000000000000000\"}\n" +
+      payload,
+    ),
+  )
   let c2 = trace_universe_new()
   assert_eq(load_coverage_state(cfg, c2).0, 0)
   // Restore checksum, then set a tiny cap: loading must stop at the cap and
   // flag saturation rather than importing an unbounded edge set.
-  ignore(save_coverage_state(cov, out))
+  ignore(save_coverage_state(cfg, cov, out))
   cfg.edge_cap = 0
   let c3 = trace_universe_new()
   c3.edge_cap = 0
