@@ -211,3 +211,9 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 - H2 direct moon add 尝试 151，fetched 109，failed 41；registry 232 个 module@version（含 deps）。
 - H3 150 modules：buildable 103，wasm_only 2、js_only 1、invalid artifact 1、test differential 1；415/1051 未出现。有未最小化 lead（ajson、aitne、未命名 test diff），无合格 candidate。
 - 决策：若 200 包仍无 candidate，换 oracle 面，不再只加包。
+
+## Discovery I
+
+- aitne: wasm route.wasm invalid（`local.set` ref 类型不一致），js/最小 repro 均 rc0；最小 14 行，3/3 invalid；与 415 同 `%identity` 根因类，CONFIRMED 但不列新候选。
+- H 口径修正：150 packages, buildable 111, wasm_only 1(ajson), js_only 0, invalid 1(aitne), test_compile_fail 1(aitne), differential 1；旧 103/2/1 已修正。
+- 下一步换 oracle 面，不再只加包。
