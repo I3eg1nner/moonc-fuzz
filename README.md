@@ -526,3 +526,8 @@ Apache-2.0，见 `LICENSE`。仓库内的第三方 fixture（如
 ## P0-2 state v3
 
 `state_recovery_test.sh` 的 R1–R5 使用独立目录和 `FUZZ_STATE_SKIP` 对照；该开关仅测试注入，不用于生产。
+
+
+## P0-3 supervisor
+
+`supervisor.sh --json-out FILE` 只写 JSON 到文件，子进程 stdout/stderr 继承；run.sh 和 soak_epochs 已默认经过 supervisor。setsid 逃逸仍 unsupported。

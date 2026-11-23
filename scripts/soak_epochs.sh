@@ -30,7 +30,7 @@ if [ ! -d "$POOL" ]; then
   find "$ROOT/seeds" "$ROOT/seeds_real" "$ROOT/seeds_real2" -name '*.mbt' -size -12000c \
     -print0 2>/dev/null | xargs -0 -r cp -t "$POOL" 2>/dev/null || true
 fi
-echo "epoch,seconds,maxrss_kb,it,t2_ok,coverage_adds,new_edges,stop_reason" > "$OUT/epochs.csv"
+echo "epoch,seconds,maxrss_kb,it,t2_ok,coverage_adds,new_edges,stop_reason,sup_rc,incomplete,orphans" > "$OUT/epochs.csv"
 for i in $(seq 1 "$EPOCHS"); do
   run="$OUT/e$i"
   rm -rf "$run"
@@ -38,7 +38,9 @@ for i in $(seq 1 "$EPOCHS"); do
   if [ -f "$POOL/coverage_state.jsonl" ]; then
     state_args=(--coverage-state "$POOL/coverage_state.jsonl")
   fi
-  /usr/bin/time -q -o "$OUT/e$i.time" -f "%M" \
+  "$ROOT/scripts/supervisor.sh" --json-out "$OUT/e$i.sup.json" \
+    --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "${MAX_PROCS:-8}" --deadline "${SUPERVISOR_DEADLINE:-1200}" -- \
+    /usr/bin/time -q -o "$OUT/e$i.time" -f "%M" \
     "$BIN" --root "$ROOT" --out "$run" --workers "$WORKERS" --duration "$SECS" \
       "${state_args[@]}" \
       --mode mbt --body-only --seed-dir "$POOL" \
@@ -48,6 +50,12 @@ for i in $(seq 1 "$EPOCHS"); do
       --coverage-cap 200 --persist-cap 400 --parent-cap 2000 --edge-cap 50000 \
       --rss-limit-mb "$RSS_MB" --qemu "${QEMU:-/tmp/AFLplusplus/afl-qemu-trace}" \
       > "$OUT/e$i.log" 2>&1 || true
+  sup=$(cat "$OUT/e$i.sup.json" 2>/dev/null || echo '{}')
+  sup_rc=$?
+  sup_rc=$(jq -r '.rc // .leader_rc // 90' <<<"$sup" 2>/dev/null || echo 90)
+  sup_inc=$(jq -r '.incomplete // 1' <<<"$sup" 2>/dev/null || echo 1)
+  sup_orph=$(jq -r '.orphans // 0' <<<"$sup" 2>/dev/null || echo 0)
+  sup_reason=$(jq -r '.reason // ""' <<<"$sup" 2>/dev/null || echo "")
   rss=$(cat "$OUT/e$i.time" 2>/dev/null || echo 0)
   sum=$(ls "$run"/*/summary.json 2>/dev/null | head -1)
   if [ -n "$sum" ]; then
@@ -56,14 +64,16 @@ for i in $(seq 1 "$EPOCHS"); do
     adds=$(grep -o '"coverage_adds":[0-9]*' "$sum" | head -1 | cut -d: -f2)
     edges=$(grep -o '"new_edges":[0-9]*' "$sum" | head -1 | cut -d: -f2)
     stop=$(grep -o '"stop_reason":"[^"]*"' "$sum" | head -1 | cut -d'"' -f4)
+    if [ "$sup_inc" = 1 ] || [ "$sup_rc" != 0 ]; then stop="supervisor_${sup_reason:-rc${sup_rc}}"; fi
     # carry the epoch's persisted corpus and coverage state to the next epoch
     cp -n "$run"/*/corpus/*.mbt "$POOL" 2>/dev/null || true
     cp -f "$run"/*/coverage_state.jsonl "$POOL/coverage_state.jsonl" 2>/dev/null || true
     cp -f "$run"/*/coverage_state.jsonl.sha256 "$POOL/coverage_state.jsonl.sha256" 2>/dev/null || true
-    echo "$i,$SECS,$rss,${it:-0},${t2:-0},${adds:-0},${edges:-0},${stop:-}" >> "$OUT/epochs.csv"
+    echo "$i,$SECS,$rss,${it:-0},${t2:-0},${adds:-0},${edges:-0},${stop:-},$sup_rc,$sup_inc,$sup_orph" >> "$OUT/epochs.csv"
   else
-    echo "$i,$SECS,$rss,0,0,0,0,no-summary" >> "$OUT/epochs.csv"
+    echo "$i,$SECS,$rss,0,0,0,0,no-summary,$sup_rc,$sup_inc,$sup_orph" >> "$OUT/epochs.csv"
   fi
+  if [ "$sup_inc" = 1 ] || [ "$sup_rc" != 0 ]; then break; fi
 done
 column -t -s, "$OUT/epochs.csv" 2>/dev/null || cat "$OUT/epochs.csv"
 awk -F, 'NR>1 && $3+0>m {m=$3} END {printf "max_rss_kb=%d\n", m}' "$OUT/epochs.csv"

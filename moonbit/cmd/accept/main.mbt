@@ -404,6 +404,18 @@ async fn main {
     e2e_out.contains("\"pin_control\": \"pin_refused\"")
   results.push(check("original_config_e2e", e2e_ok, e2e_out))
 
+  // 2a8c. Process-tree/exit propagation and real soak wrapper.
+  let spt = @exec.run(
+    "bash",
+    [join(root, "scripts/supervisor_process_tree_test.sh"), root],
+    root,
+    600000,
+  )
+  let spt_out = spt.stdout.trim().to_owned()
+  let spt_ok = spt.rc == 0 && spt_out.contains("\"ok\": 1") &&
+    spt_out.contains("\"b\":") && spt_out.contains("\"soak\":")
+  results.push(check("supervisor_process_tree", spt_ok, spt_out))
+
   // 2a9. Portable supervisor aggregate RSS/proc/deadline and cancellation.
   let ac = @exec.run(
     "bash",

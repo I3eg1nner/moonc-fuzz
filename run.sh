@@ -70,9 +70,14 @@ esac
 # it exists silently runs stale code after a source edit.
 moon -C "$ROOT/moonbit" build cmd/fuzz --target native --release
 
-exec "$ROOT/moonbit/_build/native/release/build/cmd/fuzz/fuzz.exe" \
+OUT_DIR="${OUT:-$ROOT/out/mb_runs}"
+mkdir -p "$OUT_DIR"
+exec "$ROOT/scripts/supervisor.sh" \
+  --json-out "$OUT_DIR/supervisor.json" \
+  --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "${MAX_PROCS:-8}" --deadline "${SUPERVISOR_DEADLINE:-120}" \
+  -- "$ROOT/moonbit/_build/native/release/build/cmd/fuzz/fuzz.exe" \
   --root "$ROOT" \
-  --out "${OUT:-$ROOT/out/mb_runs}" \
+  --out "$OUT_DIR" \
   --campaign "$CAMPAIGN" \
   --run-id "${RUN_ID:-$(date -u +%Y%m%dT%H%M%S)-$$}" \
   --mode "$MODE" \
