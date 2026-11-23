@@ -1049,6 +1049,9 @@ struct TraceUniverse {
   /// cases, parent owner count, and the last admitted input hash.
   mut state_epoch : Int32
   mut checkpoint_cases : Int32
+  mut case_base : Int32
+  mut adds_base : Int32
+  mut owner_base : Int32
   mut checkpoint_owners : Int32
   mut last_input_hash : String
   mut checkpoint_adds : Int32
@@ -1081,6 +1084,9 @@ fn trace_universe_new() -> TraceUniverse {
     persist: persist_budget_new(PERSIST_CAP_DEFAULT, 4000),
     state_epoch: 1,
     checkpoint_cases: 0,
+    case_base: 0,
+    adds_base: 0,
+    owner_base: 0,
     checkpoint_owners: 0,
     last_input_hash: "",
     checkpoint_adds: 0,
@@ -2557,6 +2563,22 @@ fn save_pkg_witness(
   ignore(@stager.write_text(join(fd, "in.mbt"), src))
   ignore(@stager.write_text(join(fd, "baseline.mbt"), baseline))
   ignore(@stager.copy_tree(pkg, join(fd, "pkg")))
+  // J2: snapshot the original config/source/argv next to the witness.  This
+  // is deliberately redundant with `pkg`; replay must be able to ignore a
+  // mutated live package and use these bytes.
+  let orig = join(fd, "original")
+  @corpus.ensure_dir(orig)
+  let mod_src = @stager.read_text(join(pkg, "moon.mod"))
+  let pkg_src = @stager.read_text(join(pkg, "moon.pkg"))
+  ignore(@stager.write_text(join(orig, "moon.mod"), mod_src))
+  ignore(@stager.write_text(join(orig, "moon.pkg"), pkg_src))
+  ignore(@stager.write_text(join(orig, "source.mbt"), baseline))
+  ignore(@stager.write_text(join(orig, "argv.txt"), cmd))
+  let manifest = "{\"moon.mod\":\"" + @corpus.sha1_hex(mod_src) +
+    "\",\"moon.pkg\":\"" + @corpus.sha1_hex(pkg_src) +
+    "\",\"source.mbt\":\"" + @corpus.sha1_hex(baseline) +
+    "\",\"argv.txt\":\"" + @corpus.sha1_hex(cmd) + "\"}"
+  ignore(@stager.write_text(join(orig, "manifest.json"), manifest))
   ignore(
     @stager.write_text(
       join(fd, "capsule.json"),
@@ -2570,7 +2592,7 @@ fn save_pkg_witness(
       @stager.escape(cfg.pkg_run_argv) +
       "\",\"file\":\"" +
       @stager.escape(file) +
-      "\",\"stage\":\"build\",\"target\":\"\",\"signature\":\"" +
+      "\",\"original\":\"original\",\"stage\":\"build\",\"target\":\"\",\"signature\":\"" +
       @stager.escape(sig) +
       "\"}",
     ),
@@ -3518,9 +3540,9 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
       let o = json_int_field(line.to_owned(), "owners")
       let a = json_int_field(line.to_owned(), "adds")
       if e >= 0 { cov.state_epoch = e + 1 }
-      if a >= 0 { cov.checkpoint_adds = a }
-      if c >= 0 { cov.checkpoint_cases = c }
-      if o >= 0 { cov.checkpoint_owners = o }
+      if a >= 0 { cov.adds_base = a; cov.checkpoint_adds = a }
+      if c >= 0 { cov.case_base = c; cov.checkpoint_cases = c }
+      if o >= 0 { cov.owner_base = o; cov.checkpoint_owners = o }
       let last = json_str_field(line.to_owned(), "last")
       if last != "" { cov.last_input_hash = last }
     } else if line.contains("\"key\":") {
@@ -3716,9 +3738,9 @@ async fn monitor(
     @async.sleep(2000)
     if cfg.coverage_state != "" &&
       (prog.it - last_cases >= 100 || @env.now() - last_ck >= 5000UL) {
-      cov.checkpoint_cases = prog.it
-      cov.checkpoint_owners = feed.feature_owners.length()
-      cov.checkpoint_adds = cov.coverage_adds
+      cov.checkpoint_cases = cov.case_base + prog.it
+      cov.checkpoint_owners = if feed.feature_owners.length() > cov.owner_base { feed.feature_owners.length() } else { cov.owner_base }
+      cov.checkpoint_adds = cov.adds_base + cov.coverage_adds
       if feed.entries.length() > 0 {
         cov.last_input_hash = feed.entries[feed.entries.length() - 1].hash
       }
@@ -4428,9 +4450,9 @@ async fn main {
   }
   // Persist coverage for the next epoch: inputs alone are not enough.  A
   // failed write is an infrastructure error, not a silent empty state.
-  cov.checkpoint_cases = total.it
-  cov.checkpoint_owners = feed.feature_owners.length()
-  cov.checkpoint_adds = cov.coverage_adds
+  cov.checkpoint_cases = cov.case_base + total.it
+  cov.checkpoint_owners = if feed.feature_owners.length() > cov.owner_base { feed.feature_owners.length() } else { cov.owner_base }
+  cov.checkpoint_adds = cov.adds_base + cov.coverage_adds
   if feed.entries.length() > 0 {
     cov.last_input_hash = feed.entries[feed.entries.length() - 1].hash
   }

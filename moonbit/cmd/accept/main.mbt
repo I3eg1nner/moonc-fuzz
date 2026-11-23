@@ -385,6 +385,19 @@ async fn main {
     sr_out.contains("\"quarantine_ok\": 1")
   results.push(check("state_recovery", sr_ok, sr_out))
 
+  // 2a7. Original-config package replay.
+  let ocr = @exec.run(
+    "bash",
+    [join(root, "scripts/original_config_replay.sh"), root],
+    root,
+    300000,
+  )
+  let ocr_out = ocr.stdout.trim().to_owned()
+  let ocr_ok = ocr.rc == 0 && ocr_out.contains("\"matched\": 3") &&
+    ocr_out.contains("\"live_mutation_still_match\": 1") &&
+    ocr_out.contains("\"tamper_mismatch\": 1")
+  results.push(check("original_config_replay", ocr_ok, ocr_out))
+
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
   // rather than quietly changing `regressions_13`.  Six serial cases with one
