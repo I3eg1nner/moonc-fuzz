@@ -2553,28 +2553,24 @@ fn split_spaces(s : String) -> Array[String] {
 ///|
 /// Save a package-lane failure in the same layout triage's capsule mode reads.
 ///|
-fn test_line(s : String, marker : String) -> String {
-  for line in s.split("\n") {
-    if line.contains(marker) {
-      return line.to_owned()
+fn replace_all_text(s : String, from : String, to : String) -> String {
+  if from == "" { return s }
+  let b = StringBuilder()
+  let mut rest = s
+  while true {
+    match rest.find(from) {
+      Some(i) => {
+        b.write_string(rest[0:i].to_owned())
+        b.write_string(to)
+        rest = rest[i + from.length():].to_owned()
+      }
+      None => {
+        b.write_string(rest)
+        break
+      }
     }
   }
-  ""
-}
-
-///|
-fn test_signature(out : String, err : String) -> String {
-  let line = test_line(out + "\n" + err, "failed:")
-  let mut i = match line.find("(\"") { Some(v) => v + 2; None => 0 }
-  let start = i
-  while i < line.length() && line.get_char(i) != Some('"') { i += 1 }
-  let name = if i > start { line[start:i].to_owned() } else { "" }
-  let aline = test_line(out + "\n" + err, "FAILED")
-  let assert = match aline.find("FAILED") {
-    Some(j) => aline[j:].to_owned()
-    None => ""
-  }
-  "test|" + name + "|" + assert
+  b.to_string()
 }
 
 ///|
@@ -2672,8 +2668,8 @@ async fn save_pkg_witness(
   let argv_parts = split_spaces(cmd)
   let argv_json = "[" + argv_parts.map(fn(x) { "\"" + @stager.escape(x) + "\"" }).join(",") + "]"
   let expected = "{\"rc\":" + rc.to_string() +
-    ",\"stdout\":\"" + @stager.escape(out) +
-    "\",\"stderr\":\"" + @stager.escape(err) + "\"}"
+    ",\"stdout\":\"" + @stager.escape(replace_all_text(out, wd, "<pkg>")) +
+    "\",\"stderr\":\"" + @stager.escape(replace_all_text(err, wd, "<pkg>")) + "\"}"
   // Every required file must exist and be non-empty; otherwise fail closed.
   let files : Array[(String, String)] = [
     (join(orig, "moon.mod"), mod_src),
@@ -2705,7 +2701,7 @@ async fn save_pkg_witness(
     return false
   }
   let stage = if kind == "TEST_FAIL" { "test" } else { "build" }
-  let real_sig = if kind == "TEST_FAIL" { test_signature(out, err) } else { sig }
+  let real_sig = if kind == "TEST_FAIL" { @cluster.test_signature(out, err) } else { sig }
   let capsule = "{\"moon\":\"" +
     @stager.escape(moon) +
     "\",\"cmd\":\"" +
@@ -2895,9 +2891,7 @@ async fn worker(
               // Semantic (test) failures also enter the save -> triage chain;
               // they are not crash-class, so triage must keep them
               // inconclusive rather than promote them.
-              let tsig = @cluster.crash_signature(
-                "TEST_FAIL", rr.rc, rr.stderr, rr.stdout,
-              )
+              let tsig = @cluster.test_signature(rr.stdout, rr.stderr)
               ignore(
                 save_pkg_witness(
                   cfg, moon, tsig, "TEST_FAIL", cfg.pkg_run_argv, src,
@@ -3784,8 +3778,15 @@ fn state_skip() -> String {
   }
 }
 
+fn abs_path(p : String) -> String {
+  if p == "" || p.has_prefix("/") { return p }
+  let cwd = @env.current_dir().unwrap_or(".")
+  cwd + "/" + p
+}
+
 ///|
 fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
+  cfg.coverage_state = abs_path(cfg.coverage_state)
   let mut text = @stager.read_text(cfg.coverage_state)
   if cfg.recover && (text == "" || !state_header_valid(cfg, cov, text)) {
     let recovered = try_recover_state(cfg, cov)
@@ -3898,20 +3899,23 @@ async fn save_coverage_state(cfg : Config, cov : TraceUniverse, out : String) ->
   let header = canon[0:canon.length() - 1].to_owned() +
     ",\"checksum\":\"" + checksum + "\"}"
   let body = header + "\n" + payload
-  let target = if cfg.coverage_write != "" {
+  let target = abs_path(if cfg.coverage_write != "" {
     cfg.coverage_write
   } else if cfg.coverage_state != "" {
     cfg.coverage_state
   } else {
     join(out, "coverage_state.jsonl")
-  }
+  })
   @corpus.ensure_dir(parent_dir(target))
   let tmp = target + ".tmp"
   @fs.remove_file(tmp) catch { _ => () }
-  let kill_mode = match @env.get_env_var("FUZZ_STATE_KILL") {
-    Some(v) => v
-    None => ""
-  }
+  let inject = match @env.get_env_var("FUZZ_STATE_TEST_INJECT") { Some(v) => v == "1"; None => false }
+  let kill_mode = if inject {
+    match @env.get_env_var("FUZZ_STATE_KILL") {
+      Some(v) => if v != "" { println("[state] TEST-INJECT kill=" + v); v } else { "" }
+      None => ""
+    }
+  } else { "" }
   if kill_mode == "mid_payload" {
     let half = body.length() / 2
     ignore(@stager.write_text(tmp, body[0:half].to_owned()))

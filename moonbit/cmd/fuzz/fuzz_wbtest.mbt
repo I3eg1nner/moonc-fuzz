@@ -1294,3 +1294,11 @@ test "backend diff ignores harness metadata and zero-test backends" {
   let e = "[native] test foo failed: assignment\nTotal tests: 1, passed: 1, failed: 0."
   assert_eq(backend_diff_class(c, e, 1, 0), "witness")
 }
+
+test "TEST_FAIL signature slug separates test names" {
+  let a = @cluster.test_signature("test lib_test.mbt:1 (\"a\") failed: FAILED: `1 != 2`", "")
+  let b = @cluster.test_signature("test lib_test.mbt:1 (\"b\") failed: FAILED: `1 != 2`", "")
+  assert_true(a.contains("test|a|FAILED"))
+  assert_true(b.contains("test|b|FAILED"))
+  assert_false(@corpus.dir_slug(a) == @corpus.dir_slug(b))
+}

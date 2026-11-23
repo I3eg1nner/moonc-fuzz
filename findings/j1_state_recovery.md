@@ -1,3 +1,5 @@
+> 历史文档：部分计数/命令已过期，以 `findings/handoff_final.md` 的 P0-4/P0-2 为准。
+
 # J1：checkpoint kill -9 / resume / quarantine
 
 Date: 2026-11-23. Pin 不变。

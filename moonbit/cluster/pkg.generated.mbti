@@ -16,6 +16,8 @@ pub fn known_id(String) -> String?
 
 pub fn normalize_text(String) -> String
 
+pub fn test_signature(String, String) -> String
+
 // Errors
 
 // Types and methods

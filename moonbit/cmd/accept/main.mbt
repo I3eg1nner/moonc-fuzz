@@ -382,7 +382,8 @@ async fn main {
   let sr_ok = sr.rc == 0 && sr_out.contains("\"ok\": 1") &&
     sr_out.contains("\"duplicates\": 0") &&
     sr_out.contains("\"lost\": 0") &&
-    sr_out.contains("\"quarantine_ok\": 1")
+    sr_out.contains("\"quarantine_ok\": 1") &&
+    sr_out.contains("\"no_inject_ok\": 1")
   results.push(check("state_recovery", sr_ok, sr_out))
 
   // 2a8. Behavior-only TEST_FAIL e2e: real campaign + 3 controls.

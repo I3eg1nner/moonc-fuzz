@@ -118,7 +118,7 @@ D1 的 `--stage format` 运行补上了 C 的 1369 L2：F5 seed 295 次中 43 �
 
 - `accept`：27/27，`formatter_sensitivity` 与 `package_sensitivity` 正负控
   通过；`issue_regress` 仍 normal 0/tamper 1。
-- `moon_test`：385/385。
+- `moon_test`：386/386。
 - `accept` 实测：`checks=27 ok=true skipped=[]`。
 
 ## 交付

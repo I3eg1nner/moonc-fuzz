@@ -59,8 +59,8 @@ now=$(date +%s%N); elapsed_ms=$(( (now-start)/1000000 ))
 orphans=$(ps -eo pid=,pgid= | awk -v g="$pgid" '$2==g {print $1}' | while read p; do kill -0 "$p" 2>/dev/null && echo "$p"; done | wc -l)
 exit_rc=$leader_rc
 [ "$incomplete" = 1 ] && exit_rc=90
-JSON=$(jq -n --argjson rc "$exit_rc" --argjson incomplete "$incomplete" --arg reason "$reason" --argjson orphans "$orphans" --argjson escaped 0 --arg setsid_escape "unsupported" --argjson leader_rc "$leader_rc" --argjson rss_kb "$rss" --argjson procs "$procs" --argjson elapsed_ms "$elapsed_ms" \
-  '{rc:$rc,incomplete:$incomplete,reason:$reason,orphans:$orphans,escaped:$escaped,setsid_escape:$setsid_escape,leader_rc:$leader_rc,rss_kb:$rss_kb,procs:$procs,elapsed_ms:$elapsed_ms}')
+JSON=$(jq -n --argjson agg_rss_mb "$agg" --argjson rc "$exit_rc" --argjson incomplete "$incomplete" --arg reason "$reason" --argjson orphans "$orphans" --argjson escaped 0 --arg setsid_escape "unsupported" --argjson leader_rc "$leader_rc" --argjson rss_kb "$rss" --argjson procs "$procs" --argjson elapsed_ms "$elapsed_ms" \
+  '{rc:$rc,agg_rss_mb:$agg_rss_mb,incomplete:$incomplete,reason:$reason,orphans:$orphans,escaped:$escaped,setsid_escape:$setsid_escape,leader_rc:$leader_rc,rss_kb:$rss_kb,procs:$procs,elapsed_ms:$elapsed_ms}')
 if [ -n "$json_out" ]; then printf '%s\n' "$JSON" > "$json_out"; else printf '%s\n' "$JSON"; fi
 if [ "$incomplete" = 1 ]; then exit 90; fi
 [ "$leader_rc" -ne 0 ] && exit "$leader_rc"

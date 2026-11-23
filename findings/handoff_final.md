@@ -71,10 +71,10 @@
    cgroup 主机跑 1 h，记录 memory.peak/pids/disk，kill 后无孤儿进程。
 
 **P0 状态（2026-11-23）**
-- corpus owner 事务/checkpoint：J1/J2 已实现 v3 canonical header+payload checksum、identity 必需、真实 pin/corpus hash、quarantine/recover/周期 checkpoint。实际 cases/owners 随 seed 和变异变化，**以 `state_recovery` gate detail 为准**。R1–R5 使用独立 `_def/_skip` 目录，各自重新 tamper；def 目录恰 1 个对应 reason corrupt 且 `recovered_cases=0`，skip 目录 0 corrupt 且加载篡改 header（R1=999999，其余=STATE1.cases）。`FUZZ_STATE_SKIP` 需同时 `FUZZ_STATE_TEST_INJECT=1`，跳过时打印 `[state] TEST-INJECT`；单独设置仍 quarantine。R5 默认 drift=1 且 cases/owners=STATE1，严格拒绝；recover 精确 cases/owners/epoch；last 40-hex 且 epoch1≠epoch2。
+- corpus owner 事务/checkpoint：J1/J2 已实现 v3 canonical header+payload checksum、identity 必需、真实 pin/corpus hash、quarantine/recover/周期 checkpoint。实际 cases/owners 随 seed 和变异变化，**以 `state_recovery` gate detail 为准**。R1–R5 使用独立 `_def/_skip` 目录，各自重新 tamper；def 目录恰 1 个对应 reason corrupt 且 `recovered_cases=0`，skip 目录 0 corrupt 且加载篡改 header（R1=999999，其余=STATE1.cases）。`FUZZ_STATE_SKIP`/`FUZZ_STATE_KILL` 均需同时 `FUZZ_STATE_TEST_INJECT=1`，跳过时打印 `[state] TEST-INJECT`；单独设置仍 quarantine/no-kill。R5 默认 drift=1 且 cases/owners=STATE1，严格拒绝；recover 精确 cases/owners/epoch；last 40-hex 且 epoch1≠epoch2。
 - P0-4 replay：triage 读 `original/pin.json`，用当前 `moon --version` + `moonc -v` 算 hash，不一致 `pin_refused`；`expected_rc` 用 JSON 整数解析。TEST_FAIL 是 **passed→failed 受控 lane**：seed `assert_eq(add(2,2),4)` 先通过（`/tmp` 副本 `moon test` rc0，`baseline_clean=1`），campaign 只做 `4→5` 语义改写后失败；`baseline=未变异 seed`、`source!=baseline`。真实 campaign `stage=test`、triage confirmed 3/3；expected/name/pkg/baseline **四负控**均非 confirmed；pin 改坏 `pin_refused`；删 kind/stage 得 `schema_invalid`。witness 92KB、`no_build=1`。argv/env 篡改行为不变，记 `not_sensitive`；argv 仍由 command 字符串分词，未做到调用点直存数组。
 - TEST_FAIL 证据链：`original_config_e2e` 跑真实 campaign，不读仓库 fixture；triage 是唯一 confirmed 判定，e2e 只断言 stage/controls/schema/pin 和 witness 大小。
-P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor：`max_procs=WORKERS*4+8`、`deadline=DUR+300`、`agg=WORKERS*2048` 并 clamp MemTotal/2，实际值写 `supervisor.limits`；`SUPERVISOR_DRYRUN=1` 只写 limits。soak_epochs 每 epoch 经 supervisor，默认 `max_procs=WORKERS*4+8`，CSV 的 sup_rc 用真实退出码；`supervisor_process_tree` gate a–f 全绿（10s/2w→310/16、600s/48w→900/200；nonzero soak sup_rc=90/incomplete=1/stop=supervisor_max_procs）。setsid 仍 unsupported。
+P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor：`max_procs=WORKERS*4+8`、`deadline=DUR+330`、`agg=WORKERS*2048` 并 clamp MemTotal/2，实际值写 `supervisor.limits`；`SUPERVISOR_DRYRUN=1` 只写 limits。soak_epochs 每 epoch 经 supervisor，默认 `max_procs=WORKERS*4+8`，CSV 的 sup_rc 用真实退出码；`supervisor_process_tree` gate a–f 全绿（10s/2w→340/16、600s/48w→930/200；nonzero soak sup_rc=90/incomplete=1/stop=supervisor_max_procs）。setsid 仍 unsupported。
 - 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿；`supervisor_process_tree` gate 已存在。setsid 逃逸仍 unsupported，组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。
 - F13：`fmt_f13` gate 固定 `-(-2147483648)`、i64 min、triple nested；moonfmt 输出 `moon check` 均 `[4095]`，healthy `-(-1)` 通过；分类 `compiler_inconsistency_candidate`。
@@ -182,3 +182,9 @@ TEST_FAIL findings 已改为 `findings/test/TEST_FAIL/<test sig>`，seed 只保�
 - curated 38 = 15 fixed / 15 reproduced / 4 unclear / 3 needs_old_toolchain / 1 not_reproducible；612 是 needs_old_toolchain。
 - TEST_FAIL 是 passed→failed 受控 lane，不是通用测试变异发现。
 - witness 非 hermetic；checksum 无密钥只防损坏、不防重算；setsid 逃逸 unsupported；cgroup 只读。
+
+## C5/C6 状态
+
+- 相对 `--coverage-state` 控制仍未绿：实际 state 未写到预期相对路径；C5 未闭环。
+- capsule.stage 与 meta.stage 一致校验已加，但未加独立负控；C6 部分闭环。
+- fuzz/triage 的 test signature 已共享到 `cluster.test_signature`；本地实现删除；C1/C2 闭环。

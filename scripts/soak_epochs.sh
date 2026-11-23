@@ -21,6 +21,11 @@ TRACE_T1=${TRACE_T1:-5}
 TRACE_T2=${TRACE_T2:-5}
 RSS_MB=${RSS_MB:-1800}
 SUP_MAX=${MAX_PROCS:-$((WORKERS*4+8))}
+SUP_AGG=${AGG_RSS_MB:-$((WORKERS*2048))}
+if [ -r /proc/meminfo ]; then
+  MEM_MB=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1024 / 2 ))
+  [ "$SUP_AGG" -gt "$MEM_MB" ] && SUP_AGG="$MEM_MB"
+fi
 
 [ -x "$BIN" ] || { echo "build first" >&2; exit 2; }
 mkdir -p "$OUT"
@@ -41,7 +46,7 @@ for i in $(seq 1 "$EPOCHS"); do
     state_args=(--coverage-state "$POOL/coverage_state.jsonl")
   fi
   if "$ROOT/scripts/supervisor.sh" --json-out "$OUT/e$i.sup.json" \
-    --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "$SUP_MAX" --deadline "${SUPERVISOR_DEADLINE:-$((SECS+300))}" -- \
+    --agg-rss-mb "$SUP_AGG" --max-procs "$SUP_MAX" --deadline "${SUPERVISOR_DEADLINE:-$((SECS+300))}" -- \
     /usr/bin/time -q -o "$OUT/e$i.time" -f "%M" \
     "$BIN" --root "$ROOT" --out "$run" --workers "$WORKERS" --duration "$SECS" \
       "${state_args[@]}" \

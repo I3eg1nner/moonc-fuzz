@@ -339,7 +339,9 @@ async fn main {
   }
   let capsule_json = join(case_dir, "capsule.json")
   let is_capsule = @fs.path_exists(capsule_json)
-  let cap_moon = @cluster.json_get_string(@stager.read_text(capsule_json), "moon")
+  let cap_text = @stager.read_text(capsule_json)
+  let cap_stage = @cluster.json_get_string(cap_text, "stage")
+  let cap_moon = @cluster.json_get_string(cap_text, "moon")
   let cap_cmd = @cluster.json_get_string(@stager.read_text(capsule_json), "cmd")
   let cap_file = @cluster.json_get_string(@stager.read_text(capsule_json), "file")
   let baseline_src = @stager.read_text(join(case_dir, "baseline.mbt"))
@@ -352,10 +354,11 @@ async fn main {
   let original = @cluster.json_get_string(meta, "signature")
   let kind = @cluster.json_get_string(meta, "kind")
   let meta_stage = @cluster.json_get_string(meta, "stage")
+  let cap_stage_ok = if is_capsule { cap_stage == meta_stage } else { true }
   let schema_ok = (kind == "TEST_FAIL" || kind == "BUILD_FAIL" || kind == "ICE") &&
     (meta_stage == "build" || meta_stage == "test" || meta_stage == "check" ||
       meta_stage == "syncheck" || meta_stage == "t1" || meta_stage == "t2" ||
-      meta_stage == "t3")
+      meta_stage == "t3") && cap_stage_ok
   let expected_json = @stager.read_text(join(join(case_dir, "original"), "expected.json"))
   let expected_out = @cluster.json_get_string(expected_json, "stdout")
   let expected_err = @cluster.json_get_string(expected_json, "stderr")

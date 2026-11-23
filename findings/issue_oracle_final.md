@@ -76,7 +76,7 @@ Wilson 95% CI **4.1%–15.0%**；推算 389 条漏 16–58 条；curated 召回
 
 ```
 accept: checks=29 ok=true
-moon_test: 385/385
+moon_test: 386/386
 issue_regress: normal 0 / tamper 1
 must_reject: positives=360 transforms=14 accepted=0 wrong=0 neg_bad=0 control_rc=1
 attribute: cases=160 families=9 expected=140 missing=20 extra=0
@@ -93,4 +93,4 @@ issuecheck: reproduced 14/14, fixed 14/14 (heavy 1366/1155 skipped)
 - 新增资产：1051/440/415/1339、1347、1294/945/447/551/836
 
 
-> 验收注：本文 F 收尾时 accept 为 29；后续 J1/J2/H/I 增至 35，见 `findings/handoff_final.md`。
+> 验收注：本文 F 收尾时 accept 为 35；后续 J1/J2/H/I 增至 35，见 `findings/handoff_final.md`。

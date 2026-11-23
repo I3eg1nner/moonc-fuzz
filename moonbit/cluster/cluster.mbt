@@ -175,6 +175,28 @@ pub fn formatter_signature(
 /// Read a string field from one-line JSON, honouring backslash escapes.
 /// The naive "find the next quote" scan truncates signatures such as
 /// `Invalid_argument(\"Char.chr\")`.
+fn test_marker_line(s : String, marker : String) -> String {
+  for line in s.split("\n") {
+    if line.contains(marker) { return line.to_owned() }
+  }
+  ""
+}
+
+pub fn test_signature(out : String, err : String) -> String {
+  let line = test_marker_line(out + "\n" + err, "failed:")
+  let mut i = match line.find("(\"") {
+    Some(v) => v + 2
+    None => match line.find("(\\\"") { Some(v) => v + 3; None => 0 }
+  }
+  let start = i
+  while i < line.length() && line.get_char(i) != Some('"') { i += 1 }
+  let name = if i > start { line[start:i].to_owned() } else { "" }
+  let aline = test_marker_line(out + "\n" + err, "FAILED")
+  let at = match aline.find("FAILED") { Some(j) => aline[j:].to_owned(); None => "" }
+  "test|" + name + "|" + at
+}
+
+///|
 pub fn json_get_int(text : String, key : String) -> Int {
   let pat = "\"" + key + "\":"
   let i = match text.find(pat) { None => return -1; Some(v) => v + pat.length() }
