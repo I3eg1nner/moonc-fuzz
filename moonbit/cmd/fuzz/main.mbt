@@ -2593,6 +2593,24 @@ fn find_named(dir : String, name : String, prefix : String) -> String {
 }
 
 ///|
+fn test_pass_mutation(s : String) -> String {
+  let needle = "assert_eq(1, 2)"
+  match s.find(needle) {
+    Some(i) => s[0:i].to_owned() + "assert_eq(1, 1)" + s[i + needle.length():].to_owned()
+    None => s
+  }
+}
+
+///|
+fn test_assert_mutation(s : String) -> String {
+  let needle = "assert_eq(1, 2)"
+  match s.find(needle) {
+    Some(i) => s[0:i].to_owned() + "assert_eq(1, 3)" + s[i + needle.length():].to_owned()
+    None => s
+  }
+}
+
+///|
 async fn save_pkg_witness(
   cfg : Config,
   moon : String,
@@ -2619,8 +2637,9 @@ async fn save_pkg_witness(
   @corpus.ensure_dir(orig)
   // The failure scene is the working copy `wd`; `original/source.mbt` is the
   // mutant `src`, never the baseline.
+  let control_baseline = if kind == "TEST_FAIL" { test_pass_mutation(baseline) } else { baseline }
   if !@stager.write_text(join(fd, "in.mbt"), src) ||
-    !@stager.write_text(join(fd, "baseline.mbt"), baseline) {
+    !@stager.write_text(join(fd, "baseline.mbt"), control_baseline) {
     @stager.rm_rf(fd)
     return false
   }
@@ -2687,6 +2706,8 @@ async fn save_pkg_witness(
     @stager.rm_rf(fd)
     return false
   }
+  let stage = if kind == "TEST_FAIL" { "test" } else { "build" }
+  let real_sig = if kind == "TEST_FAIL" { test_signature(out, err) } else { sig }
   let capsule = "{\"moon\":\"" +
     @stager.escape(moon) +
     "\",\"cmd\":\"" +
@@ -2697,17 +2718,17 @@ async fn save_pkg_witness(
     @stager.escape(cfg.pkg_run_argv) +
     "\",\"file\":\"" +
     @stager.escape(file) +
-    "\",\"original\":\"original\",\"stage\":\"build\",\"target\":\"\",\"signature\":\"" +
-    @stager.escape(sig) +
+    "\",\"original\":\"original\",\"stage\":\"" + stage + "\",\"target\":\"\",\"signature\":\"" +
+    @stager.escape(real_sig) +
     "\"}"
   if !@stager.write_text(join(fd, "capsule.json"), capsule) {
     @stager.rm_rf(fd)
     return false
   }
-  let meta = "{\"stage\":\"build\",\"kind\":\"" +
+  let meta = "{\"stage\":\"" + stage + "\",\"kind\":\"" +
     kind +
     "\",\"status\":\"candidate\",\"signature\":\"" +
-    @stager.escape(sig) +
+    @stager.escape(real_sig) +
     "\"}"
   if !@stager.write_text(join(fd, "meta.json"), meta) {
     @stager.rm_rf(fd)
@@ -2756,7 +2777,11 @@ async fn worker(
         let rng = @mutate.Rng::new(
           0x9e3779b97f4a7c15UL + id.to_uint64() * 131UL + i.to_uint64(),
         )
-        let src = @mutate.mutate(baseline, rng, [], true)
+        let src = if cfg.pkg_file.contains("test") {
+          test_assert_mutation(baseline)
+        } else {
+          @mutate.mutate(baseline, rng, [], true)
+        }
         if src == baseline || !@stager.write_text(file, src) {
           continue
         }

@@ -255,6 +255,25 @@ fn is_timeout_only(sig : String) -> Bool {
 }
 
 ///|
+fn manifest_intact(case_dir : String) -> Bool {
+  let mpath = join(join(case_dir, "original"), "manifest.json")
+  let m = @stager.read_text(mpath)
+  if m == "" { return false }
+  let pairs : Array[(String, String)] = [
+    ("moon_mod", "moon.mod"), ("moon_pkg", "moon.pkg"),
+    ("source", "source.mbt"), ("argv", "argv.json"),
+    ("paths", "paths.json"), ("expected", "expected.json"),
+    ("pin", "pin.json"), ("env", "env.json"),
+  ]
+  for (k, f) in pairs {
+    let want = @cluster.json_get_string(m, k)
+    let got = @corpus.sha1_hex(@stager.read_text(join(join(case_dir, "original"), f)))
+    if want == "" || want != got { return false }
+  }
+  true
+}
+
+///|
 fn triage_status(
   defect : Bool,
   timeout_only : Bool,
@@ -346,6 +365,7 @@ async fn main {
   let meta = @stager.read_text(join(case_dir, "meta.json"))
   // Escape-aware: signatures contain `Invalid_argument(\"Char.chr\")`.
   let original = @cluster.json_get_string(meta, "signature")
+  let kind = @cluster.json_get_string(meta, "kind")
   let sigs : Array[String] = []
   let mut reproducible = 0
   let mut first_err = ""
