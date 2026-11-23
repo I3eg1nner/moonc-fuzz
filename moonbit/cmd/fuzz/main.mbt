@@ -2594,19 +2594,27 @@ fn find_named(dir : String, name : String, prefix : String) -> String {
 
 ///|
 fn test_pass_mutation(s : String) -> String {
-  let needle = "assert_eq(1, 2)"
-  match s.find(needle) {
-    Some(i) => s[0:i].to_owned() + "assert_eq(1, 1)" + s[i + needle.length():].to_owned()
-    None => s
+  let n1 = "assert_eq(add(1, 2), 4)"
+  let n2 = "assert_eq(1, 2)"
+  match s.find(n1) {
+    Some(i) => s[0:i].to_owned() + "assert_eq(add(1, 2), 3)" + s[i + n1.length():].to_owned()
+    None => match s.find(n2) {
+      Some(i) => s[0:i].to_owned() + "assert_eq(1, 1)" + s[i + n2.length():].to_owned()
+      None => s
+    }
   }
 }
 
 ///|
 fn test_assert_mutation(s : String) -> String {
-  let needle = "assert_eq(1, 2)"
-  match s.find(needle) {
-    Some(i) => s[0:i].to_owned() + "assert_eq(1, 3)" + s[i + needle.length():].to_owned()
-    None => s
+  let n1 = "assert_eq(add(1, 2), 4)"
+  let n2 = "assert_eq(1, 2)"
+  match s.find(n1) {
+    Some(i) => s[0:i].to_owned() + "assert_eq(add(1, 2), 5)" + s[i + n1.length():].to_owned()
+    None => match s.find(n2) {
+      Some(i) => s[0:i].to_owned() + "assert_eq(1, 3)" + s[i + n2.length():].to_owned()
+      None => s
+    }
   }
 }
 

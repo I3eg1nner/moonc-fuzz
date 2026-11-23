@@ -74,7 +74,9 @@
 - corpus owner 事务/checkpoint：J1 已实现 header schema/checksum/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536、epoch2 796/536；最新 197/803）。P0-2 已补 `--recover`、schema/checksum/hash 五种 injection、以及 mid_payload/after_tmp/after_rename 三个 kill 点；仅保留 per-fd fsync 的边界。
 - original-config replay：P0-4 真实 campaign TEST_FAIL 签名；P0-4 快照增加 `pin.json`/`env.json`/`cwd`；e2e 用 argv 数组、`env`、cwd replay，pin 改坏拒绝、expected 改坏 mismatch、baseline mismatch；包种用无依赖 `package_seeds/double`。argv 序列化仍从 command 字符串生成，未做到调用点直存数组；TEST_FAIL triage 已闭环（真实 campaign stage=test，triage confirmed 3/3；expected/name/baseline 负控非 confirmed）。
 - TEST_FAIL replay：`original_config_e2e` 直接调用 triage，不再复制比较逻辑；normal confirmed 3/3、stage=test，三个负控非 confirmed。
-- original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 未闭环：e2e 真实 campaign 的 expected/argv/env/pkg/manifest 五个篡改没有全部变成非 confirmed；pkg_manifest 方案在 30 分钟内未稳定，已回退到 c75ed01，相关 gate 移除。
+- original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 行为复验闭环：真实 campaign TEST_FAIL，stage=test，triage confirmed 3/3；expected/pkg/baseline 三控制均 inconclusive；argv/env 篡改 confirmed → 记 not_sensitive（行为未变）。manifest 只做 provenance warning，不参与判定。
+
+P0-3 计时：命中上限立即 TERM/KILL，不先 wait；aggregate gate 用外层 wall clock，agg 1.44s、deadline 3.05s，自报与 wall 差 <1s；setsid 逃逸仍 unsupported。
 - 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿但明确 **setsid 逃逸不支持**，没有 `process_tree` gate；组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。
 - F13：`fmt_f13` gate 固定 `-(-2147483648)`、i64 min、triple nested；moonfmt 输出 `moon check` 均 `[4095]`，healthy `-(-1)` 通过；分类 `compiler_inconsistency_candidate`。
@@ -156,7 +158,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 
 ```
 moon test   385 / 385（Total tests: 385, passed: 385, failed: 0）
-accept      33 / 33（P0-1 gates removed；ok=true, checks=33, 无失败）
+accept      34 / 34（ok=true, checks=34, 无失败）
 git         已提交并推送，worktree clean
 pin         未改动
 ```

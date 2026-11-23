@@ -385,6 +385,24 @@ async fn main {
     sr_out.contains("\"quarantine_ok\": 1")
   results.push(check("state_recovery", sr_ok, sr_out))
 
+  // 2a8. Behavior-only TEST_FAIL e2e: real campaign + 3 controls.
+  let e2e = @exec.run(
+    "bash",
+    [join(root, "scripts/original_config_e2e.sh"), root],
+    root,
+    300000,
+  )
+  let e2e_out = e2e.stdout.trim().to_owned()
+  let e2e_ok = e2e.rc == 0 && e2e_out.contains("\"ok\": 1") &&
+    e2e_out.contains("\"stage\": \"test\"") &&
+    e2e_out.contains("\"status\": \"confirmed\"") &&
+    e2e_out.contains("\"reproduced\": \"3/3\"") &&
+    e2e_out.contains("\"controls\": 3") &&
+    e2e_out.contains("\"expected_control\": \"inconclusive\"") &&
+    e2e_out.contains("\"pkg_control\": \"inconclusive\"") &&
+    e2e_out.contains("\"baseline_control\": \"inconclusive\"")
+  results.push(check("original_config_e2e", e2e_ok, e2e_out))
+
   // 2a9. Portable supervisor aggregate RSS/proc/deadline and cancellation.
   let ac = @exec.run(
     "bash",

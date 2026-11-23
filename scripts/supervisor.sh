@@ -36,19 +36,28 @@ while kill -0 "$pid" 2>/dev/null; do
   if [ "$maxp" -gt 0 ] && [ "$procs" -gt "$maxp" ]; then incomplete=1; reason="max_procs"; break; fi
   if [ "$deadline" -gt 0 ] && [ "$elapsed_ms" -gt $((deadline*1000)) ]; then incomplete=1; reason="deadline"; break; fi
 done
-wait "$pid" 2>/dev/null; leader_rc=$?
-alive=$(ps -eo pid=,pgid= | awk -v g="$pgid" '$2==g {print $1}' | while read p; do kill -0 "$p" 2>/dev/null && echo "$p"; done | wc -l)
-if [ "$alive" -gt 0 ] || [ "$incomplete" = 1 ]; then
-  [ "$incomplete" = 0 ] && { incomplete=1; reason="orphan_after_exit"; }
+if [ "$incomplete" = 1 ]; then
+  # Kill immediately on limit; do not wait for the child first.
   safe_kill TERM || true
-  sleep 2
+  for i in 1 2 3 4; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
   safe_kill KILL || true
   wait "$pid" 2>/dev/null || true
-  sleep 0.5
+  sleep 0.3
 fi
+wait "$pid" 2>/dev/null; leader_rc=$?
+alive=$(ps -eo pid=,pgid= | awk -v g="$pgid" '$2==g {print $1}' | while read p; do kill -0 "$p" 2>/dev/null && echo "$p"; done | wc -l)
+if [ "$alive" -gt 0 ]; then
+  incomplete=1; reason="orphan_after_exit"
+  safe_kill TERM || true
+  for i in 1 2 3 4; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+  safe_kill KILL || true
+  wait "$pid" 2>/dev/null || true
+  sleep 0.3
+fi
+now=$(date +%s%N); elapsed_ms=$(( (now-start)/1000000 ))
 orphans=$(ps -eo pid=,pgid= | awk -v g="$pgid" '$2==g {print $1}' | while read p; do kill -0 "$p" 2>/dev/null && echo "$p"; done | wc -l)
 jq -n --argjson incomplete "$incomplete" --arg reason "$reason" --argjson orphans "$orphans" --argjson escaped 0 --arg setsid_escape "unsupported" --argjson leader_rc "$leader_rc" --argjson rss_kb "$rss" --argjson procs "$procs" --argjson elapsed_ms "$elapsed_ms" \
   '{incomplete:$incomplete,reason:$reason,orphans:$orphans,escaped:$escaped,setsid_escape:$setsid_escape,leader_rc:$leader_rc,rss_kb:$rss_kb,procs:$procs,elapsed_ms:$elapsed_ms}'
-if [ "$incomplete" = 1 ]; then [ "$leader_rc" -ne 0 ] && exit "$leader_rc"; exit 90; fi
+if [ "$incomplete" = 1 ]; then exit 90; fi
 [ "$leader_rc" -ne 0 ] && exit "$leader_rc"
 exit 0

@@ -163,7 +163,10 @@ fn test_line(s : String, marker : String) -> String {
 
 fn test_sig(out : String, err : String) -> String {
   let line = test_line(out + "\n" + err, "failed:")
-  let mut i = match line.find("(\"") { Some(v) => v + 2; None => 0 }
+  let mut i = match line.find("(\"") {
+    Some(v) => v + 2
+    None => match line.find("(\\\"") { Some(v) => v + 3; None => 0 }
+  }
   let start = i
   while i < line.length() && line.get_char(i) != Some('"') { i += 1 }
   let name = if i > start { line[start:i].to_owned() } else { "" }
@@ -366,14 +369,20 @@ async fn main {
   // Escape-aware: signatures contain `Invalid_argument(\"Char.chr\")`.
   let original = @cluster.json_get_string(meta, "signature")
   let kind = @cluster.json_get_string(meta, "kind")
+  let expected_json = @stager.read_text(join(join(case_dir, "original"), "expected.json"))
+  let expected_out = @cluster.json_get_string(expected_json, "stdout")
+  let expected_err = @cluster.json_get_string(expected_json, "stderr")
+  let expected_rc = if expected_json.contains("255") { 255 } else if expected_json.contains("\"rc\": 2") || expected_json.contains("\"rc\":2") { 2 } else if expected_json.contains("1") { 1 } else { 0 }
+  let expected_sig = test_sig(expected_out, expected_err)
   let sigs : Array[String] = []
   let mut reproducible = 0
+  let mut exact = 0
   let mut first_err = ""
   for k in 0..<3 {
     let sig_err = if is_capsule {
       capsule_replay(
         join(work, "r" + k.to_string()),
-        join(case_dir, "pkg"),
+        join(join(case_dir, "original"), "pkg"),
         cap_file,
         src,
         cap_moon,
@@ -389,14 +398,19 @@ async fn main {
       let (s, rc, e) = run_signature(d, stage, relaxed)
       (s, rc, "", e)
     }
-    let (sig, _, _out, err) = sig_err
+    let (sig, rrc, _out, err) = sig_err
     sigs.push(sig)
     if first_err == "" {
       first_err = err
     }
     // Same fingerprint as the candidate AND crash class; three different
     // crashes are not three reproductions of one defect.
-    if original != "" && sig == original {
+    if kind == "TEST_FAIL" {
+      if sig == expected_sig && sig != "test||" && rrc == expected_rc {
+        exact += 1
+        reproducible += 1
+      }
+    } else if original != "" && sig == original {
       reproducible += 1
     }
   }
@@ -409,7 +423,7 @@ async fn main {
     } else {
       let (ctl_sig, ctl_rc, _ctl_out, ctl_err) = capsule_replay(
         ctl,
-        join(case_dir, "pkg"),
+        join(join(case_dir, "original"), "pkg"),
         cap_file,
         baseline_src,
         cap_moon,
@@ -513,7 +527,7 @@ async fn main {
   }) {
     minimise_note = "not supported for stage " + stage
   }
-  let status = triage_status(
+  let status0 = triage_status(
     is_defect_sig(first),
     is_timeout_only(first),
     reproducible,
@@ -522,6 +536,7 @@ async fn main {
     minimize_required,
     minimised,
   )
+  let status = if kind == "TEST_FAIL" && exact < 3 { "inconclusive" } else { status0 }
   // A confirmed witness must outlive the work directory.
   if status == "confirmed" {
     let cd = join(case_dir, "confirmed")
