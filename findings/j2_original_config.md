@@ -52,3 +52,21 @@ live/tamper 控制。
   TEST_FAIL witness。
 - 比较的是 rc + 完整 stdout/stderr（含 test 名/断言文本），不是只比签名。
 - 没有改 pin，没有发上游，没有新增 `.py`。
+
+
+## J2b end-to-end
+
+`original_config_e2e.sh` 用 `regressions/pkg_semantic/f8_30/pkg` 跑小预算
+package campaign，真实写出 witness：
+
+```text
+findings/build/BUILD_FAIL/<sig>/original/{moon.mod,moon.pkg,source.mbt,argv.txt,manifest.json}
+```
+
+- manifest 的四个 sha1 全部匹配；
+- 从 snapshot `pkg` + `original/source.mbt` 在 3 个 fresh 目录 replay，
+  3/3 相同 rc/签名；
+- gate `original_config_replay` detail 的 `e2e=1`；另有独立
+  `original_config_e2e` gate。
+
+实测：`{"e2e":1,"replayed":3,"matched":3}`。

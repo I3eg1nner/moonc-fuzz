@@ -46,11 +46,14 @@ sed -i 's/assert_eq(1, 2)/assert_eq(2, 2)/' "$OUT/snap/lib_test.mbt"
 replay "$OUT/rt"
 tamper_mismatch=0
 if ! cmp -s "$OUT/rt/out" "$OUT/expected.out" || ! cmp -s "$OUT/rt/err" "$OUT/expected.err"; then tamper_mismatch=1; fi
+# J2b: real package campaign evidence.
+E2E_JSON=$(bash "$ROOT/scripts/original_config_e2e.sh" "$ROOT")
+E2E=$(jq -r '.e2e' <<<"$E2E_JSON")
 # Save counts.
-jq -n --argjson saved 1 --argjson replayed 3 --argjson matched "$matched" \
+jq -n --argjson saved 1 --argjson replayed 3 --argjson matched "$matched" --argjson e2e "$E2E" \
   --argjson live_mutation_still_match "$live_snapshot_ok" --argjson tamper_mismatch "$tamper_mismatch" \
   --arg manifest "$(cat "$OUT/snap/manifest.txt" | tr '\n' ';')" \
-  '{saved:$saved,replayed:$replayed,matched:$matched,expected:"FAILED: `1 != 2`",live_mutation_still_match:$live_mutation_still_match,tamper_mismatch:$tamper_mismatch,manifest:$manifest}' > "$OUT/summary.json"
+  '{saved:$saved,replayed:$replayed,matched:$matched,e2e:$e2e,expected:"FAILED: `1 != 2`",live_mutation_still_match:$live_mutation_still_match,tamper_mismatch:$tamper_mismatch,manifest:$manifest}' > "$OUT/summary.json"
 cat "$OUT/summary.json"
 rm -rf "$OUT"
 [[ "$matched" -eq 3 && "$live_snapshot_ok" -eq 1 && "$tamper_mismatch" -eq 1 ]]

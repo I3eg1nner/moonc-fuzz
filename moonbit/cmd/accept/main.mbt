@@ -394,9 +394,36 @@ async fn main {
   )
   let ocr_out = ocr.stdout.trim().to_owned()
   let ocr_ok = ocr.rc == 0 && ocr_out.contains("\"matched\": 3") &&
+    ocr_out.contains("\"e2e\": 1") &&
     ocr_out.contains("\"live_mutation_still_match\": 1") &&
     ocr_out.contains("\"tamper_mismatch\": 1")
   results.push(check("original_config_replay", ocr_ok, ocr_out))
+
+  // 2a8. Real package campaign original snapshot (J2b).
+  let e2e = @exec.run(
+    "bash",
+    [join(root, "scripts/original_config_e2e.sh"), root],
+    root,
+    300000,
+  )
+  let e2e_out = e2e.stdout.trim().to_owned()
+  let e2e_ok = e2e.rc == 0 && e2e_out.contains("\"e2e\": 1") &&
+    e2e_out.contains("\"matched\": 3")
+  results.push(check("original_config_e2e", e2e_ok, e2e_out))
+
+  // 2a9. Portable supervisor aggregate RSS/proc/deadline and cancellation.
+  let ac = @exec.run(
+    "bash",
+    [join(root, "scripts/aggregate_cancel_test.sh"), root],
+    root,
+    120000,
+  )
+  let ac_out = ac.stdout.trim().to_owned()
+  let ac_ok = ac.rc == 0 && ac_out.contains("\"ok\": 1") &&
+    ac_out.contains("\"positive_incomplete\": 1") &&
+    ac_out.contains("\"positive_orphans\": 0") &&
+    ac_out.contains("\"negative_incomplete\": 0")
+  results.push(check("aggregate_cancel", ac_ok, ac_out))
 
   // 2b. LSP defect gate.  Separately named on purpose: it asserts that F10,
   // F11 and F12 *still reproduce*, so an upstream fix must fail this check
