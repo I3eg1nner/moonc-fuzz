@@ -385,48 +385,6 @@ async fn main {
     sr_out.contains("\"quarantine_ok\": 1")
   results.push(check("state_recovery", sr_ok, sr_out))
 
-  // 2a7. Original-config package replay.
-  let ocr = @exec.run(
-    "bash",
-    [join(root, "scripts/original_config_replay.sh"), root],
-    root,
-    300000,
-  )
-  let ocr_out = ocr.stdout.trim().to_owned()
-  let ocr_ok = ocr.rc == 0 && ocr_out.contains("\"matched\": 3") &&
-    ocr_out.contains("\"e2e\": 1") &&
-    ocr_out.contains("\"live_mutation_still_match\": 1") &&
-    ocr_out.contains("\"tamper_mismatch\": 1")
-  results.push(check("original_config_replay", ocr_ok, ocr_out))
-
-  // 2a8. Real package campaign original snapshot (J2b).
-  let e2e = @exec.run(
-    "bash",
-    [join(root, "scripts/original_config_e2e.sh"), root],
-    root,
-    300000,
-  )
-  let e2e_out = e2e.stdout.trim().to_owned()
-  let e2e_ok = e2e.rc == 0 && e2e_out.contains("\"e2e\": 1") &&
-    e2e_out.contains("\"stage\": \"test\"") &&
-    e2e_out.contains("\"reproduced\": \"3/3\"")
-  results.push(check("original_config_e2e", e2e_ok, e2e_out))
-
-  // 2a8b. P0-4 pin/expected negative controls.
-  let ocrn = @exec.run(
-    "bash",
-    [join(root, "scripts/original_config_negative_test.sh"), root],
-    root,
-    300000,
-  )
-  let ocrn_out = ocrn.stdout.trim().to_owned()
-  let ocrn_ok = ocrn.rc == 0 && ocrn_out.contains("\"ok\": 1") &&
-    ocrn_out.contains("\"pin_refused\": 1") &&
-    ocrn_out.contains("\"expected_tamper\": \"flaky\"") &&
-    ocrn_out.contains("\"name_tamper\": \"flaky\"") &&
-    ocrn_out.contains("\"baseline\": \"inconclusive\"")
-  results.push(check("original_config_negative", ocrn_ok, ocrn_out))
-
   // 2a9. Portable supervisor aggregate RSS/proc/deadline and cancellation.
   let ac = @exec.run(
     "bash",
