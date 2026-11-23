@@ -408,7 +408,8 @@ async fn main {
   )
   let e2e_out = e2e.stdout.trim().to_owned()
   let e2e_ok = e2e.rc == 0 && e2e_out.contains("\"e2e\": 1") &&
-    e2e_out.contains("\"matched\": 3")
+    e2e_out.contains("\"stage\": \"test\"") &&
+    e2e_out.contains("\"reproduced\": \"3/3\"")
   results.push(check("original_config_e2e", e2e_ok, e2e_out))
 
   // 2a8b. P0-4 pin/expected negative controls.
@@ -421,7 +422,9 @@ async fn main {
   let ocrn_out = ocrn.stdout.trim().to_owned()
   let ocrn_ok = ocrn.rc == 0 && ocrn_out.contains("\"ok\": 1") &&
     ocrn_out.contains("\"pin_refused\": 1") &&
-    ocrn_out.contains("\"expected_e2e\": 0")
+    ocrn_out.contains("\"expected_tamper\": \"flaky\"") &&
+    ocrn_out.contains("\"name_tamper\": \"flaky\"") &&
+    ocrn_out.contains("\"baseline\": \"inconclusive\"")
   results.push(check("original_config_negative", ocrn_ok, ocrn_out))
 
   // 2a9. Portable supervisor aggregate RSS/proc/deadline and cancellation.

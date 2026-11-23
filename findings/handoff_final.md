@@ -73,6 +73,7 @@
 **P0 状态（2026-11-23）**
 - corpus owner 事务/checkpoint：J1 已实现 header schema/checksum/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536、epoch2 796/536；最新 197/803）。P0-2 已补 `--recover`、schema/checksum/hash 五种 injection、以及 mid_payload/after_tmp/after_rename 三个 kill 点；仅保留 per-fd fsync 的边界。
 - original-config replay：P0-4 快照增加 `pin.json`/`env.json`/`cwd`；e2e 用 argv 数组、`env`、cwd replay，pin 改坏拒绝、expected 改坏 mismatch、baseline mismatch；包种用无依赖 `package_seeds/double`。argv 序列化仍从 command 字符串生成，未做到调用点直存数组；TEST_FAIL triage 的断言/test 名比较未做。
+- TEST_FAIL replay：`original_config_e2e` 直接调用 triage，不再复制比较逻辑；normal confirmed 3/3、stage=test，三个负控非 confirmed。
 - original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 已闭环。
 - 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿但明确 **setsid 逃逸不支持**，没有 `process_tree` gate；组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。

@@ -74,3 +74,10 @@ manifest 对 `moon.mod/moon.pkg/source.mbt/argv.json/paths.json/expected.json`
 逐项非空校验；e2e replay 读 `argv.json` + `paths.json` + `expected.json`，
 不读 argv.txt，不硬编码 build-only。`baseline_mismatch=1` 是负控：把
 `source.mbt` 换成 baseline 后 rc/错误码不一致。
+
+
+## TEST_FAIL 收尾
+
+`original_config_e2e` 不再自己比 rc/FAILED，直接调用 `cmd/triage --case`；
+normal `confirmed 3/3`、stage=test；expected/name/baseline 三个负控都不是 confirmed。
+campaign 级 TEST_FAIL 生成仍受 mutator 限制，独立缺口。
