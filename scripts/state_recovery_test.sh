@@ -65,7 +65,7 @@ resign() {
   vals=$(head -1 "$f" | jq -r '[.epoch,.cases,.owners,.adds,.config_hash,.pin_hash,.corpus_hash,.last]|@tsv')
   eval "$(printf '%s' "$vals" | awk -F '\t' '{printf "e=%s c=%s o=%s a=%s ch=%s ph=%s coh=%s last=%s\n",$1,$2,$3,$4,$5,$6,$7,$8}')"
   canon="{\"schema\":\"coverage_state/v3\",\"version\":2,\"epoch\":"$e",\"cases\":"$c",\"owners\":"$o",\"adds\":"$a",\"config_hash\":\""$ch"\",\"pin_hash\":\""$ph"\",\"corpus_hash\":\""$coh"\",\"last\":\""$last"\"}"
-  sum=$(printf '%s\n%s' "$canon" "$payload" | sha1sum | awk '{print $1}')
+  sum=$(printf '%s\n%s\n' "$canon" "$payload" | sha1sum | awk '{print $1}')
   sed -i "s/\"checksum\":\"[0-9a-f]*\"/\"checksum\":\"$sum\"/" "$f"
 }
 
@@ -87,10 +87,10 @@ run_control() {
       --mode mbt --workers 1 --coverage-state "$dd/coverage_state.jsonl" --recover-only >"$dd/out" 2>"$dd/err"
   fi
   if [ "$strict" = 1 ]; then
-    FUZZ_STATE_SKIP="$skip" "$BIN" --out "$sd" --run-id "${name}s" --duration 2 --seed-dir "$seed" --require-same-corpus \
+    FUZZ_STATE_TEST_INJECT=1 FUZZ_STATE_SKIP="$skip" "$BIN" --out "$sd" --run-id "${name}s" --duration 2 --seed-dir "$seed" --require-same-corpus \
       --mode mbt --workers 1 --coverage-state "$sd/coverage_state.jsonl" --recover-only >"$sd/out" 2>"$sd/err"
   else
-    FUZZ_STATE_SKIP="$skip" "$BIN" --out "$sd" --run-id "${name}s" --duration 2 --seed-dir "$seed" \
+    FUZZ_STATE_TEST_INJECT=1 FUZZ_STATE_SKIP="$skip" "$BIN" --out "$sd" --run-id "${name}s" --duration 2 --seed-dir "$seed" \
       --mode mbt --workers 1 --coverage-state "$sd/coverage_state.jsonl" --recover-only >"$sd/out" 2>"$sd/err"
   fi
   local dnc dhit drec snc srec
@@ -123,7 +123,12 @@ drift=$(jq -r '.corpus_drift' "$OUT/R_r5d"/*/summary.json 2>/dev/null | tail -1)
 drcase=$(jq -r 'select(has("schema"))|.cases' "$OUT/R_r5d/coverage_state.jsonl" 2>/dev/null || echo 0)
 drown=$(jq -r 'select(has("schema"))|.owners' "$OUT/R_r5d/coverage_state.jsonl" 2>/dev/null || echo 0)
 drift_ok=0; [ "${drift:-0}" = 1 ] && [ "$drcase" -eq "$cases1" ] && [ "$drown" -eq "$owners1" ] && grep -q 'corpus-drift' "$OUT/R_r5d/out" && drift_ok=1
-quarantine_ok=0; [ "$r1" = true ] && [ "$r2" = true ] && [ "$r3" = true ] && [ "$r4" = true ] && [ "$r5" = true ] && [ "$drift_ok" = 1 ] && quarantine_ok=1
+# Only skip without TEST_INJECT must not bypass.
+mkdir -p "$OUT/R_noinject"; cp "$STATE1" "$OUT/R_noinject/coverage_state.jsonl"
+sed -i 's/"cases":[0-9]*/"cases":999999/' "$OUT/R_noinject/coverage_state.jsonl"
+FUZZ_STATE_SKIP=header "$BIN" --out "$OUT/R_noinject" --run-id ni --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$OUT/R_noinject/coverage_state.jsonl" --recover-only >"$OUT/R_noinject/out" 2>"$OUT/R_noinject/err"
+ni_n=$(corrupt_count "$OUT/R_noinject"); ni_rec=$(tail -1 "$OUT/R_noinject/out" | jq -r '.recovered_cases // 0')
+quarantine_ok=0; [ "$r1" = true ] && [ "$r2" = true ] && [ "$r3" = true ] && [ "$r4" = true ] && [ "$r5" = true ] && [ "$drift_ok" = 1 ] && [ "$ni_n" -eq 1 ] && [ "$ni_rec" -eq 0 ] && quarantine_ok=1
 quarantine_ok=0; [ "$r1" = true ] && [ "$r2" = true ] && [ "$r3" = true ] && [ "$r4" = true ] && [ "$r5" = true ] && [ "$drift_ok" = 1 ] && quarantine_ok=1
 
 # Per-control detail counts (default and skip).

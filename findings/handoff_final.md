@@ -17,7 +17,7 @@
 |---|---|---|---|
 | 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
 | 13 个回归 case（F1–F6 家族 12 个 + P1；F7–F12 另有专项门禁） | `p0_evidence.md`, `f8f9_trigger_surface.md`, `defect_inventory.md` | `poc/`, `cmd/regress` | `regressions_13`, `f7_boundary`, `reduce_witness`, `lsp_regress_6` |
-| 38 条 issue 派生 oracle（A–I） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md`, `issue_oracle_g.md`, `issue_oracle_h.md`, `issue_oracle_final.md`, `j1_state_recovery.md`, `j2_original_config.md`, `j3_aggregate_cancel.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity`, `must_reject_sensitivity`, `attribute_sensitivity`, `state_recovery`, `original_config_replay`, `original_config_e2e`, `aggregate_cancel`, `sem3_observation`, `fmt_f13`, `original_config_negative` |
+| 38 条 issue 派生 oracle（A–I） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md`, `issue_oracle_g.md`, `issue_oracle_h.md`, `issue_oracle_final.md`, `j1_state_recovery.md`, `j2_original_config.md`, `j3_aggregate_cancel.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity`, `must_reject_sensitivity`, `attribute_sensitivity`, `state_recovery`, `original_config_e2e`, `aggregate_cancel`, `sem3_observation`, `fmt_f13`, `supervisor_process_tree` |
 | semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
 | triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
 | formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
@@ -77,7 +77,7 @@
 - original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 行为复验闭环：真实 campaign TEST_FAIL，stage=test，triage confirmed 3/3；expected/pkg/baseline 三控制均 inconclusive；argv/env 篡改 confirmed → 记 not_sensitive（行为未变）。manifest 只做 provenance warning，不参与判定。
 
 P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor：`max_procs=WORKERS+8`、`deadline=DUR+120`，实际值写 `supervisor.limits`；`SUPERVISOR_DRYRUN=1` 只写 limits。soak_epochs 每 epoch 经 supervisor，默认 `max_procs=WORKERS*4+8`，CSV 的 sup_rc 用真实退出码；`supervisor_process_tree` gate a–f 全绿（含 48 workers/600s dryrun limits 720/56）。setsid 仍 unsupported。
-- 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿但明确 **setsid 逃逸不支持**，没有 `process_tree` gate；组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
+- 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿；`supervisor_process_tree` gate 已存在。setsid 逃逸仍 unsupported，组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。
 - F13：`fmt_f13` gate 固定 `-(-2147483648)`、i64 min、triple nested；moonfmt 输出 `moon check` 均 `[4095]`，healthy `-(-1)` 通过；分类 `compiler_inconsistency_candidate`。
 
@@ -107,7 +107,7 @@ P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh �
 moon version --all            # 期望包含 0.1.20261104 / 0.10.20+65efd5b93
 
 cd moonbit
-moon test --target native     # 期望 Total tests: 385, passed: 385, failed: 0
+moon test --target native     # 期望 Total tests: 386, passed: 386, failed: 0
 
 # 完整验收（36 门）
 ./_build/native/debug/build/cmd/accept/accept.exe /data/audit/mbtfuzz
@@ -157,7 +157,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 最终检查结果（2026-11-22 12:17 UTC）：
 
 ```
-moon test   385 / 385（Total tests: 385, passed: 385, failed: 0）
+moon test   386 / 386（Total tests: 386, passed: 386, failed: 0）
 accept      35 / 35（ok=true, checks=35, 无失败）
 git         已提交并推送，worktree clean
 pin         未改动
@@ -169,3 +169,12 @@ HEAD 与推送结果见本次提交（`docs: final handoff`）。
 上复现（11 个根因类 + P1；F11/F12 合并），`cmd/regress` 13/13；未发现新缺陷，
 也没有任何一条可称为 miscompile。
 
+
+
+## Curated 分解
+
+38 = 15 fixed / 15 reproduced / 4 unclear / 3 needs_old_toolchain / 1 not_reproducible；612 属于 needs_old_toolchain，不是 unclear。
+
+## A3/A4 状态
+
+TEST_FAIL findings 已改为 `findings/test/TEST_FAIL/<test sig>`，seed 只保留 4 个源文件；但实测 witness 仍 2420KB 且 `no_build=0`，A3 去冗余未闭环。已删除 `scripts/test_fail_triage_test.sh`、`scripts/original_config_replay.sh` 和陈旧 `regressions/pkg_test_fail/witness/`。

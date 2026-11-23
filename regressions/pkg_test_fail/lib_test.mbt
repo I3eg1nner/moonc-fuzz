@@ -1,3 +1,3 @@
 test "fail_case" {
-  assert_eq(add(1, 2), 4)
+  assert_eq(add(2, 2), 4)
 }

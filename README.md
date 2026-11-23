@@ -284,7 +284,7 @@ moon run cmd/lspregress
 - `featuregen/`、`asyncgen/`：特性定向源生成器（native 布局矩阵、async 状态机矩阵）；
 - `lsp/`：LSP 帧/请求模型与结果分类（纯函数，29 个测试）。
 
-当前 385 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
+当前 386 个测试通过，`moon check` 无警告。GitHub Actions 在每次 push 和 PR
 上跑两个 job：`latest-canary` 用上游最新的工具链跑
 `moon check`/`build`/`test`/`fmt --check` 和最小示例；`pinned-evidence`
 下载 v0.1.0 的冻结工具链、校验 sha256，然后跑 `accept --profile core`
@@ -533,3 +533,5 @@ Apache-2.0，见 `LICENSE`。仓库内的第三方 fixture（如
 `supervisor.sh --json-out FILE` 只写 JSON 到文件，子进程 stdout/stderr 继承；run.sh 和 soak_epochs 已默认经过 supervisor。setsid 逃逸仍 unsupported。
 
 run.sh 的 supervisor 默认 `max_procs=WORKERS+8`、`deadline=DUR+120`；`SUPERVISOR_DRYRUN=1` 只写 `supervisor.limits`。soak 的默认 `max_procs=WORKERS*4+8`。
+
+state checksum 无密钥，只防意外损坏，不防重算篡改；`FUZZ_STATE_SKIP` 需同时 `FUZZ_STATE_TEST_INJECT=1`，仅测试注入。

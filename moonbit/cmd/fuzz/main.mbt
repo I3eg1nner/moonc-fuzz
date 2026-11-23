@@ -2597,28 +2597,12 @@ fn find_named(dir : String, name : String, prefix : String) -> String {
 }
 
 ///|
-fn test_pass_mutation(s : String) -> String {
-  let n1 = "assert_eq(add(1, 2), 4)"
-  let n2 = "assert_eq(1, 2)"
-  match s.find(n1) {
-    Some(i) => s[0:i].to_owned() + "assert_eq(add(1, 2), 3)" + s[i + n1.length():].to_owned()
-    None => match s.find(n2) {
-      Some(i) => s[0:i].to_owned() + "assert_eq(1, 1)" + s[i + n2.length():].to_owned()
-      None => s
-    }
-  }
-}
-
 ///|
 fn test_assert_mutation(s : String) -> String {
-  let n1 = "assert_eq(add(1, 2), 4)"
-  let n2 = "assert_eq(1, 2)"
-  match s.find(n1) {
-    Some(i) => s[0:i].to_owned() + "assert_eq(add(1, 2), 5)" + s[i + n1.length():].to_owned()
-    None => match s.find(n2) {
-      Some(i) => s[0:i].to_owned() + "assert_eq(1, 3)" + s[i + n2.length():].to_owned()
-      None => s
-    }
+  let needle = "assert_eq(add(2, 2), 4)"
+  match s.find(needle) {
+    Some(i) => s[0:i].to_owned() + "assert_eq(add(2, 2), 5)" + s[i + needle.length():].to_owned()
+    None => s
   }
 }
 
@@ -2637,10 +2621,11 @@ async fn save_pkg_witness(
   out : String,
   err : String,
 ) -> Bool {
-  let fd = join(
-    join(join(join(cfg.out, "findings"), "build"), kind),
-    @corpus.dir_slug(sig),
-  )
+  let fd = if kind == "TEST_FAIL" {
+    join(join(join(join(cfg.out, "findings"), "test"), kind), @corpus.dir_slug(sig))
+  } else {
+    join(join(join(join(cfg.out, "findings"), "build"), kind), @corpus.dir_slug(sig))
+  }
   if @fs.path_exists(join(fd, "meta.json")) {
     return false
   }
@@ -2649,7 +2634,7 @@ async fn save_pkg_witness(
   @corpus.ensure_dir(orig)
   // The failure scene is the working copy `wd`; `original/source.mbt` is the
   // mutant `src`, never the baseline.
-  let control_baseline = if kind == "TEST_FAIL" { test_pass_mutation(baseline) } else { baseline }
+  let control_baseline = baseline
   if !@stager.write_text(join(fd, "in.mbt"), src) ||
     !@stager.write_text(join(fd, "baseline.mbt"), control_baseline) {
     @stager.rm_rf(fd)
@@ -3783,7 +3768,19 @@ fn state_reject_reason(cov : TraceUniverse, text : String) -> String {
 
 ///|
 fn state_skip() -> String {
-  match @env.get_env_var("FUZZ_STATE_SKIP") { Some(v) => v; None => "" }
+  let inject = match @env.get_env_var("FUZZ_STATE_TEST_INJECT") {
+    Some(v) => v == "1"
+    None => false
+  }
+  if !inject { return "" }
+  match @env.get_env_var("FUZZ_STATE_SKIP") {
+    Some(v) =>
+      if v != "" {
+        println("[state] TEST-INJECT skip=" + v)
+        v
+      } else { "" }
+    None => ""
+  }
 }
 
 ///|

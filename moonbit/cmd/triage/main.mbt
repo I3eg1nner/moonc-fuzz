@@ -351,6 +351,11 @@ async fn main {
   // Escape-aware: signatures contain `Invalid_argument(\"Char.chr\")`.
   let original = @cluster.json_get_string(meta, "signature")
   let kind = @cluster.json_get_string(meta, "kind")
+  let meta_stage = @cluster.json_get_string(meta, "stage")
+  let schema_ok = (kind == "TEST_FAIL" || kind == "BUILD_FAIL" || kind == "ICE") &&
+    (meta_stage == "build" || meta_stage == "test" || meta_stage == "check" ||
+      meta_stage == "syncheck" || meta_stage == "t1" || meta_stage == "t2" ||
+      meta_stage == "t3")
   let expected_json = @stager.read_text(join(join(case_dir, "original"), "expected.json"))
   let expected_out = @cluster.json_get_string(expected_json, "stdout")
   let expected_err = @cluster.json_get_string(expected_json, "stderr")
@@ -393,7 +398,7 @@ async fn main {
     // Same fingerprint as the candidate AND crash class; three different
     // crashes are not three reproductions of one defect.
     if kind == "TEST_FAIL" {
-      if sig == expected_sig && sig != "test||" && rrc == expected_rc {
+      if sig == expected_sig && sig == original && sig != "test||" && rrc == expected_rc {
         exact += 1
         reproducible += 1
       }
@@ -523,7 +528,7 @@ async fn main {
     minimize_required,
     minimised,
   )
-  let status = if !pin_ok { "pin_refused" } else if kind == "TEST_FAIL" && exact < 3 { "inconclusive" } else { status0 }
+  let status = if !schema_ok { "schema_invalid" } else if !pin_ok { "pin_refused" } else if kind == "TEST_FAIL" && exact < 3 { "inconclusive" } else { status0 }
   // A confirmed witness must outlive the work directory.
   if status == "confirmed" {
     let cd = join(case_dir, "confirmed")

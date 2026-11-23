@@ -397,11 +397,17 @@ async fn main {
     e2e_out.contains("\"stage\": \"test\"") &&
     e2e_out.contains("\"status\": \"confirmed\"") &&
     e2e_out.contains("\"reproduced\": \"3/3\"") &&
-    e2e_out.contains("\"controls\": 3") &&
+    e2e_out.contains("\"controls\": 4") &&
+    e2e_out.contains("\"baseline_clean\": 1") &&
+    e2e_out.contains("\"source_ne_baseline\": 1") &&
     e2e_out.contains("\"expected_control\": \"inconclusive\"") &&
+    e2e_out.contains("\"name_control\": \"inconclusive\"") &&
     e2e_out.contains("\"pkg_control\": \"inconclusive\"") &&
     e2e_out.contains("\"baseline_control\": \"inconclusive\"") &&
-    e2e_out.contains("\"pin_control\": \"pin_refused\"")
+    e2e_out.contains("\"pin_control\": \"pin_refused\"") &&
+    e2e_out.contains("\"kind_control\": \"schema_invalid\"") &&
+    e2e_out.contains("\"stage_control\": \"schema_invalid\"") &&
+    e2e_out.contains("\"witness_kb\": ")
   results.push(check("original_config_e2e", e2e_ok, e2e_out))
 
   // 2a8c. Process-tree/exit propagation and real soak wrapper.

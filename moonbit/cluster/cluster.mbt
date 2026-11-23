@@ -193,11 +193,15 @@ pub fn json_get_int(text : String, key : String) -> Int {
 
 ///|
 pub fn json_get_string(text : String, key : String) -> String {
-  let pat = "\"" + key + "\":\""
-  let i = match text.find(pat) {
+  let pat = "\"" + key + "\":"
+  let i0 = match text.find(pat) {
     None => return ""
     Some(i) => i + pat.length()
   }
+  let mut i = i0
+  while i < text.length() && text.get_char(i) == Some(' ') { i += 1 }
+  if i >= text.length() || text.get_char(i) != Some('"') { return "" }
+  i += 1
   let b = StringBuilder()
   let mut j = i
   let mut closed = false
