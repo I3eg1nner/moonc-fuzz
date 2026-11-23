@@ -133,6 +133,7 @@ struct Config {
   /// carried input looks novel again.
   mut coverage_state : String
   mut coverage_write : String
+  mut recover : Bool
   /// Package lane: a whole package (moon.pkg/deps/argv) instead of flat files.
   mut pkg_seed : String
   mut pkg_file : String
@@ -3582,61 +3583,115 @@ fn json_int_field(line : String, key : String) -> Int32 {
 }
 
 ///|
-fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
-  let text = @stager.read_text(cfg.coverage_state)
-  // A state file without its checksum, or with a mismatch, is not trusted:
-  // the campaign starts from an empty universe rather than from half state.
-  let expected = @stager.read_text(cfg.coverage_state + ".sha256")
-    .trim()
-    .to_owned()
-  if text != "" && !text.contains("\"schema\":\"coverage_state/v2\"") &&
-    (expected == "" || @corpus.sha1_hex(text) != expected) {
-    // Old (headerless) state: sidecar is authoritative.  New state has a
-    // header checksum and must not depend on a sidecar that may be lost.
-    // Quarantine the old file instead of silently starting from empty.  The
-    // copy preserves bytes; the original is removed only after the copy lands.
-    let corrupt = cfg.coverage_state + ".corrupt." + @env.now().to_string()
-    if @stager.write_text(corrupt, text) {
-      @fs.remove_file(cfg.coverage_state) catch { _ => () }
-      @fs.remove_file(cfg.coverage_state + ".sha256") catch { _ => () }
-      println("[state] quarantine " + cfg.coverage_state + " -> " + corrupt)
+fn state_file_name(path : String) -> String {
+  let mut i = path.length()
+  while i > 0 {
+    i -= 1
+    if path.get_char(i) == Some('/') {
+      return path[i + 1:].to_owned()
     }
-    return (0, 0)
+  }
+  path
+}
+
+///|
+fn state_header_valid(cfg : Config, cov : TraceUniverse, text : String) -> Bool {
+  let nl = match text.find("\n") { Some(i) => i; None => text.length() }
+  let first = text[0:nl].to_owned()
+  if !first.contains("\"schema\":\"coverage_state/v2\"") ||
+    json_int_field(first, "version") != 1 {
+    return false
+  }
+  let want = json_str_field(first, "checksum")
+  if want == "" {
+    return false
+  }
+  let payload_nl = if nl < text.length() { nl + 1 } else { text.length() }
+  let payload = text[payload_nl:].to_owned()
+  if @corpus.sha1_hex(payload) != want {
+    return false
+  }
+  let ch = json_str_field(first, "config_hash")
+  let ph = json_str_field(first, "pin_hash")
+  let coh = json_str_field(first, "corpus_hash")
+  if (ch != "" && ch != cov.state_config_hash) ||
+    (ph != "" && ph != cov.state_pin_hash) ||
+    (coh != "" && coh != cov.state_corpus_hash) {
+    return false
+  }
+  true
+}
+
+///|
+fn quarantine_state(cfg : Config, text : String, reason : String) -> Unit {
+  let corrupt = cfg.coverage_state + ".corrupt." + reason + "." +
+    @env.now().to_string()
+  if @stager.write_text(corrupt, text) {
+    @fs.remove_file(cfg.coverage_state) catch { _ => () }
+    @fs.remove_file(cfg.coverage_state + ".sha256") catch { _ => () }
+    println(
+      "[state] quarantine " + cfg.coverage_state + " reclaimed=" + corrupt,
+    )
+  } else {
+    println("[state] quarantine-write-failed " + cfg.coverage_state)
+  }
+}
+
+///|
+fn try_recover_state(cfg : Config, cov : TraceUniverse) -> String {
+  let dir = parent_dir(cfg.coverage_state)
+  let prefix = state_file_name(cfg.coverage_state) + ".corrupt."
+  let names : Array[String] = []
+  for n in @stager.try_read_dir(dir) {
+    if n.has_prefix(prefix) {
+      names.push(n)
+    }
+  }
+  names.sort()
+  for i in 0..<names.length() {
+    let idx = names.length() - 1 - i
+    let path = join(dir, names[idx])
+    let text = @stager.read_text(path)
+    if state_header_valid(cfg, cov, text) {
+      if @stager.write_text(cfg.coverage_state, text) {
+        println(
+          "[state] recovered " + cfg.coverage_state + " from " + path,
+        )
+        return text
+      }
+    }
+  }
+  ""
+}
+
+///|
+fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
+  let mut text = @stager.read_text(cfg.coverage_state)
+  if cfg.recover && (text == "" || !state_header_valid(cfg, cov, text)) {
+    let recovered = try_recover_state(cfg, cov)
+    if recovered != "" {
+      text = recovered
+    } else if text == "" {
+      println("[state] fresh-start " + cfg.coverage_state)
+    }
   }
   let mut keys = 0
   let mut edges = 0
   if text == "" {
     return (0, 0)
   }
-  // Header checksum is self-contained: a state file is valid even if the
-  // sidecar was never renamed.  Old files without a header checksum may use
-  // the sidecar; anything else is quarantined.
-  let header_nl = match text.find("\n") { Some(i) => i; None => text.length() }
-  let first = text[0:header_nl].to_owned()
-  if first.contains("\"schema\":") {
-    if !first.contains("\"schema\":\"coverage_state/v2\"") ||
-      json_int_field(first, "version") != 1 {
+  // Headerless legacy state: sidecar is authoritative.
+  if !text.contains("\"schema\":") {
+    let expected = @stager.read_text(cfg.coverage_state + ".sha256")
+      .trim()
+      .to_owned()
+    if expected == "" || @corpus.sha1_hex(text) != expected {
+      quarantine_state(cfg, text, "legacy")
       return (0, 0)
     }
-    let want = json_str_field(first, "checksum")
-    let nl = if header_nl < text.length() { header_nl + 1 } else { text.length() }
-    let payload = text[nl:].to_owned()
-    let ch = json_str_field(first, "config_hash")
-    let ph = json_str_field(first, "pin_hash")
-    let coh = json_str_field(first, "corpus_hash")
-    let bad_cfg = ch != "" && ch != cov.state_config_hash
-    let bad_pin = ph != "" && ph != cov.state_pin_hash
-    let bad_corpus = coh != "" && coh != cov.state_corpus_hash
-    if want == "" || @corpus.sha1_hex(payload) != want ||
-      bad_cfg || bad_pin || bad_corpus {
-      let corrupt = cfg.coverage_state + ".corrupt." + @env.now().to_string()
-      if @stager.write_text(corrupt, text) {
-        @fs.remove_file(cfg.coverage_state) catch { _ => () }
-        @fs.remove_file(cfg.coverage_state + ".sha256") catch { _ => () }
-        println("[state] quarantine " + cfg.coverage_state + " -> " + corrupt)
-      }
-      return (0, 0)
-    }
+  } else if !state_header_valid(cfg, cov, text) {
+    quarantine_state(cfg, text, "header")
+    return (0, 0)
   }
   for line in text.split("\n") {
     if line.contains("\"schema\":") {
@@ -3725,8 +3780,21 @@ async fn save_coverage_state(cfg : Config, cov : TraceUniverse, out : String) ->
   }
   @corpus.ensure_dir(parent_dir(target))
   let tmp = target + ".tmp"
+  @fs.remove_file(tmp) catch { _ => () }
+  let kill_mode = match @env.get_env_var("FUZZ_STATE_KILL") {
+    Some(v) => v
+    None => ""
+  }
+  if kill_mode == "mid_payload" {
+    let half = body.length() / 2
+    ignore(@stager.write_text(tmp, body[0:half].to_owned()))
+    @env.exit(77)
+  }
   if !@stager.write_text(tmp, body) {
     return false
+  }
+  if kill_mode == "after_tmp" {
+    @env.exit(77)
   }
   // Flush before rename; no per-fd fsync API is exposed here.
   let _ = @exec.run("/bin/sh", ["-c", "sync"], out, 5000)
@@ -3739,6 +3807,9 @@ async fn save_coverage_state(cfg : Config, cov : TraceUniverse, out : String) ->
   )
   if mv.rc != 0 {
     return false
+  }
+  if kill_mode == "after_rename" {
+    @env.exit(77)
   }
   true
 }
@@ -4097,6 +4168,7 @@ async fn main {
     emit_finding: "",
     coverage_state: "",
     coverage_write: "",
+    recover: false,
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
@@ -4244,6 +4316,9 @@ async fn main {
     } else if a == "--coverage-state-out" && i + 1 < args.length() {
       cfg.coverage_write = args[i + 1]
       i += 2
+    } else if a == "--recover" {
+      cfg.recover = true
+      i += 1
     } else {
       main_usage()
       return

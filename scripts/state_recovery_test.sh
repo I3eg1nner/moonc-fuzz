@@ -86,15 +86,41 @@ sed -i 's/"checksum":"[0-9a-f]*"/"checksum":""/' "$COR/coverage_state.jsonl"
 "$BIN" --out "$COR" --run-id c4 --duration 2 --seed-dir "$ROOT/templates" \
   --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c4.out" 2>"$COR/c4.err"
 q4=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-quarantine_ok=0; [ "$q1" -gt 0 ] && [ "$q2" -gt 0 ] && [ "$q3" -gt 0 ] && [ "$q4" -gt 0 ] && quarantine_ok=1
+# Config-hash mismatch must quarantine.
+cp "$STATE1" "$COR/coverage_state.jsonl"
+sed -i 's/"config_hash":"[0-9a-f]*"/"config_hash":"deadbeef"/' "$COR/coverage_state.jsonl"
+"$BIN" --out "$COR" --run-id c5 --duration 2 --seed-dir "$ROOT/templates" \
+  --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c5.out" 2>"$COR/c5.err"
+q5=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
+quarantine_ok=0; [ "$q1" -gt 0 ] && [ "$q2" -gt 0 ] && [ "$q3" -gt 0 ] && [ "$q4" -gt 0 ] && [ "$q5" -gt 0 ] && quarantine_ok=1
+# --recover: remove active, keep a valid .corrupt, expect counts restored.
+REC="$OUT/recover"; mkdir -p "$REC"
+cp "$STATE1" "$REC/coverage_state.jsonl.corrupt.1"
+"$BIN" --out "$REC" --run-id r1 --duration 2 --seed-dir "$ROOT/templates" \
+  --mode mbt --workers 1 --baseline-seeds 0 --trace-t1 0 --trace-t2 0 --trace-t3 0 --trace-workers 0 \
+  --coverage-state "$REC/coverage_state.jsonl" --recover >"$REC/out" 2>"$REC/err"
+recover_cases=$(jq -r 'select(has("schema"))|.cases' "$REC/coverage_state.jsonl" 2>/dev/null || echo 0)
+recover_ok=0; [ "$recover_cases" -gt 0 ] && recover_ok=1
+# Three kill points: old or new must be valid, never empty.
+kill_ok=1
+for mode in mid_payload after_tmp after_rename; do
+  RK="$OUT/kill_$mode"; mkdir -p "$RK"
+  cp "$STATE1" "$RK/coverage_state.jsonl"
+  FUZZ_STATE_KILL="$mode" "$BIN" --out "$RK" --run-id k1 --duration 8 --seed-dir "$ROOT/templates" \
+    --mode mbt --workers 1 --baseline-seeds 0 --trace-t1 0 --trace-t2 0 --trace-t3 0 --trace-workers 0 \
+    --coverage-state "$RK/coverage_state.jsonl" >"$RK/out" 2>"$RK/err"
+  kc=$(jq -r 'select(has("schema"))|.cases' "$RK/coverage_state.jsonl" 2>/dev/null || echo "")
+  kh=$(jq -r 'select(has("schema"))|.checksum' "$RK/coverage_state.jsonl" 2>/dev/null || echo "")
+  [ -n "$kc" ] && [ -n "$kh" ] || kill_ok=0
+done
 ok=0
-if [ "$RC2" -eq 0 ] && [ "$dup" -eq 0 ] && [ "$lost" -eq 0 ] && [ "$budget_ok" = 1 ] && [ "$cases_ok" = 1 ] && [ "$owners_ok" = 1 ] && [ "$hash_ok" = 1 ] && [ "$quarantine_ok" = 1 ]; then ok=1; fi
+if [ "$RC2" -eq 0 ] && [ "$dup" -eq 0 ] && [ "$lost" -eq 0 ] && [ "$budget_ok" = 1 ] && [ "$cases_ok" = 1 ] && [ "$owners_ok" = 1 ] && [ "$hash_ok" = 1 ] && [ "$quarantine_ok" = 1 ] && [ "$recover_ok" = 1 ] && [ "$kill_ok" = 1 ]; then ok=1; fi
 jq -n --argjson ok "$ok" --argjson epoch1_keys "$keys1" --argjson epoch1_edges "$edges1" \
   --argjson epoch1_adds "$adds1" --argjson epoch1_cases "$cases1" --argjson epoch1_owners "$owners1" --argjson epoch2_keys "$keys2" --argjson epoch2_edges "$edges2" \
   --argjson epoch2_adds "$adds2" --argjson epoch2_cases "$cases2" --argjson epoch2_owners "$owners2" --argjson add_delta "$delta" --argjson cases_ok "$cases_ok" --argjson owners_ok "$owners_ok" --argjson hash_ok "$hash_ok" --argjson duplicates "$dup" --argjson lost "$lost" \
-  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" \
+  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" --argjson recover_ok "$recover_ok" --argjson recover_cases "$recover_cases" --argjson kill_ok "$kill_ok" \
   --arg h1 "$h1" --arg h2 "$h2" \
-  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok}' > "$OUT/summary.json"
+  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok,recover_ok:$recover_ok,recover_cases:$recover_cases,kill_ok:$kill_ok}' > "$OUT/summary.json"
 cat "$OUT/summary.json"
 # keep for debug
 [ "$ok" = 1 ]

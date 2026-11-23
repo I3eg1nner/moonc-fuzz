@@ -127,6 +127,7 @@ fn trace_test_cfg() -> Config {
     emit_finding: "",
     coverage_state: "",
     coverage_write: "",
+    recover: false,
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
