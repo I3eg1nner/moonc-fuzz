@@ -407,7 +407,8 @@ async fn main {
     e2e_out.contains("\"pin_control\": \"pin_refused\"") &&
     e2e_out.contains("\"kind_control\": \"schema_invalid\"") &&
     e2e_out.contains("\"stage_control\": \"schema_invalid\"") &&
-    e2e_out.contains("\"witness_kb\": ")
+    e2e_out.contains("\"witness_kb\": ") &&
+    e2e_out.contains("\"no_build\": 1")
   results.push(check("original_config_e2e", e2e_ok, e2e_out))
 
   // 2a8c. Process-tree/exit propagation and real soak wrapper.

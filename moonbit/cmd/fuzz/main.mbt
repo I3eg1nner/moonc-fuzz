@@ -2640,8 +2640,9 @@ async fn save_pkg_witness(
     @stager.rm_rf(fd)
     return false
   }
-  let copied_pkg = @stager.copy_tree(wd, join(orig, "pkg"))
-  let copied_top = @stager.copy_tree(wd, join(fd, "pkg"))
+  let skip = ["_build", "target", ".git", "witness", "findings"]
+  let copied_pkg = @stager.copy_tree_filtered(wd, join(orig, "pkg"), skip)
+  let copied_top = @stager.copy_tree_filtered(wd, join(fd, "pkg"), skip)
   if !copied_pkg || !copied_top {
     @stager.rm_rf(fd)
     return false

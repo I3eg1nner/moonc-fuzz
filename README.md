@@ -535,3 +535,5 @@ Apache-2.0，见 `LICENSE`。仓库内的第三方 fixture（如
 run.sh 的 supervisor 默认 `max_procs=WORKERS+8`、`deadline=DUR+120`；`SUPERVISOR_DRYRUN=1` 只写 `supervisor.limits`。soak 的默认 `max_procs=WORKERS*4+8`。
 
 state checksum 无密钥，只防意外损坏，不防重算篡改；`FUZZ_STATE_SKIP` 需同时 `FUZZ_STATE_TEST_INJECT=1`，仅测试注入。
+
+accept 实际 35 项；TEST_FAIL 是 passed→failed 受控 lane；witness 非 hermetic（`.mooncakes` 保留）；checksum 无密钥只防损坏。

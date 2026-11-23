@@ -32,6 +32,7 @@ if [ ! -d "$POOL" ]; then
     -print0 2>/dev/null | xargs -0 -r cp -t "$POOL" 2>/dev/null || true
 fi
 echo "epoch,seconds,maxrss_kb,it,t2_ok,coverage_adds,new_edges,stop_reason,sup_rc,incomplete,orphans" > "$OUT/epochs.csv"
+set +e
 for i in $(seq 1 "$EPOCHS"); do
   run="$OUT/e$i"
   rm -rf "$run"
@@ -40,7 +41,7 @@ for i in $(seq 1 "$EPOCHS"); do
     state_args=(--coverage-state "$POOL/coverage_state.jsonl")
   fi
   if "$ROOT/scripts/supervisor.sh" --json-out "$OUT/e$i.sup.json" \
-    --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "$SUP_MAX" --deadline "${SUPERVISOR_DEADLINE:-1200}" -- \
+    --agg-rss-mb "${AGG_RSS_MB:-0}" --max-procs "$SUP_MAX" --deadline "${SUPERVISOR_DEADLINE:-$((SECS+300))}" -- \
     /usr/bin/time -q -o "$OUT/e$i.time" -f "%M" \
     "$BIN" --root "$ROOT" --out "$run" --workers "$WORKERS" --duration "$SECS" \
       "${state_args[@]}" \
@@ -70,7 +71,11 @@ for i in $(seq 1 "$EPOCHS"); do
     cp -f "$run"/*/coverage_state.jsonl.sha256 "$POOL/coverage_state.jsonl.sha256" 2>/dev/null || true
     echo "$i,$SECS,$rss,${it:-0},${t2:-0},${adds:-0},${edges:-0},${stop:-},$sup_rc,$sup_inc,$sup_orph" >> "$OUT/epochs.csv"
   else
-    echo "$i,$SECS,$rss,0,0,0,0,no-summary,$sup_rc,$sup_inc,$sup_orph" >> "$OUT/epochs.csv"
+    if [ "$sup_inc" = 1 ] || [ "$sup_rc" != 0 ]; then
+      echo "$i,$SECS,$rss,0,0,0,0,supervisor_${sup_reason:-rc${sup_rc}},$sup_rc,$sup_inc,$sup_orph" >> "$OUT/epochs.csv"
+    else
+      echo "$i,$SECS,$rss,0,0,0,0,no-summary,$sup_rc,$sup_inc,$sup_orph" >> "$OUT/epochs.csv"
+    fi
   fi
   if [ "$sup_inc" = 1 ] || [ "$sup_rc" != 0 ]; then break; fi
 done

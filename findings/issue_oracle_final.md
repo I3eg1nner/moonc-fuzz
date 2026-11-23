@@ -89,3 +89,6 @@ issuecheck: reproduced 14/14, fixed 14/14 (heavy 1366/1155 skipped)
   `regressions/package_seeds/` 3
 - `scripts/must_reject.sh`、`scripts/attribute_check.sh`、`cmd/accept`
 - 新增资产：1051/440/415/1339、1347、1294/945/447/551/836
+
+
+> 验收注：本文 F 收尾时 accept 为 29；后续 J1/J2/H/I 增至 35，见 `findings/handoff_final.md`。

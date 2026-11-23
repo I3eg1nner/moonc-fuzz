@@ -116,6 +116,38 @@ pub fn copy_tree(src : String, dst : String) -> Bool {
 }
 
 ///|
+pub fn copy_tree_filtered(src : String, dst : String, skip : Array[String]) -> Bool {
+  let made = try {
+    @fs.create_dir(dst)
+    true
+  } catch {
+    _ => false
+  }
+  if !made && !@fs.path_exists(dst) { return false }
+  let mut ok = true
+  for name in try_read_dir(src) {
+    if !ok { continue }
+    let mut skipped = false
+    for x in skip { if x == name { skipped = true } }
+    if skipped { continue }
+    let sp = join(src, name)
+    let dp = join(dst, name)
+    let isdir = @fs.is_dir(sp) catch { _ => false }
+    if isdir {
+      if !copy_tree_filtered(sp, dp, skip) { ok = false }
+    } else {
+      let wrote = try {
+        let bytes = @fs.read_file_to_bytes(sp)
+        @fs.write_bytes_to_file(dp, bytes)
+        true
+      } catch { _ => false }
+      if !wrote { ok = false }
+    }
+  }
+  ok
+}
+
+///|
 pub fn moon_path() -> String {
   match @env.get_env_var("MOON") {
     Some(p) => if p == "" { tool_path("moon") } else { p }

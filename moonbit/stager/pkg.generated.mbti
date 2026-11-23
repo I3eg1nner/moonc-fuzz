@@ -11,6 +11,8 @@ pub fn copy_pkg(String, String) -> Bool
 
 pub fn copy_tree(String, String) -> Bool
 
+pub fn copy_tree_filtered(String, String, Array[String]) -> Bool
+
 pub fn count_lines(String) -> Int32
 
 pub fn escape(String) -> String

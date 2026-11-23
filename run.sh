@@ -68,9 +68,14 @@ esac
 
 OUT_DIR="${OUT:-$ROOT/out/mb_runs}"
 mkdir -p "$OUT_DIR"
-SUP_MAX=$((WORKERS + 8))
-SUP_DEADLINE=$((DUR + 120))
-SUP_AGG=${AGG_RSS_MB:-0}
+SUP_MAX=$((WORKERS*4 + 8))
+SUP_DEADLINE=$((DUR + 300))
+SUP_AGG=${AGG_RSS_MB:-$((WORKERS*2048))}
+if [ -r /proc/meminfo ]; then
+  MEM_MB=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1024 / 2 ))
+  [ "$SUP_AGG" -gt "$MEM_MB" ] && SUP_AGG="$MEM_MB"
+fi
+[ "$SUP_AGG" = 0 ] && SUP_AGG=0
 SUP_MAX_ACTUAL=${MAX_PROCS:-$SUP_MAX}
 SUP_DEADLINE_ACTUAL=${SUPERVISOR_DEADLINE:-$SUP_DEADLINE}
 printf '{"agg_rss_mb":%s,"max_procs":%s,"deadline":%s}\n' "$SUP_AGG" "$SUP_MAX_ACTUAL" "$SUP_DEADLINE_ACTUAL" > "$OUT_DIR/supervisor.limits"

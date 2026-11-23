@@ -76,7 +76,7 @@
 - TEST_FAIL replay：`original_config_e2e` 直接调用 triage，不再复制比较逻辑；normal confirmed 3/3、stage=test，三个负控非 confirmed。
 - original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 行为复验闭环：真实 campaign TEST_FAIL，stage=test，triage confirmed 3/3；expected/pkg/baseline 三控制均 inconclusive；argv/env 篡改 confirmed → 记 not_sensitive（行为未变）。manifest 只做 provenance warning，不参与判定。
 
-P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor：`max_procs=WORKERS+8`、`deadline=DUR+120`，实际值写 `supervisor.limits`；`SUPERVISOR_DRYRUN=1` 只写 limits。soak_epochs 每 epoch 经 supervisor，默认 `max_procs=WORKERS*4+8`，CSV 的 sup_rc 用真实退出码；`supervisor_process_tree` gate a–f 全绿（含 48 workers/600s dryrun limits 720/56）。setsid 仍 unsupported。
+P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor：`max_procs=WORKERS*4+8`、`deadline=DUR+300`、`agg=WORKERS*2048` 并 clamp MemTotal/2，实际值写 `supervisor.limits`；`SUPERVISOR_DRYRUN=1` 只写 limits。soak_epochs 每 epoch 经 supervisor，默认 `max_procs=WORKERS*4+8`，CSV 的 sup_rc 用真实退出码；`supervisor_process_tree` gate a–f 全绿（10s/2w→310/16、600s/48w→900/200；nonzero soak sup_rc=90/incomplete=1/stop=supervisor_max_procs）。setsid 仍 unsupported。
 - 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿；`supervisor_process_tree` gate 已存在。setsid 逃逸仍 unsupported，组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。
 - F13：`fmt_f13` gate 固定 `-(-2147483648)`、i64 min、triple nested；moonfmt 输出 `moon check` 均 `[4095]`，healthy `-(-1)` 通过；分类 `compiler_inconsistency_candidate`。
@@ -177,4 +177,10 @@ HEAD 与推送结果见本次提交（`docs: final handoff`）。
 
 ## A3/A4 状态
 
-TEST_FAIL findings 已改为 `findings/test/TEST_FAIL/<test sig>`，seed 只保留 4 个源文件；但实测 witness 仍 2420KB 且 `no_build=0`，A3 去冗余未闭环。已删除 `scripts/test_fail_triage_test.sh`、`scripts/original_config_replay.sh` 和陈旧 `regressions/pkg_test_fail/witness/`。
+TEST_FAIL findings 已改为 `findings/test/TEST_FAIL/<test sig>`，seed 只保留 4 个源文件；`copy_tree_filtered` 跳过 `_build/target/.git/witness/findings`，实测 witness 92KB、`no_build=1`。`.mooncakes` 保留，witness 因此不是完全 hermetic。已删除 `scripts/test_fail_triage_test.sh`、`scripts/original_config_replay.sh` 和陈旧 `regressions/pkg_test_fail/witness/`。
+
+## B4 冻结
+
+- curated 38 = 15 fixed / 15 reproduced / 4 unclear / 3 needs_old_toolchain / 1 not_reproducible；612 是 needs_old_toolchain。
+- TEST_FAIL 是 passed→failed 受控 lane，不是通用测试变异发现。
+- witness 非 hermetic；checksum 无密钥只防损坏、不防重算；setsid 逃逸 unsupported；cgroup 只读。
