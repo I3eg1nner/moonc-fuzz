@@ -57,6 +57,16 @@ cases_ok=0; [ "$cases2" -ge "$cases1" ] && cases_ok=1
 owners_ok=0; [ "$owners2" -gt 0 ] && owners_ok=1
 hash_ok=0; [ -n "$last2" ] && [ "$last2" != "" ] && hash_ok=1
 budget_ok=0; [ "$delta" -le "$limit" ] && budget_ok=1
+resign() {
+  local f="$1" payload canon vals
+  payload=$(tail -n +2 "$f")
+  vals=$(head -1 "$f" | jq -r '[.epoch,.cases,.owners,.adds,.config_hash,.pin_hash,.corpus_hash,.last]|@tsv')
+  eval "$(printf '%s' "$vals" | awk -F '\t' '{printf "e=%s c=%s o=%s a=%s ch=%s ph=%s coh=%s last=%s\n",$1,$2,$3,$4,$5,$6,$7,$8}')"
+  canon="{\"schema\":\"coverage_state/v3\",\"version\":2,\"epoch\":"$e",\"cases\":"$c",\"owners\":"$o",\"adds\":"$a",\"config_hash\":\""$ch"\",\"pin_hash\":\""$ph"\",\"corpus_hash\":\""$coh"\",\"last\":\""$last"\"}"
+  sum=$(printf '%s\n%s' "$canon" "$payload" | sha1sum | awk '{print $1}')
+  sed -i "s/\"checksum\":\"[0-9a-f]*\"/\"checksum\":\"$sum\"/" "$f"
+}
+
 # Corruption controls: truncate and checksum flip must quarantine.
 COR="$OUT/corrupt"; mkdir -p "$COR"
 cp "$STATE1" "$COR/coverage_state.jsonl"
@@ -76,7 +86,7 @@ sed -i "0,/\"checksum\":\"$sha\"/s//\"checksum\":\"$sha\"/\"checksum\":\"$repl${
 q2=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
 # Schema mismatch must quarantine, not reinterpret as v2.
 cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/"schema":"coverage_state\/v2"/"schema":"coverage_state\/v99"/' "$COR/coverage_state.jsonl"
+sed -i 's/"schema":"coverage_state\/v3"/"schema":"coverage_state\/v99"/' "$COR/coverage_state.jsonl"
 "$BIN" --out "$COR" --run-id c3 --duration 2 --seed-dir "$ROOT/templates" \
   --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c3.out" 2>"$COR/c3.err"
 q3=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
@@ -92,7 +102,33 @@ sed -i 's/"config_hash":"[0-9a-f]*"/"config_hash":"deadbeef"/' "$COR/coverage_st
 "$BIN" --out "$COR" --run-id c5 --duration 2 --seed-dir "$ROOT/templates" \
   --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c5.out" 2>"$COR/c5.err"
 q5=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-quarantine_ok=0; [ "$q1" -gt 0 ] && [ "$q2" -gt 0 ] && [ "$q3" -gt 0 ] && [ "$q4" -gt 0 ] && [ "$q5" -gt 0 ] && quarantine_ok=1
+# R1: change cases, do not touch payload/checksum.
+cp "$STATE1" "$COR/coverage_state.jsonl"
+sed -i 's/"cases":[0-9]*/"cases":999999/' "$COR/coverage_state.jsonl"
+"$BIN" --out "$COR" --run-id r1 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
+q6=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
+# R2: delete pin_hash.
+cp "$STATE1" "$COR/coverage_state.jsonl"
+sed -i 's/,"pin_hash":"[^"]*"//' "$COR/coverage_state.jsonl"
+"$BIN" --out "$COR" --run-id r2 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
+q7=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
+# R3: change pin_hash, recompute checksum.
+cp "$STATE1" "$COR/coverage_state.jsonl"
+sed -i 's/"pin_hash":"[^"]*"/"pin_hash":"deadbeef"/' "$COR/coverage_state.jsonl"
+resign "$COR/coverage_state.jsonl"
+"$BIN" --out "$COR" --run-id r3 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
+q8=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
+# R4: delete corpus_hash.
+cp "$STATE1" "$COR/coverage_state.jsonl"
+sed -i 's/,"corpus_hash":"[^"]*"//' "$COR/coverage_state.jsonl"
+"$BIN" --out "$COR" --run-id r4 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
+q9=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
+# R5: strict corpus, change one seed content.
+mkdir -p "$OUT/seeds"; cp "$ROOT/templates/01_int_ops.mbt" "$OUT/seeds/01_int_ops.mbt"
+printf '\n' >> "$OUT/seeds/01_int_ops.mbt"
+"$BIN" --out "$COR" --run-id r5 --duration 2 --seed-dir "$OUT/seeds" --require-same-corpus --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
+q10=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
+quarantine_ok=0; [ "$q1" -gt 0 ] && [ "$q2" -gt 0 ] && [ "$q3" -gt 0 ] && [ "$q4" -gt 0 ] && [ "$q5" -gt 0 ] && [ "$q6" -gt 0 ] && [ "$q7" -gt 0 ] && [ "$q8" -gt 0 ] && [ "$q9" -gt 0 ] && [ "$q10" -gt 0 ] && quarantine_ok=1
 # --recover: remove active, keep a valid .corrupt, expect counts restored.
 REC="$OUT/recover"; mkdir -p "$REC"
 cp "$STATE1" "$REC/coverage_state.jsonl.corrupt.1"

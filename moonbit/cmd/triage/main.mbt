@@ -258,24 +258,6 @@ fn is_timeout_only(sig : String) -> Bool {
 }
 
 ///|
-fn manifest_intact(case_dir : String) -> Bool {
-  let mpath = join(join(case_dir, "original"), "manifest.json")
-  let m = @stager.read_text(mpath)
-  if m == "" { return false }
-  let pairs : Array[(String, String)] = [
-    ("moon_mod", "moon.mod"), ("moon_pkg", "moon.pkg"),
-    ("source", "source.mbt"), ("argv", "argv.json"),
-    ("paths", "paths.json"), ("expected", "expected.json"),
-    ("pin", "pin.json"), ("env", "env.json"),
-  ]
-  for (k, f) in pairs {
-    let want = @cluster.json_get_string(m, k)
-    let got = @corpus.sha1_hex(@stager.read_text(join(join(case_dir, "original"), f)))
-    if want == "" || want != got { return false }
-  }
-  true
-}
-
 ///|
 fn triage_status(
   defect : Bool,
@@ -372,8 +354,13 @@ async fn main {
   let expected_json = @stager.read_text(join(join(case_dir, "original"), "expected.json"))
   let expected_out = @cluster.json_get_string(expected_json, "stdout")
   let expected_err = @cluster.json_get_string(expected_json, "stderr")
-  let expected_rc = if expected_json.contains("255") { 255 } else if expected_json.contains("\"rc\": 2") || expected_json.contains("\"rc\":2") { 2 } else if expected_json.contains("1") { 1 } else { 0 }
+  let expected_rc = @cluster.json_get_int(expected_json, "rc")
   let expected_sig = test_sig(expected_out, expected_err)
+  let saved_pin = @cluster.json_get_string(@stager.read_text(join(join(case_dir, "original"), "pin.json")), "pin_hash")
+  let moon_v = @exec.run(@stager.moon_path(), ["--version"], "/tmp", 5000).stdout.trim().to_owned()
+  let moonc_v = @exec.run(@stager.tool_path("moonc"), ["-v"], "/tmp", 5000).stdout.trim().to_owned()
+  let cur_pin = @corpus.sha1_hex(moon_v + "|" + moonc_v)
+  let pin_ok = !is_capsule || (saved_pin != "" && saved_pin == cur_pin)
   let sigs : Array[String] = []
   let mut reproducible = 0
   let mut exact = 0
@@ -536,7 +523,7 @@ async fn main {
     minimize_required,
     minimised,
   )
-  let status = if kind == "TEST_FAIL" && exact < 3 { "inconclusive" } else { status0 }
+  let status = if !pin_ok { "pin_refused" } else if kind == "TEST_FAIL" && exact < 3 { "inconclusive" } else { status0 }
   // A confirmed witness must outlive the work directory.
   if status == "confirmed" {
     let cd = join(case_dir, "confirmed")

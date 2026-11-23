@@ -23,9 +23,10 @@ E=$(tamper expected "sed -i 's/3 != 5/3 != 9/' '$OUT/expected/original/expected.
 P=$(tamper pkg "sed -i 's/a + b/a - b/' '$OUT/pkg/original/pkg/lib.mbt'")
 B=$(tamper baseline "cp '$W/in.mbt' '$OUT/baseline/baseline.mbt'")
 A=$(tamper argv "sed -i 's/\"test\"/\"build\"/' '$OUT/argv/original/argv.json'")
+PIN=$(tamper pin "sed -i 's/\"pin_hash\": *\"[^\"]*\"/\"pin_hash\": \"deadbeef\"/' '$OUT/pin/original/pin.json'")
 V=$(tamper env "sed -i 's/\"HOME\":\"/\"HOME\":\"\/tmp\/x/' '$OUT/env/original/env.json'")
 controls=0; for s in "$E" "$P" "$B"; do [ "$s" != confirmed ] && controls=$((controls+1)); done
 ok=0
 if [ "$STAGE" = test ] && [ "$NST" = confirmed ] && [ "$NRP" = "3/3" ] && [ "$controls" = 3 ]; then ok=1; fi
-jq -n --argjson ok "$ok" --arg stage "$STAGE" --arg status "$NST" --arg reproduced "$NRP" --arg signature "$NSIG" --argjson controls "$controls" --arg expected "$E" --arg pkg "$P" --arg baseline "$B" --arg argv_not_sensitive "$A" --arg env_not_sensitive "$V" '{ok:$ok,stage:$stage,status:$status,reproduced:$reproduced,signature:$signature,controls:$controls,expected_control:$expected,pkg_control:$pkg,baseline_control:$baseline,argv_not_sensitive:$argv_not_sensitive,env_not_sensitive:$env_not_sensitive}' > "$OUT/sum.json"
+jq -n --argjson ok "$ok" --arg stage "$STAGE" --arg status "$NST" --arg reproduced "$NRP" --arg signature "$NSIG" --argjson controls "$controls" --arg expected "$E" --arg pkg "$P" --arg baseline "$B" --arg argv_not_sensitive "$A" --arg env_not_sensitive "$V" --arg pin_control "$PIN" '{ok:$ok,stage:$stage,status:$status,reproduced:$reproduced,signature:$signature,controls:$controls,expected_control:$expected,pkg_control:$pkg,baseline_control:$baseline,argv_not_sensitive:$argv_not_sensitive,env_not_sensitive:$env_not_sensitive,pin_control:$pin_control}' > "$OUT/sum.json"
 cat "$OUT/sum.json"; rm -rf "$OUT"; [ "$ok" = 1 ]

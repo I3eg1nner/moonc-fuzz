@@ -400,7 +400,8 @@ async fn main {
     e2e_out.contains("\"controls\": 3") &&
     e2e_out.contains("\"expected_control\": \"inconclusive\"") &&
     e2e_out.contains("\"pkg_control\": \"inconclusive\"") &&
-    e2e_out.contains("\"baseline_control\": \"inconclusive\"")
+    e2e_out.contains("\"baseline_control\": \"inconclusive\"") &&
+    e2e_out.contains("\"pin_control\": \"pin_refused\"")
   results.push(check("original_config_e2e", e2e_ok, e2e_out))
 
   // 2a9. Portable supervisor aggregate RSS/proc/deadline and cancellation.

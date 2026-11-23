@@ -71,7 +71,7 @@
    cgroup 主机跑 1 h，记录 memory.peak/pids/disk，kill 后无孤儿进程。
 
 **P0 状态（2026-11-23）**
-- corpus owner 事务/checkpoint：J1 已实现 header schema/checksum/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536、epoch2 796/536；最新 197/803）。P0-2 已补 `--recover`、schema/checksum/hash 五种 injection、以及 mid_payload/after_tmp/after_rename 三个 kill 点；仅保留 per-fd fsync 的边界。
+- corpus owner 事务/checkpoint：J1 已实现 header schema/checksum/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536、epoch2 796/536；最新 197/803）。P0-2 v3：canonical header+payload checksum，identity 必需，pin/corpus 真 hash，corpus drift/严格模式，R1–R5/N1 全绿；保留 recover 与三个 kill 点。
 - original-config replay：P0-4 真实 campaign TEST_FAIL 签名；P0-4 快照增加 `pin.json`/`env.json`/`cwd`；e2e 用 argv 数组、`env`、cwd replay，pin 改坏拒绝、expected 改坏 mismatch、baseline mismatch；包种用无依赖 `package_seeds/double`。argv 序列化仍从 command 字符串生成，未做到调用点直存数组；TEST_FAIL triage 已闭环（真实 campaign stage=test，triage confirmed 3/3；expected/name/baseline 负控非 confirmed）。
 - TEST_FAIL replay：`original_config_e2e` 直接调用 triage，不再复制比较逻辑；normal confirmed 3/3、stage=test，三个负控非 confirmed。
 - original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 行为复验闭环：真实 campaign TEST_FAIL，stage=test，triage confirmed 3/3；expected/pkg/baseline 三控制均 inconclusive；argv/env 篡改 confirmed → 记 not_sensitive（行为未变）。manifest 只做 provenance warning，不参与判定。
@@ -158,7 +158,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 
 ```
 moon test   385 / 385（Total tests: 385, passed: 385, failed: 0）
-accept      34 / 34（ok=true, checks=34, 无失败）
+accept      34 / 34（P0-1/P0-2/P0-3；ok=true, checks=34, 无失败）
 git         已提交并推送，worktree clean
 pin         未改动
 ```

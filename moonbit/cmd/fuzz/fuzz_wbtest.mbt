@@ -128,6 +128,7 @@ fn trace_test_cfg() -> Config {
     coverage_state: "",
     coverage_write: "",
     recover: false,
+    require_same_corpus: false,
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
@@ -1148,12 +1149,18 @@ async test "coverage state roundtrip, checksum and atomic file" {
   @stager.rm_rf(out)
   @corpus.ensure_dir(out)
   let cov = trace_universe_new()
+  cov.state_config_hash = "cfg"
+  cov.state_pin_hash = "pin"
+  cov.state_corpus_hash = "corpus"
   cov.by_key.set("k|accepted|cfg", @cov.FuncSet::new(["f1", "f2"]))
   cov.edge_seen.set("e1", ())
   let cfg = trace_test_cfg()
   ignore(save_coverage_state(cfg, cov, out))
   cfg.coverage_state = out + "/coverage_state.jsonl"
   let cov2 = trace_universe_new()
+  cov2.state_config_hash = "cfg"
+  cov2.state_pin_hash = "pin"
+  cov2.state_corpus_hash = "corpus"
   let (keys, edges) = load_coverage_state(cfg, cov2)
   assert_eq(keys, 1)
   assert_eq(edges, 1)
@@ -1195,6 +1202,9 @@ async test "coverage state without checksum is rejected; edges respect the cap" 
   @stager.rm_rf(out)
   @corpus.ensure_dir(out)
   let cov = trace_universe_new()
+  cov.state_config_hash = "cfg"
+  cov.state_pin_hash = "pin"
+  cov.state_corpus_hash = "corpus"
   cov.edge_seen.set("e1", ())
   cov.by_key.set("k", @cov.FuncSet::new(["f"]))
   let cfg = trace_test_cfg()
@@ -1207,17 +1217,23 @@ async test "coverage state without checksum is rejected; edges respect the cap" 
   ignore(
     @stager.write_text(
       cfg.coverage_state,
-      "{\"schema\":\"coverage_state/v2\",\"version\":1,\"checksum\":\"0000000000000000000000000000000000000000\"}\n" +
+      "{\"schema\":\"coverage_state/v3\",\"version\":2,\"epoch\":1,\"cases\":1,\"owners\":0,\"adds\":0,\"config_hash\":\"cfg\",\"pin_hash\":\"pin\",\"corpus_hash\":\"corpus\",\"last\":\"\",\"checksum\":\"0000000000000000000000000000000000000000\"}\n" +
       payload,
     ),
   )
   let c2 = trace_universe_new()
+  c2.state_config_hash = "cfg"
+  c2.state_pin_hash = "pin"
+  c2.state_corpus_hash = "corpus"
   assert_eq(load_coverage_state(cfg, c2).0, 0)
   // Restore checksum, then set a tiny cap: loading must stop at the cap and
   // flag saturation rather than importing an unbounded edge set.
   ignore(save_coverage_state(cfg, cov, out))
   cfg.edge_cap = 0
   let c3 = trace_universe_new()
+  c3.state_config_hash = "cfg"
+  c3.state_pin_hash = "pin"
+  c3.state_corpus_hash = "corpus"
   c3.edge_cap = 0
   let (_, edges3) = load_coverage_state(cfg, c3)
   assert_eq(edges3, 0)

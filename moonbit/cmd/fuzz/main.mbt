@@ -134,6 +134,7 @@ struct Config {
   mut coverage_state : String
   mut coverage_write : String
   mut recover : Bool
+  mut require_same_corpus : Bool
   /// Package lane: a whole package (moon.pkg/deps/argv) instead of flat files.
   mut pkg_seed : String
   mut pkg_file : String
@@ -1060,6 +1061,7 @@ struct TraceUniverse {
   mut state_config_hash : String
   mut state_pin_hash : String
   mut state_corpus_hash : String
+  mut corpus_drift : Int32
 }
 
 ///|
@@ -1098,6 +1100,7 @@ fn trace_universe_new() -> TraceUniverse {
     state_config_hash: "",
     state_pin_hash: "",
     state_corpus_hash: "",
+    corpus_drift: 0,
   }
 }
 
@@ -3668,31 +3671,47 @@ fn state_file_name(path : String) -> String {
 }
 
 ///|
+fn header_values(schema : String, version : String, epoch : String, cases : String, owners : String, adds : String, ch : String, ph : String, coh : String, last : String) -> String {
+  "{\"schema\":\"" + schema + "\",\"version\":" + version +
+  ",\"epoch\":" + epoch + ",\"cases\":" + cases + ",\"owners\":" + owners +
+  ",\"adds\":" + adds + ",\"config_hash\":\"" + ch +
+  "\",\"pin_hash\":\"" + ph + "\",\"corpus_hash\":\"" + coh +
+  "\",\"last\":\"" + last + "\"}"
+}
+
+fn canonical_header(cov : TraceUniverse) -> String {
+  header_values(
+    "coverage_state/v3", "2", cov.state_epoch.to_string(),
+    cov.checkpoint_cases.to_string(), cov.checkpoint_owners.to_string(),
+    cov.checkpoint_adds.to_string(), @stager.escape(cov.state_config_hash),
+    @stager.escape(cov.state_pin_hash), @stager.escape(cov.state_corpus_hash),
+    @stager.escape(cov.last_input_hash),
+  )
+}
+
 fn state_header_valid(cfg : Config, cov : TraceUniverse, text : String) -> Bool {
   let nl = match text.find("\n") { Some(i) => i; None => text.length() }
   let first = text[0:nl].to_owned()
-  if !first.contains("\"schema\":\"coverage_state/v2\"") ||
-    json_int_field(first, "version") != 1 {
-    return false
-  }
-  let want = json_str_field(first, "checksum")
-  if want == "" {
-    return false
-  }
-  let payload_nl = if nl < text.length() { nl + 1 } else { text.length() }
-  let payload = text[payload_nl:].to_owned()
-  if @corpus.sha1_hex(payload) != want {
+  if !first.contains("\"schema\":\"coverage_state/v3\"") ||
+    json_int_field(first, "version") != 2 {
     return false
   }
   let ch = json_str_field(first, "config_hash")
   let ph = json_str_field(first, "pin_hash")
   let coh = json_str_field(first, "corpus_hash")
-  if (ch != "" && ch != cov.state_config_hash) ||
-    (ph != "" && ph != cov.state_pin_hash) ||
-    (coh != "" && coh != cov.state_corpus_hash) {
-    return false
-  }
-  true
+  if ch == "" || ph == "" || coh == "" || ch != cov.state_config_hash ||
+    ph != cov.state_pin_hash { return false }
+  let canon = header_values(
+    "coverage_state/v3", "2", json_int_field(first, "epoch").to_string(),
+    json_int_field(first, "cases").to_string(),
+    json_int_field(first, "owners").to_string(),
+    json_int_field(first, "adds").to_string(), ch, ph, coh,
+    json_str_field(first, "last"),
+  )
+  let payload_nl = if nl < text.length() { nl + 1 } else { text.length() }
+  let payload = text[payload_nl:].to_owned()
+  let want = json_str_field(first, "checksum")
+  want != "" && @corpus.sha1_hex(canon + "\n" + payload) == want
 }
 
 ///|
@@ -3766,6 +3785,17 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
     quarantine_state(cfg, text, "header")
     return (0, 0)
   }
+  let head_nl = match text.find("\n") { Some(i) => i; None => text.length() }
+  let head = text[0:head_nl].to_owned()
+  let saved_corpus = json_str_field(head, "corpus_hash")
+  if saved_corpus != "" && saved_corpus != cov.state_corpus_hash {
+    if cfg.require_same_corpus {
+      quarantine_state(cfg, text, "corpus")
+      return (0, 0)
+    }
+    cov.corpus_drift = 1
+    println("[state] corpus-drift " + saved_corpus + " -> " + cov.state_corpus_hash)
+  }
   for line in text.split("\n") {
     if line.contains("\"schema\":") {
       let e = json_int_field(line.to_owned(), "epoch")
@@ -3832,17 +3862,10 @@ async fn save_coverage_state(cfg : Config, cov : TraceUniverse, out : String) ->
   edges.sort()
   lines.push("{\"edges\":" + @trace.json_string_array(edges) + "}")
   let payload = lines.join("\n") + "\n"
-  let checksum = @corpus.sha1_hex(payload)
-  let header = "{\"schema\":\"coverage_state/v2\",\"version\":1,\"epoch\":" +
-    cov.state_epoch.to_string() +
-    ",\"cases\":" + cov.checkpoint_cases.to_string() +
-    ",\"owners\":" + cov.checkpoint_owners.to_string() +
-    ",\"adds\":" + cov.checkpoint_adds.to_string() +
-    ",\"config_hash\":\"" + @stager.escape(cov.state_config_hash) +
-    "\",\"pin_hash\":\"" + @stager.escape(cov.state_pin_hash) +
-    "\",\"corpus_hash\":\"" + @stager.escape(cov.state_corpus_hash) +
-    "\",\"checksum\":\"" + checksum +
-    "\",\"last\":\"" + @stager.escape(cov.last_input_hash) + "\"}"
+  let canon = canonical_header(cov)
+  let checksum = @corpus.sha1_hex(canon + "\n" + payload)
+  let header = canon[0:canon.length() - 1].to_owned() +
+    ",\"checksum\":\"" + checksum + "\"}"
   let body = header + "\n" + payload
   let target = if cfg.coverage_write != "" {
     cfg.coverage_write
@@ -4242,6 +4265,7 @@ async fn main {
     coverage_state: "",
     coverage_write: "",
     recover: false,
+    require_same_corpus: false,
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
@@ -4392,6 +4416,9 @@ async fn main {
     } else if a == "--recover" {
       cfg.recover = true
       i += 1
+    } else if a == "--require-same-corpus" {
+      cfg.require_same_corpus = true
+      i += 1
     } else {
       main_usage()
       return
@@ -4540,8 +4567,17 @@ async fn main {
   let cov = trace_universe_new()
   cov.edge_cap = cfg.edge_cap
   cov.state_config_hash = config_hash
-  cov.state_pin_hash = @corpus.sha1_hex("moonc v0.10.20+65efd5b93")
-  cov.state_corpus_hash = @corpus.sha1_hex(seeds.length().to_string())
+  let moon_v = @exec.run(@stager.moon_path(), ["--version"], "/tmp", 5000).stdout.trim().to_owned()
+  let moonc_v = @exec.run(@stager.tool_path("moonc"), ["-v"], "/tmp", 5000).stdout.trim().to_owned()
+  cov.state_pin_hash = @corpus.sha1_hex(moon_v + "|" + moonc_v)
+  let corpus_b = StringBuilder()
+  let seed_names = @stager.try_read_dir(cfg.seed_dir)
+  seed_names.sort()
+  for n in seed_names {
+    let txt = @stager.read_text(join(cfg.seed_dir, n))
+    corpus_b.write_string(n + ":" + @corpus.sha1_hex(txt) + "\n")
+  }
+  cov.state_corpus_hash = @corpus.sha1_hex(corpus_b.to_string())
   let (restored_keys, restored_edges) = if cfg.coverage_state != "" {
     load_coverage_state(cfg, cov)
   } else {
@@ -4956,6 +4992,7 @@ async fn main {
     restored_keys.to_string() +
     ",\"restored_edges\":" +
     restored_edges.to_string() +
+    ",\"corpus_drift\":" + cov.corpus_drift.to_string() +
     ",\"triage_checked\":" +
     tri_checked.to_string() +
     ",\"triage_confirmed\":" +

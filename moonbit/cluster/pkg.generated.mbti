@@ -8,6 +8,8 @@ pub fn crash_signature(String, Int32, String, String) -> String
 
 pub fn formatter_signature(Int32, String, String) -> String
 
+pub fn json_get_int(String, String) -> Int32
+
 pub fn json_get_string(String, String) -> String
 
 pub fn known_id(String) -> String?
