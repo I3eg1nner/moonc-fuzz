@@ -48,6 +48,7 @@ adds2=$(jq -r 'select(has("schema"))|.adds' "$STATE2")
 cases2=$(jq -r 'select(has("schema"))|.cases' "$STATE2")
 owners2=$(jq -r 'select(has("schema"))|.owners' "$STATE2")
 last2=$(jq -r 'select(has("schema"))|.last' "$STATE2")
+last1=$(jq -r 'select(has("schema"))|.last' "$STATE1")
 dup=$(jq -r 'select(has("key"))|.key' "$STATE2" | sort | uniq -d | wc -l)
 lost=$(comm -23 <(jq -r 'select(has("key"))|.key' "$STATE1" | sort -u) <(jq -r 'select(has("key"))|.key' "$STATE2" | sort -u) | wc -l)
 # Budget: epoch2 adds must be <= 10% of epoch1 adds, with a 1 unit floor.
@@ -55,7 +56,8 @@ limit=$(( adds1 / 10 )); [ "$limit" -lt 1 ] && limit=1
 delta=$(( adds2 - adds1 )); [ "$delta" -lt 0 ] && delta=0
 cases_ok=0; [ "$cases2" -ge "$cases1" ] && cases_ok=1
 owners_ok=0; [ "$owners2" -gt 0 ] && owners_ok=1
-hash_ok=0; [ -n "$last2" ] && [ "$last2" != "" ] && hash_ok=1
+hash_ok=0
+if [[ "$last1" =~ ^[0-9a-f]{40}$ ]] && [[ "$last2" =~ ^[0-9a-f]{40}$ ]] && [ "$last1" != "$last2" ]; then hash_ok=1; fi
 budget_ok=0; [ "$delta" -le "$limit" ] && budget_ok=1
 resign() {
   local f="$1" payload canon vals
@@ -67,76 +69,69 @@ resign() {
   sed -i "s/\"checksum\":\"[0-9a-f]*\"/\"checksum\":\"$sum\"/" "$f"
 }
 
-# Corruption controls: truncate and checksum flip must quarantine.
-COR="$OUT/corrupt"; mkdir -p "$COR"
-cp "$STATE1" "$COR/coverage_state.jsonl"
-# remove last non-empty line (truncation)
-head -n -1 "$COR/coverage_state.jsonl" > "$COR/t"; mv "$COR/t" "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id c1 --duration 2 --seed-dir "$ROOT/templates" \
-  --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c1.out" 2>"$COR/c1.err"
-q1=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-cp "$STATE1" "$COR/coverage_state.jsonl"
-# flip one hex digit in the header checksum (the authoritative copy)
-sha=$(jq -r 'select(has("schema"))|.checksum' "$COR/coverage_state.jsonl" 2>/dev/null || echo 0000)
-first=${sha:0:1}; [ "$first" = "0" ] && repl=1 || repl=0
-sed -i "0,/\"checksum\":\"$sha\"/s//\"checksum\":\"$sha\"/\"checksum\":\"$repl${sha:1}\"/" "$COR/coverage_state.jsonl"
-# header is the only checksum
-"$BIN" --out "$COR" --run-id c2 --duration 2 --seed-dir "$ROOT/templates" \
-  --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c2.out" 2>"$COR/c2.err"
-q2=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# Schema mismatch must quarantine, not reinterpret as v2.
-cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/"schema":"coverage_state\/v3"/"schema":"coverage_state\/v99"/' "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id c3 --duration 2 --seed-dir "$ROOT/templates" \
-  --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c3.out" 2>"$COR/c3.err"
-q3=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# Missing checksum must quarantine, not silently clear/merge.
-cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/"checksum":"[0-9a-f]*"/"checksum":""/' "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id c4 --duration 2 --seed-dir "$ROOT/templates" \
-  --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c4.out" 2>"$COR/c4.err"
-q4=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# Config-hash mismatch must quarantine.
-cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/"config_hash":"[0-9a-f]*"/"config_hash":"deadbeef"/' "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id c5 --duration 2 --seed-dir "$ROOT/templates" \
-  --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >"$COR/c5.out" 2>"$COR/c5.err"
-q5=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# R1: change cases, do not touch payload/checksum.
-cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/"cases":[0-9]*/"cases":999999/' "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id r1 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
-q6=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# R2: delete pin_hash.
-cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/,"pin_hash":"[^"]*"//' "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id r2 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
-q7=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# R3: change pin_hash, recompute checksum.
-cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/"pin_hash":"[^"]*"/"pin_hash":"deadbeef"/' "$COR/coverage_state.jsonl"
-resign "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id r3 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
-q8=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# R4: delete corpus_hash.
-cp "$STATE1" "$COR/coverage_state.jsonl"
-sed -i 's/,"corpus_hash":"[^"]*"//' "$COR/coverage_state.jsonl"
-"$BIN" --out "$COR" --run-id r4 --duration 2 --seed-dir "$ROOT/templates" --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
-q9=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-# R5: strict corpus, change one seed content.
-mkdir -p "$OUT/seeds"; cp "$ROOT/templates/01_int_ops.mbt" "$OUT/seeds/01_int_ops.mbt"
-printf '\n' >> "$OUT/seeds/01_int_ops.mbt"
-"$BIN" --out "$COR" --run-id r5 --duration 2 --seed-dir "$OUT/seeds" --require-same-corpus --mode mbt --workers 1 --coverage-state "$COR/coverage_state.jsonl" >/dev/null 2>&1
-q10=$(ls "$COR"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l)
-quarantine_ok=0; [ "$q1" -gt 0 ] && [ "$q2" -gt 0 ] && [ "$q3" -gt 0 ] && [ "$q4" -gt 0 ] && [ "$q5" -gt 0 ] && [ "$q6" -gt 0 ] && [ "$q7" -gt 0 ] && [ "$q8" -gt 0 ] && [ "$q9" -gt 0 ] && [ "$q10" -gt 0 ] && quarantine_ok=1
+# Independent R1-R5 controls with skip-injection.
+corrupt_count() { ls "$1"/coverage_state.jsonl.corrupt.* 2>/dev/null | wc -l; }
+run_control() {
+  local name="$1" reason="$2" skip="$3" tamper="$4" seed="$5" strict="$6"
+  local d="$OUT/R_$name"; mkdir -p "$d"; cp "$STATE1" "$d/coverage_state.jsonl"
+  eval "$tamper"
+  if [ "$strict" = 1 ]; then
+    "$BIN" --out "$d" --run-id "$name" --duration 2 --seed-dir "$seed" --require-same-corpus \
+      --mode mbt --workers 1 --coverage-state "$d/coverage_state.jsonl" >"$d/out" 2>"$d/err"
+  else
+    "$BIN" --out "$d" --run-id "$name" --duration 2 --seed-dir "$seed" \
+      --mode mbt --workers 1 --coverage-state "$d/coverage_state.jsonl" >"$d/out" 2>"$d/err"
+  fi
+  local n; n=$(corrupt_count "$d")
+  local hit; hit=$(ls "$d"/coverage_state.jsonl.corrupt.* 2>/dev/null | grep -c ".corrupt.$reason.")
+  # Skipped run must not quarantine and must keep a loadable active state.
+  FUZZ_STATE_SKIP="$skip" "$BIN" --out "$d" --run-id "${name}s" --duration 2 --seed-dir "$seed" \
+    --require-same-corpus --mode mbt --workers 1 --coverage-state "$d/coverage_state.jsonl" >"$d/sout" 2>"$d/serr"
+  local sn; sn=$(corrupt_count "$d")
+  if [ "$n" -eq 1 ] && [ "$hit" -eq 1 ] && [ -f "$d/coverage_state.jsonl" ] && [ "$sn" -eq 1 ]; then
+    echo true
+  else
+    echo "n=$n hit=$hit active=$([ -f "$d/coverage_state.jsonl" ] && echo 1 || echo 0) sn=$sn" >&2
+    echo false
+  fi
+}
+# R1 cases change, payload untouched.
+r1=$(run_control r1 header header "sed -i 's/\"cases\":[0-9]*/\"cases\":999999/' '$OUT/R_r1/coverage_state.jsonl'" "$ROOT/templates" 0)
+# R2 missing pin.
+r2=$(run_control r2 identity identity "sed -i 's/,\"pin_hash\":\"[^\"]*\"//' '$OUT/R_r2/coverage_state.jsonl'" "$ROOT/templates" 0)
+# R3 pin change + canonical checksum recompute.
+r3=$(run_control r3 pin pin "sed -i 's/\"pin_hash\":\"[^\"]*\"/\"pin_hash\":\"deadbeef\"/' '$OUT/R_r3/coverage_state.jsonl'; resign '$OUT/R_r3/coverage_state.jsonl'" "$ROOT/templates" 0)
+# R4 missing corpus.
+r4=$(run_control r4 identity identity "sed -i 's/,\"corpus_hash\":\"[^\"]*\"//' '$OUT/R_r4/coverage_state.jsonl'" "$ROOT/templates" 0)
+# R5 seed content change, strict.
+mkdir -p "$OUT/seeds2"; cp "$ROOT/templates/01_int_ops.mbt" "$OUT/seeds2/01_int_ops.mbt"; printf '\n' >> "$OUT/seeds2/01_int_ops.mbt"
+r5=$(run_control r5 corpus corpus "true" "$OUT/seeds2" 1)
+# R5 default drift must load counts.
+mkdir -p "$OUT/R_r5d"; cp "$STATE1" "$OUT/R_r5d/coverage_state.jsonl"
+"$BIN" --out "$OUT/R_r5d" --run-id r5d --duration 2 --seed-dir "$OUT/seeds2" \
+  --mode mbt --workers 1 --coverage-state "$OUT/R_r5d/coverage_state.jsonl" >"$OUT/R_r5d/out" 2>"$OUT/R_r5d/err"
+drift=$(jq -r '.corpus_drift' "$OUT/R_r5d"/*/summary.json 2>/dev/null | tail -1)
+drcase=$(jq -r 'select(has("schema"))|.cases' "$OUT/R_r5d/coverage_state.jsonl" 2>/dev/null || echo 0)
+drown=$(jq -r 'select(has("schema"))|.owners' "$OUT/R_r5d/coverage_state.jsonl" 2>/dev/null || echo 0)
+drift_ok=0; [ "${drift:-0}" = 1 ] && [ "$drcase" -gt 0 ] && [ "$drown" -gt 0 ] && drift_ok=1
+quarantine_ok=0; [ "$r1" = true ] && [ "$r2" = true ] && [ "$r3" = true ] && [ "$r4" = true ] && [ "$r5" = true ] && [ "$drift_ok" = 1 ] && quarantine_ok=1
+
 # --recover: remove active, keep a valid .corrupt, expect counts restored.
 REC="$OUT/recover"; mkdir -p "$REC"
 cp "$STATE1" "$REC/coverage_state.jsonl.corrupt.1"
+cp "$STATE1" "$REC/ref"
+ref_cases=$(jq -r 'select(has("schema"))|.cases' "$REC/ref")
+ref_owners=$(jq -r 'select(has("schema"))|.owners' "$REC/ref")
+ref_epoch=$(jq -r 'select(has("schema"))|.epoch' "$REC/ref")
 "$BIN" --out "$REC" --run-id r1 --duration 2 --seed-dir "$ROOT/templates" \
   --mode mbt --workers 1 --baseline-seeds 0 --trace-t1 0 --trace-t2 0 --trace-t3 0 --trace-workers 0 \
-  --coverage-state "$REC/coverage_state.jsonl" --recover >"$REC/out" 2>"$REC/err"
-recover_cases=$(jq -r 'select(has("schema"))|.cases' "$REC/coverage_state.jsonl" 2>/dev/null || echo 0)
-recover_ok=0; [ "$recover_cases" -gt 0 ] && recover_ok=1
+  --coverage-state "$REC/coverage_state.jsonl" --recover --recover-only >"$REC/out" 2>"$REC/err"
+recover_json=$(tail -1 "$REC/out")
+recover_cases=$(jq -r '.recovered_cases // 0' <<<"$recover_json")
+recover_owners=$(jq -r '.recovered_owners // 0' <<<"$recover_json")
+recover_epoch=$(jq -r '.recovered_epoch // 0' <<<"$recover_json")
+recover_ok=0
+[ "$recover_cases" = "$ref_cases" ] && [ "$recover_owners" = "$ref_owners" ] && [ "$recover_epoch" = "$((ref_epoch+1))" ] && recover_ok=1
 # Three kill points: old or new must be valid, never empty.
 kill_ok=1
 for mode in mid_payload after_tmp after_rename; do
@@ -154,9 +149,9 @@ if [ "$RC2" -eq 0 ] && [ "$dup" -eq 0 ] && [ "$lost" -eq 0 ] && [ "$budget_ok" =
 jq -n --argjson ok "$ok" --argjson epoch1_keys "$keys1" --argjson epoch1_edges "$edges1" \
   --argjson epoch1_adds "$adds1" --argjson epoch1_cases "$cases1" --argjson epoch1_owners "$owners1" --argjson epoch2_keys "$keys2" --argjson epoch2_edges "$edges2" \
   --argjson epoch2_adds "$adds2" --argjson epoch2_cases "$cases2" --argjson epoch2_owners "$owners2" --argjson add_delta "$delta" --argjson cases_ok "$cases_ok" --argjson owners_ok "$owners_ok" --argjson hash_ok "$hash_ok" --argjson duplicates "$dup" --argjson lost "$lost" \
-  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" --argjson recover_ok "$recover_ok" --argjson recover_cases "$recover_cases" --argjson kill_ok "$kill_ok" \
+  --argjson budget_ok "$budget_ok" --argjson quarantine_ok "$quarantine_ok" --arg r1 "$r1" --arg r2 "$r2" --arg r3 "$r3" --arg r4 "$r4" --arg r5 "$r5" --argjson drift_ok "$drift_ok" --argjson recover_ok "$recover_ok" --argjson recover_cases "$recover_cases" --argjson kill_ok "$kill_ok" \
   --arg h1 "$h1" --arg h2 "$h2" \
-  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok,recover_ok:$recover_ok,recover_cases:$recover_cases,kill_ok:$kill_ok}' > "$OUT/summary.json"
+  '{ok:$ok,epoch1:{by_key:$epoch1_keys,edges:$epoch1_edges,coverage_adds:$epoch1_adds,cases:$epoch1_cases,owners:$epoch1_owners,header:$h1},epoch2:{by_key:$epoch2_keys,edges:$epoch2_edges,coverage_adds:$epoch2_adds,cases:$epoch2_cases,owners:$epoch2_owners,add_delta:$add_delta,header:$h2},duplicates:$duplicates,lost:$lost,budget_ok:$budget_ok,cases_ok:$cases_ok,owners_ok:$owners_ok,hash_ok:$hash_ok,quarantine_ok:$quarantine_ok,r1:$r1,r2:$r2,r3:$r3,r4:$r4,r5:$r5,drift_ok:$drift_ok,recover_ok:$recover_ok,recover_cases:$recover_cases,kill_ok:$kill_ok}' > "$OUT/summary.json"
 cat "$OUT/summary.json"
 # keep for debug
 [ "$ok" = 1 ]

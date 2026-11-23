@@ -135,6 +135,7 @@ struct Config {
   mut coverage_write : String
   mut recover : Bool
   mut require_same_corpus : Bool
+  mut recover_only : Bool
   /// Package lane: a whole package (moon.pkg/deps/argv) instead of flat files.
   mut pkg_seed : String
   mut pkg_file : String
@@ -3756,6 +3757,35 @@ fn try_recover_state(cfg : Config, cov : TraceUniverse) -> String {
   ""
 }
 
+fn state_reject_reason(cov : TraceUniverse, text : String) -> String {
+  let nl = match text.find("\n") { Some(i) => i; None => text.length() }
+  let first = text[0:nl].to_owned()
+  let ph = json_str_field(first, "pin_hash")
+  let coh = json_str_field(first, "corpus_hash")
+  if ph == "" || coh == "" { return "identity" }
+  if !first.contains("\"schema\":\"coverage_state/v3\"") ||
+    json_int_field(first, "version") != 2 { return "header" }
+  if json_str_field(first, "config_hash") != cov.state_config_hash { return "identity" }
+  if ph != cov.state_pin_hash { return "pin" }
+  let canon = header_values(
+    "coverage_state/v3", "2", json_int_field(first, "epoch").to_string(),
+    json_int_field(first, "cases").to_string(),
+    json_int_field(first, "owners").to_string(),
+    json_int_field(first, "adds").to_string(), json_str_field(first, "config_hash"), ph, coh,
+    json_str_field(first, "last"),
+  )
+  let payload_nl = if nl < text.length() { nl + 1 } else { text.length() }
+  let payload = text[payload_nl:].to_owned()
+  let want = json_str_field(first, "checksum")
+  if want == "" || @corpus.sha1_hex(canon + "\n" + payload) != want { return "header" }
+  ""
+}
+
+///|
+fn state_skip() -> String {
+  match @env.get_env_var("FUZZ_STATE_SKIP") { Some(v) => v; None => "" }
+}
+
 ///|
 fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
   let mut text = @stager.read_text(cfg.coverage_state)
@@ -3781,15 +3811,18 @@ fn load_coverage_state(cfg : Config, cov : TraceUniverse) -> (Int32, Int32) {
       quarantine_state(cfg, text, "legacy")
       return (0, 0)
     }
-  } else if !state_header_valid(cfg, cov, text) {
-    quarantine_state(cfg, text, "header")
-    return (0, 0)
+  } else {
+    let reason = state_reject_reason(cov, text)
+    if reason != "" && state_skip() != reason {
+      quarantine_state(cfg, text, reason)
+      return (0, 0)
+    }
   }
   let head_nl = match text.find("\n") { Some(i) => i; None => text.length() }
   let head = text[0:head_nl].to_owned()
   let saved_corpus = json_str_field(head, "corpus_hash")
   if saved_corpus != "" && saved_corpus != cov.state_corpus_hash {
-    if cfg.require_same_corpus {
+    if cfg.require_same_corpus && state_skip() != "corpus" {
       quarantine_state(cfg, text, "corpus")
       return (0, 0)
     }
@@ -4266,6 +4299,7 @@ async fn main {
     coverage_write: "",
     recover: false,
     require_same_corpus: false,
+    recover_only: false,
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
@@ -4419,6 +4453,9 @@ async fn main {
     } else if a == "--require-same-corpus" {
       cfg.require_same_corpus = true
       i += 1
+    } else if a == "--recover-only" {
+      cfg.recover_only = true
+      i += 1
     } else {
       main_usage()
       return
@@ -4570,18 +4607,20 @@ async fn main {
   let moon_v = @exec.run(@stager.moon_path(), ["--version"], "/tmp", 5000).stdout.trim().to_owned()
   let moonc_v = @exec.run(@stager.tool_path("moonc"), ["-v"], "/tmp", 5000).stdout.trim().to_owned()
   cov.state_pin_hash = @corpus.sha1_hex(moon_v + "|" + moonc_v)
-  let corpus_b = StringBuilder()
-  let seed_names = @stager.try_read_dir(cfg.seed_dir)
-  seed_names.sort()
-  for n in seed_names {
-    let txt = @stager.read_text(join(cfg.seed_dir, n))
-    corpus_b.write_string(n + ":" + @corpus.sha1_hex(txt) + "\n")
-  }
-  cov.state_corpus_hash = @corpus.sha1_hex(corpus_b.to_string())
+  let seed_hashes : Array[String] = []
+  for txt in seeds { seed_hashes.push(@corpus.sha1_hex(txt)) }
+  seed_hashes.sort()
+  cov.state_corpus_hash = @corpus.sha1_hex(seed_hashes.join("\n"))
   let (restored_keys, restored_edges) = if cfg.coverage_state != "" {
     load_coverage_state(cfg, cov)
   } else {
     (0, 0)
+  }
+  if cfg.recover_only {
+    println("{\"recovered_cases\":" + cov.checkpoint_cases.to_string() +
+      ",\"recovered_owners\":" + cov.checkpoint_owners.to_string() +
+      ",\"recovered_epoch\":" + cov.state_epoch.to_string() + "}")
+    @env.exit(0)
   }
   // One campaign-wide evidence budget shared by workers and trace paths.
   cov.persist.cap = cfg.persist_cap

@@ -521,3 +521,8 @@ edge A/B 的 1,960 平台同样**作废**（见 `findings/edge_plateau.md`）。
 
 Apache-2.0，见 `LICENSE`。仓库内的第三方 fixture（如
 `WeiR-h/moonldif@0.7.6`）按各自许可证使用，且不提交到本仓库。
+
+
+## P0-2 state v3
+
+`state_recovery_test.sh` 的 R1–R5 使用独立目录和 `FUZZ_STATE_SKIP` 对照；该开关仅测试注入，不用于生产。

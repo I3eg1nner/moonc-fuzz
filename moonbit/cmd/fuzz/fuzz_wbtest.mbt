@@ -129,6 +129,7 @@ fn trace_test_cfg() -> Config {
     coverage_write: "",
     recover: false,
     require_same_corpus: false,
+    recover_only: false,
     pkg_seed: "",
     pkg_file: "",
     pkg_argv: "build --target wasm-gc",
