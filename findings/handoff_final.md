@@ -17,7 +17,7 @@
 |---|---|---|---|
 | 工具链 pin 与归档 | `toolchain_archive.md` | `scripts/archive_toolchain.sh`, release asset | `toolchain_pinned` |
 | 13 个回归 case（F1–F6 家族 12 个 + P1；F7–F12 另有专项门禁） | `p0_evidence.md`, `f8f9_trigger_surface.md`, `defect_inventory.md` | `poc/`, `cmd/regress` | `regressions_13`, `f7_boundary`, `reduce_witness`, `lsp_regress_6` |
-| 38 条 issue 派生 oracle（A–I） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md`, `issue_oracle_g.md`, `issue_oracle_h.md`, `issue_oracle_final.md`, `j1_state_recovery.md`, `j2_original_config.md`, `j3_aggregate_cancel.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity`, `must_reject_sensitivity`, `attribute_sensitivity`, `state_recovery`, `original_config_replay`, `original_config_e2e`, `aggregate_cancel`, `sem3_observation`, `fmt_f13` |
+| 38 条 issue 派生 oracle（A–I） | `issue_oracle_a_b.md`, `issue_oracle_c.md`, `issue_oracle_d.md`, `issue_oracle_e.md`, `issue_oracle_f.md`, `issue_oracle_g.md`, `issue_oracle_h.md`, `issue_oracle_final.md`, `j1_state_recovery.md`, `j2_original_config.md`, `j3_aggregate_cancel.md` | `issues/raw/`, `oracle_cases/`, `scripts/issuecheck.sh` | `issue_regress`, `formatter_sensitivity`, `package_sensitivity`, `must_reject_sensitivity`, `attribute_sensitivity`, `state_recovery`, `original_config_replay`, `original_config_e2e`, `aggregate_cancel`, `sem3_observation`, `fmt_f13`, `original_config_negative` |
 | semdiff 五态 + 截断/摘要 | `p0_correctness.md` | `cmd/semdiff`, `/tmp/sem_*.jsonl` | `semantic_diff`, `semdiff_selfcheck` |
 | triage 规则 + 单实现 | `triage_pipeline.md` | `scripts/triage_selftest.sh`, `triage_campaign_selftest.sh` | `triage_controls`, `triage_campaign` |
 | formatter 聚类 | `fmt_cluster.md` | `cmd/clusterprobe`, `/tmp/fmt_gate3` | `fmt_cluster` |
@@ -72,7 +72,8 @@
 
 **P0 状态（2026-11-23）**
 - corpus owner 事务/checkpoint：J1 已实现 header schema/checksum/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536、epoch2 796/536；最新 197/803）。P0-2 已补 `--recover`、schema/checksum/hash 五种 injection、以及 mid_payload/after_tmp/after_rename 三个 kill 点；仅保留 per-fd fsync 的边界。
-- original-config replay：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 已闭环。
+- original-config replay：P0-4 快照增加 `pin.json`/`env.json`/`cwd`；e2e 用 argv 数组、`env`、cwd replay，pin 改坏拒绝、expected 改坏 mismatch、baseline mismatch；包种用无依赖 `package_seeds/double`。argv 序列化仍从 command 字符串生成，未做到调用点直存数组；TEST_FAIL triage 的断言/test 名比较未做。
+- original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 已闭环。
 - 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿但明确 **setsid 逃逸不支持**，没有 `process_tree` gate；组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。
 - F13：`fmt_f13` gate 固定 `-(-2147483648)`、i64 min、triple nested；moonfmt 输出 `moon check` 均 `[4095]`，healthy `-(-1)` 通过；分类 `compiler_inconsistency_candidate`。
@@ -105,9 +106,9 @@ moon version --all            # 期望包含 0.1.20261104 / 0.10.20+65efd5b93
 cd moonbit
 moon test --target native     # 期望 Total tests: 385, passed: 385, failed: 0
 
-# 完整验收（35 门）
+# 完整验收（36 门）
 ./_build/native/debug/build/cmd/accept/accept.exe /data/audit/mbtfuzz
-# 期望 {"ok":true,"checks":[...35...]}
+# 期望 {"ok":true,"checks":[...36...]}
 
 # 短 campaign（示例）
 ./_build/native/debug/build/cmd/fuzz/fuzz.exe --root /data/audit/mbtfuzz \
@@ -154,7 +155,7 @@ scripts/triage_selftest.sh; scripts/triage_campaign_selftest.sh
 
 ```
 moon test   385 / 385（Total tests: 385, passed: 385, failed: 0）
-accept      35 / 35（ok=true, checks=35, 无失败）
+accept      36 / 36（ok=true, checks=36, 无失败）
 git         已提交并推送，worktree clean
 pin         未改动
 ```

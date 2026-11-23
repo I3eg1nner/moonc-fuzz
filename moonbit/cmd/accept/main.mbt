@@ -411,6 +411,19 @@ async fn main {
     e2e_out.contains("\"matched\": 3")
   results.push(check("original_config_e2e", e2e_ok, e2e_out))
 
+  // 2a8b. P0-4 pin/expected negative controls.
+  let ocrn = @exec.run(
+    "bash",
+    [join(root, "scripts/original_config_negative_test.sh"), root],
+    root,
+    300000,
+  )
+  let ocrn_out = ocrn.stdout.trim().to_owned()
+  let ocrn_ok = ocrn.rc == 0 && ocrn_out.contains("\"ok\": 1") &&
+    ocrn_out.contains("\"pin_refused\": 1") &&
+    ocrn_out.contains("\"expected_e2e\": 0")
+  results.push(check("original_config_negative", ocrn_ok, ocrn_out))
+
   // 2a9. Portable supervisor aggregate RSS/proc/deadline and cancellation.
   let ac = @exec.run(
     "bash",

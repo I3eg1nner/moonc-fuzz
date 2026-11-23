@@ -2568,7 +2568,7 @@ fn find_named(dir : String, name : String, prefix : String) -> String {
 }
 
 ///|
-fn save_pkg_witness(
+async fn save_pkg_witness(
   cfg : Config,
   moon : String,
   sig : String,
@@ -2613,9 +2613,20 @@ fn save_pkg_witness(
   }
   let mod_src = @stager.read_text(join(wd, mod_rel))
   let pkg_src = @stager.read_text(join(wd, pkg_rel))
+  let moon_ver = @exec.run(moon, ["--version"], "/tmp", 5000).stdout.trim().to_owned()
+  let moonc_ver = @exec.run(@stager.tool_path("moonc"), ["-v"], "/tmp", 5000).stdout.trim().to_owned()
+  let pin = "{\"moon\":\"" + @stager.escape(moon) +
+    "\",\"moonc\":\"" + @stager.escape(@stager.tool_path("moonc")) +
+    "\",\"moon_version\":\"" + @stager.escape(moon_ver) +
+    "\",\"moonc_version\":\"" + @stager.escape(moonc_ver) +
+    "\",\"pin_hash\":\"" + @corpus.sha1_hex(moon_ver + "|" + moonc_ver) + "\"}"
+  let envv = "{\"MOON_HOME\":\"" + @stager.escape(@env.get_env_var("MOON_HOME").unwrap_or("")) +
+    "\",\"HOME\":\"" + @stager.escape(@env.get_env_var("HOME").unwrap_or("")) +
+    "\",\"PATH\":\"" + @stager.escape(@env.get_env_var("PATH").unwrap_or("")) + "\"}"
   let paths = "{\"moon_mod\":\"" + @stager.escape(mod_rel) +
     "\",\"moon_pkg\":\"" + @stager.escape(pkg_rel) +
-    "\",\"source\":\"" + @stager.escape(file) + "\"}"
+    "\",\"source\":\"" + @stager.escape(file) +
+    "\",\"cwd\":\".\"}"
   let argv_parts = split_spaces(cmd)
   let argv_json = "[" + argv_parts.map(fn(x) { "\"" + @stager.escape(x) + "\"" }).join(",") + "]"
   let expected = "{\"rc\":" + rc.to_string() +
@@ -2630,6 +2641,8 @@ fn save_pkg_witness(
     (join(orig, "argv.json"), argv_json),
     (join(orig, "paths.json"), paths),
     (join(orig, "expected.json"), expected),
+    (join(orig, "pin.json"), pin),
+    (join(orig, "env.json"), envv),
   ]
   for (path, text) in files {
     if text == "" || !@stager.write_text(path, text) {
@@ -2642,7 +2655,9 @@ fn save_pkg_witness(
     "\",\"source\":\"" + @corpus.sha1_hex(src) +
     "\",\"argv\":\"" + @corpus.sha1_hex(argv_json) +
     "\",\"paths\":\"" + @corpus.sha1_hex(paths) +
-    "\",\"expected\":\"" + @corpus.sha1_hex(expected) + "\"}"
+    "\",\"expected\":\"" + @corpus.sha1_hex(expected) +
+    "\",\"pin\":\"" + @corpus.sha1_hex(pin) +
+    "\",\"env\":\"" + @corpus.sha1_hex(envv) + "\"}"
   if !@stager.write_text(join(orig, "manifest.json"), manifest) {
     @stager.rm_rf(fd)
     return false

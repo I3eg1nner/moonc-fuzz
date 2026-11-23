@@ -5,9 +5,9 @@ ROOT="${1:-/data/audit/mbtfuzz}"
 BIN="$ROOT/moonbit/_build/native/debug/build/cmd/fuzz/fuzz.exe"
 OUT="/tmp/mbtfuzz_original_e2e_$$"; mkdir -p "$OUT"
 "$BIN" --out "$OUT" --duration 5 --workers 1 \
-  --pkg-seed "$ROOT/regressions/pkg_semantic/f8_30/pkg" \
-  --pkg-file repro/repro.mbt \
-  --pkg-argv "test --target js --build-only" >"$OUT/fuzz.out" 2>"$OUT/fuzz.err"
+  --pkg-seed "$ROOT/regressions/package_seeds/double" \
+  --pkg-file pkgB/b.mbt \
+  --pkg-argv "build --target wasm-gc" >"$OUT/fuzz.out" 2>"$OUT/fuzz.err"
 W=$(find "$OUT" -type d -path '*/findings/*/original' | head -1 | xargs -r dirname)
 if [ -z "$W" ] || [ ! -f "$W/original/manifest.json" ] ||
    [ ! -f "$W/original/paths.json" ] || [ ! -f "$W/original/argv.json" ] ||
@@ -29,21 +29,42 @@ MOON=$(jq -r '.moon' "$W/capsule.json")
 SRC_REL=$(jq -r '.source' "$W/original/paths.json")
 MOD_REL=$(jq -r '.moon_mod' "$W/original/paths.json")
 PKG_REL=$(jq -r '.moon_pkg' "$W/original/paths.json")
+PIN=$(cat "$W/original/pin.json")
+if [ "${TAMPER_PIN:-0}" = 1 ]; then
+  printf '%s' "$PIN" | sed 's/"pin_hash":"[^"]*"/"pin_hash":"deadbeef"/' > "$W/original/pin.tamper"
+  PIN=$(cat "$W/original/pin.tamper")
+fi
+PIN_HASH=$(jq -r '.pin_hash' <<<"$PIN")
+CUR_HASH=$(printf '%s|%s' "$(moon --version 2>/dev/null)" "$(moonc -v 2>/dev/null)" | sha1sum | awk '{print $1}')
+# saved pin hash is the authoritative one; if it differs, refuse replay.
+PIN_REFUSED=0
+if [ "$PIN_HASH" != "$CUR_HASH" ]; then PIN_REFUSED=1; fi
+ENVJSON=$(cat "$W/original/env.json")
+CWD=$(jq -r '.cwd' "$W/original/paths.json")
 EXP_RC=$(jq -r '.rc' "$W/original/expected.json")
+if [ "${TAMPER_EXPECTED:-0}" = 1 ]; then EXP_RC=0; fi
 EXP_OUT=$(jq -r '.stdout' "$W/original/expected.json")
 EXP_ERR=$(jq -r '.stderr' "$W/original/expected.json")
 EXP_CODES=$(grep -oE 'Error: \[[0-9]+\]' <<<"$EXP_ERR" | sort -u | tr '\n' ',')
 EXP_FAIL=$(grep -E 'FAILED|test .* failed' <<<"$EXP_ERR" | head -1)
-ARGV=$(jq -r '.[]' "$W/original/argv.json")
+mapfile -t ARGV < <(jq -r '.[]' "$W/original/argv.json")
 replay() {
   local srcfile="$1" d="$2"; rm -rf "$d"; cp -r "$W/original/pkg" "$d"
   mkdir -p "$(dirname "$d/$SRC_REL")"
   cp "$srcfile" "$d/$SRC_REL"
   cp "$W/original/moon.mod" "$d/$MOD_REL" 2>/dev/null || true
   if [ -n "$PKG_REL" ]; then mkdir -p "$(dirname "$d/$PKG_REL")"; cp "$W/original/moon.pkg" "$d/$PKG_REL"; fi
-  ( cd "$d" && timeout 60 "$MOON" $ARGV ) >"$d/out" 2>"$d/err"; echo $? > "$d/rc"
+  local mh pathv homev
+  mh=$(jq -r '.MOON_HOME' <<<"$ENVJSON")
+  pathv=$(jq -r '.PATH' <<<"$ENVJSON")
+  homev=$(jq -r '.HOME // ""' <<<"$ENVJSON")
+  ( cd "$d/${CWD:-.}" && timeout 60 env "MOON_HOME=$mh" "HOME=$homev" "PATH=$pathv" "$MOON" "${ARGV[@]}" ) >"$d/out" 2>"$d/err"; echo $? > "$d/rc"
 }
 matched=0; baseline_mismatch=0
+if [ "$PIN_REFUSED" = 1 ]; then
+  jq -n --argjson e2e 0 --argjson pin_refused 1 --arg reason "pin hash mismatch" '{e2e:$e2e,pin_refused:$pin_refused,reason:$reason}'
+  rm -rf "$OUT"; exit 1
+fi
 for i in 1 2 3; do
   replay "$W/original/source.mbt" "$OUT/r$i"
   rc=$(cat "$OUT/r$i/rc")

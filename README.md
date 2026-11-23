@@ -76,7 +76,7 @@ trace 候选权重默认 T2 70%、T1 20%、T3 10%，调度器同时按 70/20/10 
 ./examples/trace2funcs.sh
 ```
 
-`cmd/accept` 依次检查（35 项）：工具链 pin、`moon build`、`moon test`、
+`cmd/accept` 依次检查（36 项）：工具链 pin、`moon build`、`moon test`、
 `moon check`、13 个缺陷回归 case（F1–F6 家族 + P1）、6 例 LSP 回归
 （3 缺陷 + 3 控制）、LSP 负样本
 （3 会话 × 7 请求，且探针必须能看见 F11 触发）、oracle 灵敏度、真实编译
@@ -288,7 +288,7 @@ moon run cmd/lspregress
 上跑两个 job：`latest-canary` 用上游最新的工具链跑
 `moon check`/`build`/`test`/`fmt --check` 和最小示例；`pinned-evidence`
 下载 v0.1.0 的冻结工具链、校验 sha256，然后跑 `accept --profile core`
-的 32 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 个回归 case（F1–F6 家族 12 个 + P1；含 F3 的第二 witness）；
+的 33 项门禁（另外 3 项需要宿主机的 `afl-qemu-trace`）。`cmd/regress` 覆盖 13 个回归 case（F1–F6 家族 12 个 + P1；含 F3 的第二 witness）；
 `cmd/accept` 是迁移验收门禁。MoonBit 实现与 accept 路径不含 `.py`；仓库仍有 20 个已跟踪 `.py`，仅限 vendored/复现/PoC 脚本，清单见 `findings/python_inventory.md`；新门禁/harness 不再新增 `.py`。独立参考实现和
 `syntax_boundary`、`olddiff`、`iface`、`typegen` 等归档 pilot 位于
 `python-reference` 分支，仅用于对拍和历史复现。
@@ -351,7 +351,7 @@ cd moonbit && moon build --target native
 ./_build/native/debug/build/cmd/accept/accept.exe "$PWD/.." --profile core
 ```
 
-`--profile core` 跑 35 项中的 32 项，跳过需要 `afl-qemu-trace` 与 `moonc`
+`--profile core` 跑 36 项中的 33 项，跳过需要 `afl-qemu-trace` 与 `moonc`
 符号表的三项 trace 检查；JSON 的 `skipped` 会列出它们。公开 CI 的
 `pinned-evidence` job 走的就是这条路径，`latest-canary` job 继续盯前向兼容。
 
