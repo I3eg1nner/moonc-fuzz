@@ -154,6 +154,25 @@ fn split_ws(s : String) -> Array[String] {
 ///|
 /// Replay one capsule finding: copy the saved package, write the witness into
 /// the recorded file, run the recorded argv.
+fn test_line(s : String, marker : String) -> String {
+  for line in s.split("\n") {
+    if line.contains(marker) { return line.to_owned() }
+  }
+  ""
+}
+
+fn test_sig(out : String, err : String) -> String {
+  let line = test_line(out + "\n" + err, "failed:")
+  let mut i = match line.find("(\"") { Some(v) => v + 2; None => 0 }
+  let start = i
+  while i < line.length() && line.get_char(i) != Some('"') { i += 1 }
+  let name = if i > start { line[start:i].to_owned() } else { "" }
+  let aline = test_line(out + "\n" + err, "FAILED")
+  let at = match aline.find("FAILED") { Some(j) => aline[j:].to_owned(); None => "" }
+  "test|" + name + "|" + at
+}
+
+///|
 async fn capsule_replay(
   work : String,
   pkg_dir : String,
@@ -163,10 +182,10 @@ async fn capsule_replay(
   cmd : String,
   stage : String,
   timeout_ms : Int32,
-) -> (String, Int32, String) {
+) -> (String, Int32, String, String) {
   @stager.rm_rf(work)
   if !@stager.copy_tree(pkg_dir, work) {
-    return ("", -1, "capsule copy failed")
+    return ("", -1, "", "capsule copy failed")
   }
   ignore(@stager.write_text(join(work, file), src))
   let r = @exec.run(
@@ -176,13 +195,17 @@ async fn capsule_replay(
     timeout_ms,
   )
   let mut sig = "ok"
-  for f in @stager.findings(stage, r) {
-    if @judge.severity_name(f.severity) == "defect" {
-      sig = @cluster.crash_signature(f.class, r.rc, r.stderr, r.stdout)
-      break
+  if stage == "test" && r.rc != 0 {
+    sig = test_sig(r.stdout, r.stderr)
+  } else {
+    for f in @stager.findings(stage, r) {
+      if @judge.severity_name(f.severity) == "defect" {
+        sig = @cluster.crash_signature(f.class, r.rc, r.stderr, r.stdout)
+        break
+      }
     }
   }
-  (sig, r.rc, r.stderr)
+  (sig, r.rc, r.stdout, r.stderr)
 }
 
 ///|
@@ -223,7 +246,7 @@ async fn run_signature(
 /// still times out" does not distinguish that from a compiler bug.  Such
 /// candidates are reported as timeout-only and stay inconclusive.
 fn is_defect_sig(sig : String) -> Bool {
-  sig.contains("crash|")
+  sig.contains("crash|") || sig.has_prefix("test|")
 }
 
 ///|
@@ -343,9 +366,10 @@ async fn main {
       if !write_pkg(d, src, "mbt") {
         continue
       }
-      run_signature(d, stage, relaxed)
+      let (s, rc, e) = run_signature(d, stage, relaxed)
+      (s, rc, "", e)
     }
-    let (sig, _, err) = sig_err
+    let (sig, _, _out, err) = sig_err
     sigs.push(sig)
     if first_err == "" {
       first_err = err
@@ -363,7 +387,7 @@ async fn main {
     if baseline_src == "" {
       false
     } else {
-      let (ctl_sig, ctl_rc, ctl_err) = capsule_replay(
+      let (ctl_sig, ctl_rc, _ctl_out, ctl_err) = capsule_replay(
         ctl,
         join(case_dir, "pkg"),
         cap_file,

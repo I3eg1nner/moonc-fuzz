@@ -1,0 +1,1 @@
+{"moon":"/home/user/.moon/bin/moon","cmd":"test --target js","build_cmd":"build --target js","run_cmd":"test --target js","file":"lib_test.mbt","original":"original","stage":"test","target":"","signature":"test|fail_case|FAILED: `1 != 2`"}

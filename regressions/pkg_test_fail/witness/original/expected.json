@@ -1,0 +1,1 @@
+{"rc": 2, "stdout": "", "stderr": "[e2e/testfail] test lib_test.mbt:1 (\"fail_case\") failed: lib_test.mbt:2:3-2:18@e2e/testfail FAILED: `1 != 2`\n"}

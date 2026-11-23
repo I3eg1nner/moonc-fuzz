@@ -2549,6 +2549,31 @@ fn split_spaces(s : String) -> Array[String] {
 ///|
 /// Save a package-lane failure in the same layout triage's capsule mode reads.
 ///|
+fn test_line(s : String, marker : String) -> String {
+  for line in s.split("\n") {
+    if line.contains(marker) {
+      return line.to_owned()
+    }
+  }
+  ""
+}
+
+///|
+fn test_signature(out : String, err : String) -> String {
+  let line = test_line(out + "\n" + err, "failed:")
+  let mut i = match line.find("(\"") { Some(v) => v + 2; None => 0 }
+  let start = i
+  while i < line.length() && line.get_char(i) != Some('"') { i += 1 }
+  let name = if i > start { line[start:i].to_owned() } else { "" }
+  let aline = test_line(out + "\n" + err, "FAILED")
+  let assert = match aline.find("FAILED") {
+    Some(j) => aline[j:].to_owned()
+    None => ""
+  }
+  "test|" + name + "|" + assert
+}
+
+///|
 fn find_named(dir : String, name : String, prefix : String) -> String {
   let direct = join(dir, name)
   if @fs.path_exists(direct) {
