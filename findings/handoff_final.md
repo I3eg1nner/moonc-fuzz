@@ -223,3 +223,9 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 - 400 模块扫描：buildable 281；invalid artifact 3 包（aitne 4 个、zlib 2 个）；wasm_only3、js_only3、different_codes7、test_compile_fail4、test differential1。
 - 签名桶：`local.set|ref<-ref|identity` 5（415+aitne，同根因）；`fallthru|stack2|extern-wasm-body` 2（zlib 自身 WAT 不合法，js 也不通过，排除）。
 - 无新根因 candidate；静默非法产物密度约 3/281。下一步类型导向生成/运行时差分。
+
+## Discovery K
+
+- 类型形状生成器正控 2/2 命中 identity 桶（415/aitne）。
+- 600 程序（16 workers）：build_ok 525、invalid 525、桶表仅 `local.set|ref<-ref|identity`；无新桶/candidate。
+- 结论：5 类形状内 pin 上静默非法产物仅一个根因；下一步换运行时输出差分或停线。

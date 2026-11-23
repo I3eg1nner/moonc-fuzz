@@ -1,0 +1,11 @@
+{
+  "controls": {"generated":2,"build_ok":2,"invalid_artifact":2,"buckets":{"local.set|ref<-ref|identity":2}},
+  "generated":600,
+  "workers":16,
+  "build_ok":525,
+  "invalid_artifact":525,
+  "buckets":{"local.set|ref<-ref|identity":525},
+  "new_bucket":null,
+  "new_candidate":null,
+  "note":"all invalid artifacts in generated space fall in the known identity bucket"
+}
