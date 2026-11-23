@@ -1,15 +1,31 @@
 {
-  "modules": 31,
-  "attempted": 31,
-  "buildable_both": 21,
-  "wasm_only": 0,
-  "js_only": 0,
-  "different_codes": 0,
-  "invalid_artifact": 0,
-  "test_attempted": 19,
-  "test_compile_fail": 0,
-  "differential": 0,
-  "wasm_only_pkgs": [],
-  "js_only_pkgs": [],
-  "invalid_pkgs": []
+  "modules": 150,
+  "attempted": 150,
+  "buildable_both": 103,
+  "wasm_only": 2,
+  "js_only": 1,
+  "different_codes": 3,
+  "invalid_artifact": 1,
+  "test_attempted": 71,
+  "test_compile_fail": 3,
+  "differential": 1,
+  "wasm_only_pkgs": [
+    {
+      "pkg": ".mooncakes/bobzhang/ajson",
+      "first": "Error: [4021] Value run_async_main not found in package `moonbitlang/core/async`."
+    },
+    {
+      "pkg": ".mooncakes/KKKIIO/moondark",
+      "first": "Using cached tonyfettes/xlog@0.4.2"
+    }
+  ],
+  "js_only_pkgs": [
+    {
+      "pkg": ".mooncakes/gaato/mttp",
+      "first": "Using cached gaato/codec@0.1.2"
+    }
+  ],
+  "invalid_pkgs": [
+    ".mooncakes/Arcelyth/aitne"
+  ]
 }

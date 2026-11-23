@@ -204,3 +204,10 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 ## Discovery G
 
 真实第三方：registry 清单 29 个 module@version；`.mooncakes` 31 个模块，buildable both=21，wasm-only/js-only/differential/invalid=0，test 19 个/compile fail 0。G3 官方 300 mutant：build_ok 210、both-fail 90、差分 0/300；探索性超跑有 1 条 `moonstl/site/bridge` 4032 wasm-only，未最小化，不列候选。
+
+## Discovery H
+
+- H1 `moonstl/site/bridge` 4032 无法复现：基线 rc0，重施加 `Int->Int64` 后仍 rc0；G3 未记录文件，疑似嵌套依赖 collateral，不是 candidate。
+- H2 direct moon add 尝试 151，fetched 109，failed 41；registry 232 个 module@version（含 deps）。
+- H3 150 modules：buildable 103，wasm_only 2、js_only 1、invalid artifact 1、test differential 1；415/1051 未出现。有未最小化 lead（ajson、aitne、未命名 test diff），无合格 candidate。
+- 决策：若 200 包仍无 candidate，换 oracle 面，不再只加包。

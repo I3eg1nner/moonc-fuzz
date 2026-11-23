@@ -1,7 +1,7 @@
 #!/bin/bash
 set -uo pipefail
 SCRATCH="${1:?scratch}"; OUT=/tmp/discovery_g2_$$; mkdir -p "$OUT"; : > "$OUT/m.jsonl"
-find "$SCRATCH/.mooncakes" -name moon.mod -type f | sort > "$OUT/list"
+find "$SCRATCH/.mooncakes" -name moon.mod -type f | sort | head -"${LIMIT:-150}" > "$OUT/list"
 N=$(wc -l < "$OUT/list"); attempt=0; both=0; wonly=0; jonly=0; diffc=0; inval=0; ta=0; tcf=0; diff=0
 while read f; do
   d=$(dirname "$f"); rm -rf "$d/_build"
