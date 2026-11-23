@@ -71,11 +71,9 @@
    cgroup 主机跑 1 h，记录 memory.peak/pids/disk，kill 后无孤儿进程。
 
 **P0 状态（2026-11-23）**
-- corpus owner 事务/checkpoint：J1 已实现 header schema/checksum/sync/rename/quarantine/周期 checkpoint；`state_recovery` gate 通过（epoch1 200/536、epoch2 796/536；最新 197/803）。P0-2 v3：canonical header+payload checksum，identity 必需，pin/corpus 真 hash，corpus drift/严格模式。R1–R5 使用独立 `_def/_skip` 目录，各自重新 tamper，`--recover-only` 读取：默认 `recovered_cases=0` + 恰 1 个对应 reason corrupt；skip 0 corrupt 且加载篡改 cases（R1=999999，其余=STATE1.cases）。gate detail 有 r1_def/r1_skip…；R5 默认 drift=1 且 cases/owners=STATE1，严格拒绝；recover 精确 cases/owners/epoch；last 40-hex 且 epoch1≠epoch2。`FUZZ_STATE_SKIP` 仅测试注入。
-- original-config replay：P0-4 真实 campaign TEST_FAIL 签名；P0-4 快照增加 `pin.json`/`env.json`/`cwd`；e2e 用 argv 数组、`env`、cwd replay，pin 改坏拒绝、expected 改坏 mismatch、baseline mismatch；包种用无依赖 `package_seeds/double`。argv 序列化仍从 command 字符串生成，未做到调用点直存数组；TEST_FAIL triage 已闭环（真实 campaign stage=test，triage confirmed 3/3；expected/name/baseline 负控非 confirmed）。
-- TEST_FAIL replay：`original_config_e2e` 直接调用 triage，不再复制比较逻辑；normal confirmed 3/3、stage=test，三个负控非 confirmed。
-- original-config replay（旧 J2）：J2/P0-1 修复后 `original/source=mutant`、`pkg=wd`、嵌套 moon.pkg、argv/expected 结构化；fixture 和真实 package e2e 均 3/3，baseline 负控 mismatch。P0-1 行为复验闭环：真实 campaign TEST_FAIL，stage=test，triage confirmed 3/3；expected/pkg/baseline 三控制均 inconclusive；argv/env 篡改 confirmed → 记 not_sensitive（行为未变）。manifest 只做 provenance warning，不参与判定。
-
+- corpus owner 事务/checkpoint：J1/J2 已实现 v3 canonical header+payload checksum、identity 必需、真实 pin/corpus hash、quarantine/recover/周期 checkpoint。实际 cases/owners 随 seed 和变异变化，**以 `state_recovery` gate detail 为准**。R1–R5 使用独立 `_def/_skip` 目录，各自重新 tamper；def 目录恰 1 个对应 reason corrupt 且 `recovered_cases=0`，skip 目录 0 corrupt 且加载篡改 header（R1=999999，其余=STATE1.cases）。`FUZZ_STATE_SKIP` 需同时 `FUZZ_STATE_TEST_INJECT=1`，跳过时打印 `[state] TEST-INJECT`；单独设置仍 quarantine。R5 默认 drift=1 且 cases/owners=STATE1，严格拒绝；recover 精确 cases/owners/epoch；last 40-hex 且 epoch1≠epoch2。
+- P0-4 replay：triage 读 `original/pin.json`，用当前 `moon --version` + `moonc -v` 算 hash，不一致 `pin_refused`；`expected_rc` 用 JSON 整数解析。TEST_FAIL 是 **passed→failed 受控 lane**：seed `assert_eq(add(2,2),4)` 先通过（`/tmp` 副本 `moon test` rc0，`baseline_clean=1`），campaign 只做 `4→5` 语义改写后失败；`baseline=未变异 seed`、`source!=baseline`。真实 campaign `stage=test`、triage confirmed 3/3；expected/name/pkg/baseline **四负控**均非 confirmed；pin 改坏 `pin_refused`；删 kind/stage 得 `schema_invalid`。witness 92KB、`no_build=1`。argv/env 篡改行为不变，记 `not_sensitive`；argv 仍由 command 字符串分词，未做到调用点直存数组。
+- TEST_FAIL 证据链：`original_config_e2e` 跑真实 campaign，不读仓库 fixture；triage 是唯一 confirmed 判定，e2e 只断言 stage/controls/schema/pin 和 witness 大小。
 P0-3 接入：supervisor `--json-out`，子进程继承 stdout/stderr；run.sh 默认经 supervisor：`max_procs=WORKERS*4+8`、`deadline=DUR+300`、`agg=WORKERS*2048` 并 clamp MemTotal/2，实际值写 `supervisor.limits`；`SUPERVISOR_DRYRUN=1` 只写 limits。soak_epochs 每 epoch 经 supervisor，默认 `max_procs=WORKERS*4+8`，CSV 的 sup_rc 用真实退出码；`supervisor_process_tree` gate a–f 全绿（10s/2w→310/16、600s/48w→900/200；nonzero soak sup_rc=90/incomplete=1/stop=supervisor_max_procs）。setsid 仍 unsupported。
 - 聚合资源/取消：J3 安全子集 supervisor 实现 exit rc、deadline、max-procs、agg RSS；`aggregate_cancel` 仍绿；`supervisor_process_tree` gate 已存在。setsid 逃逸仍 unsupported，组 kill/孤儿仅直接 pgid。cgroup2 只读，未跑 peak。
 - P0-5 sem3：`observations_complete` 要求 3 后端且只能 ok/trap；timeout/compile_error/truncated/ice/runtime_error → inconclusive；单元测试 2/2。真实 backend wrapper/五矩阵已做：A 2ok+timeout、B ok+trap+compile → inconclusive；C 3trap → witness；D 3ok 同输出 → equal；E 3ok 不同 → witness。`target_class` 仍关键词辅助。
@@ -177,7 +175,7 @@ HEAD 与推送结果见本次提交（`docs: final handoff`）。
 
 ## A3/A4 状态
 
-TEST_FAIL findings 已改为 `findings/test/TEST_FAIL/<test sig>`，seed 只保留 4 个源文件；`copy_tree_filtered` 跳过 `_build/target/.git/witness/findings`，实测 witness 92KB、`no_build=1`。`.mooncakes` 保留，witness 因此不是完全 hermetic。已删除 `scripts/test_fail_triage_test.sh`、`scripts/original_config_replay.sh` 和陈旧 `regressions/pkg_test_fail/witness/`。
+TEST_FAIL findings 已改为 `findings/test/TEST_FAIL/<test sig>`，seed 只保留 4 个源文件；`copy_tree_filtered` 跳过 `_build/target/.git/witness/findings`，实测 witness 92KB、`no_build=1`。`.mooncakes` 保留，witness 因此不是完全 hermetic。已删除两个旧 shell 脚本和陈旧 `regressions/pkg_test_fail/witness/`。
 
 ## B4 冻结
 
