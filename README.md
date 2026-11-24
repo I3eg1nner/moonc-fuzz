@@ -142,7 +142,7 @@ native debug 下 `#valtype` 记录（标量 + 含 GC 引用的 enum）经 `Array
 `findings/coverage_depth_review.md`，独立 codex 复验见
 `findings/codex_open_ice_review.md`。
 
-2026-11-24 **确认 1 个新 formatter 缺陷 F13**：`moonfmt` 把
+2026-11-24 **确认 2 个新 formatter 缺陷（F13 中、R-idem 低）**：`moonfmt` 把
 `-(-2147483648)` 打成 `--2147483648`；原始文件 check/run rc0，格式化后
 `E4095` 无法编译。触发边界是十进制 INT_MIN 嵌套一元负号（不是普遍括号问题；
 `-(-1)` 及表达式/十六进制/变量版均正常）。3/3 复现，未提交上游。另有已知
