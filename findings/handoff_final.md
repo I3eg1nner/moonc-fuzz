@@ -245,3 +245,9 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 
 - F13 正式候选：REAL，3/3，curated 无，独立于 1369；未提交上游。
 - token 白名单控制 0/1；300 一元程序合法 225，违例 100 全 F13 同族；400 文件 fmtbad2/idem0/token11（已知规范化）/test0；无第二根因。
+
+## Discovery O
+
+- F13 `-(-1)` 格式化后 rc0 且 stdout 等价 → 降级 REFUTED；INT_MIN 为未定案衍生样本。
+- 2 个 fmt 非零来自 `poc/f3_parser_oom`，原始 check timeout/OOM，排除。
+- 优先级 400 程序：source/fmt/check/token/idem/stdout 全 0 违例；无第二根因。

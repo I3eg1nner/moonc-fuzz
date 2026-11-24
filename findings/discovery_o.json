@@ -1,0 +1,7 @@
+{
+  "f13":{"main_repro":"-(-1)","source_check_rc":0,"fmt_rc":0,"formatted_check_rc":0,"semantics_equal":true,"status":"REFUTED/downgraded","int_min_derived":{"source_check_rc":0,"formatted_check_rc":1,"code":4095,"status":"unconfirmed derived sample"}},
+  "fmt_nonzero":{"files":["poc/f3_parser_oom/wild.mbt","poc/f3_parser_oom/cmd/main.mbt"],"source_check":"timeout 124 (parser OOM)","status":"excluded invalid/unparseable input"},
+  "precedence":{"generated":400,"source_bad":0,"fmt_bad":0,"check_bad":0,"token_bad":0,"idem_bad":0,"stdout_bad":0,"violations":0},
+  "candidates":[],
+  "second_root":null
+}

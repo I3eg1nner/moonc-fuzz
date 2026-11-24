@@ -1,0 +1,10 @@
+{
+  "generated": 400,
+  "source_bad": 0,
+  "fmt_bad": 0,
+  "check_bad": 0,
+  "token_bad": 0,
+  "idem_bad": 0,
+  "stdout_bad": 0,
+  "violations": []
+}
