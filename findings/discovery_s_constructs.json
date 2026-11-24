@@ -1,0 +1,221 @@
+{
+  "generated": 300,
+  "source_bad": 90,
+  "fmt_bad": 0,
+  "check_bad": 0,
+  "token_bad": 30,
+  "idem_bad": 0,
+  "stdout_bad": 0,
+  "violations": [
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    },
+    {
+      "pkg": "p",
+      "check_rc": 0,
+      "token": 1,
+      "idem": 0,
+      "stdout": 0
+    }
+  ]
+}

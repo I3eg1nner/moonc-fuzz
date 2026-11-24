@@ -1,0 +1,6 @@
+{
+ "r_idem":{"fmt1":{"lines":5,"bytes":38},"fmt2":{"lines":6,"bytes":39},"fmt3":{"lines":6,"bytes":39},"fmt4":{"lines":6,"bytes":39},"growth":"bounded at fmt2; one extra blank line","variants":{"plain //":"idem_bad","///":"idem_ok","blank":"idem_ok","attribute":"idem_ok","block": "source invalid"},"curated_197":"different symptom (indented comment moved into wrong impl body)"},
+ "constructs":{"generated":300,"source_bad":90,"valid":210,"fmt_bad":0,"check_bad":0,"token_bad":30,"idem_bad":0,"stdout_bad":0,"new_candidate":null},
+ "new_candidates":[],
+ "existing_candidates":["F13","R-idem"]
+}
