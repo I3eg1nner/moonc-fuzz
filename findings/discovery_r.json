@@ -1,0 +1,6 @@
+{
+  "idem":{"count":20,"packages":["p6","p16","p26","p36","p46","p56","p66","p76","p86","p96","p106","p116","p126","p136","p146","p156","p166","p176","p186","p196"],"classification":"true non-idempotence: leading comment + ///| gains blank line","candidate":"R-idem"},
+  "token":{"count":60,"categories":{"param_trailing_comma":20,"array_trailing_comma":20,"semicolon_removal":20},"comment_loss_or_cross_statement_move":0,"candidate":null},
+  "new_candidates":["R-idem"],
+  "same_root_as_f13":false
+}

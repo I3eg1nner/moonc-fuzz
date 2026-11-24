@@ -256,3 +256,8 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 
 - INT_MIN REAL：`-(-2147483648)` 原始 rc0/run rc0，fmt 后 check 4095；范围收窄为十进制 INT_MIN，变体表见 candidate_f13.md。
 - token merge 200：source/fmt/check/token/idem/stdout 全 0；无第二根因。
+
+## Discovery R
+
+- 20 idem 全为 leading comment + `///|` 空行插入；3/3 真非幂等，候选 R-idem（与 F13 不同根因）。
+- 60 token 全为参数/数组尾逗号或分号删除，注释均保留；无注释消失/跨语句移动，不立候选。
