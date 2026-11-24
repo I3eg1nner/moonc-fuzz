@@ -4,7 +4,7 @@
 set -uo pipefail
 ROOT="${1:-/data/audit/mbtfuzz}"; LIMIT="${2:-400}"
 OUT=/tmp/fmt_oracle_$$; mkdir -p "$OUT"; FMT="$HOME/.moon/bin/moonfmt"
-toknorm() { sed '/^\/\/\/|/d' "$1" | tr -d '[:space:]'; }
+toknorm() { sed '/^\/\/\/|/d' "$1" | tr -d '[:space:]' | sed 's/#derive/derive/g; s/derive([^)]*)//g; s/Int32/Int/g'; }
 selftest() {
   printf 'fn main { println(1) }\n' > "$OUT/self_ok.mbt"
   printf 'fn main { println(1 }\n' > "$OUT/self_bad.mbt"

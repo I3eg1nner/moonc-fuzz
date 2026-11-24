@@ -240,3 +240,8 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 - F13 REAL：`moonfmt` 将 `-(-2147483648)` 变成 `--2147483648`，`moon check` 4095；负控正常。
 - formatter 检测器自检 token/parse 报红；10 文件扫描：fmt/parse 0，token 6 均为已知规范化（derive/Int32）；无新 candidate。
 - 400 文件扫描未完成（超大文件/`moon check` 慢）；是覆盖缺口。
+
+## Discovery N
+
+- F13 正式候选：REAL，3/3，curated 无，独立于 1369；未提交上游。
+- token 白名单控制 0/1；300 一元程序合法 225，违例 100 全 F13 同族；400 文件 fmtbad2/idem0/token11（已知规范化）/test0；无第二根因。

@@ -1,0 +1,58 @@
+{
+  "files_attempted": 400,
+  "fmt_rc_nonzero": 2,
+  "idempotence_violations": 0,
+  "token_violations": 11,
+  "samples": [
+    {
+      "file": "/data/audit/mbtfuzz/templates/06_enum_match.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/templates/05_struct.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/templates/09_loop.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/templates/11_trait.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/templates/08_option_result.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/poc/f6_native_export_closure/moonldif/integrations/moonldap/adapter.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/poc/f6_native_export_closure/moonldif/integrations/moonldap/adapter_wbtest.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/poc/f5_prefix_plus/u.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/poc/f7_valtype_array_ice/repro.mbt",
+      "token": 1,
+      "idem": -1
+    },
+    {
+      "file": "/data/audit/mbtfuzz/poc/f6_native_export_closure/moonldif/_build/native/debug/test/__generated_driver_for_whitebox_test.mbt",
+      "token": 1,
+      "idem": -1
+    }
+  ]
+}

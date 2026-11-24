@@ -1,0 +1,8 @@
+{
+  "f13":"REAL candidate; curated no; GitHub search only 1369 unary plus; independent symptom",
+  "token_whitelist":{"whitelist_diff":0,"deleted_token_diff":1},
+  "unary":{"generated":300,"source_bad":75,"valid":225,"violations":100,"root":"F13 unary-minus parentheses/--"},
+  "package_scan":{"files_attempted":400,"fmt_rc_nonzero":2,"idempotence_violations":0,"token_violations":11,"test_regressions":0},
+  "second_root":null,
+  "next":"classify/whitelist known formatter normalizations, then re-run 400 with package-level check"
+}

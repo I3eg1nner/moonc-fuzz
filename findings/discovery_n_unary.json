@@ -1,0 +1,911 @@
+{
+  "generated": 300,
+  "source_bad": 75,
+  "fmt_rc_bad": 0,
+  "check_bad": 100,
+  "token_bad": 100,
+  "stdout_bad": 25,
+  "run_bad": 25,
+  "violations": [
+    {
+      "pkg": "p1",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p2",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p11",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p12",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p13",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p14",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p23",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p24",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p25",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p26",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p35",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p36",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p37",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p38",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p47",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p48",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p49",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p50",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p59",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p60",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p61",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p62",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p71",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p72",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p73",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p74",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p83",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p84",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p85",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p86",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p95",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p96",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p97",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p98",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p107",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p108",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p109",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p110",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p119",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p120",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p121",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p122",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p131",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p132",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p133",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p134",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p143",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p144",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p145",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p146",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p155",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p156",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p157",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p158",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p167",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p168",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p169",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p170",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p179",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p180",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p181",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p182",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p191",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p192",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p193",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p194",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p203",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p204",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p205",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p206",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p215",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p216",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p217",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p218",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p227",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p228",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p229",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p230",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p239",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p240",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p241",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p242",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p251",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p252",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p253",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p254",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p263",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p264",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p265",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p266",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p275",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p276",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p277",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p278",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p287",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p288",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p289",
+      "expr": "-(-2147483648)",
+      "check_rc": 1,
+      "token_diff": 1,
+      "stdout_diff": 1,
+      "run_rc": 0,
+      "run_fmt_rc": 1
+    },
+    {
+      "pkg": "p290",
+      "expr": "-(-(-1))",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p299",
+      "expr": "!(-(-1) == 1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    },
+    {
+      "pkg": "p300",
+      "expr": "-(-1)",
+      "check_rc": 0,
+      "token_diff": 1,
+      "stdout_diff": 0,
+      "run_rc": 0,
+      "run_fmt_rc": 0
+    }
+  ]
+}
