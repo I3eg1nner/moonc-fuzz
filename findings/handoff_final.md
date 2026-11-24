@@ -251,3 +251,8 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 - F13 `-(-1)` 格式化后 rc0 且 stdout 等价 → 降级 REFUTED；INT_MIN 为未定案衍生样本。
 - 2 个 fmt 非零来自 `poc/f3_parser_oom`，原始 check timeout/OOM，排除。
 - 优先级 400 程序：source/fmt/check/token/idem/stdout 全 0 违例；无第二根因。
+
+## Discovery P
+
+- INT_MIN REAL：`-(-2147483648)` 原始 rc0/run rc0，fmt 后 check 4095；范围收窄为十进制 INT_MIN，变体表见 candidate_f13.md。
+- token merge 200：source/fmt/check/token/idem/stdout 全 0；无第二根因。

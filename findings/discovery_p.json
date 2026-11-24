@@ -1,0 +1,7 @@
+{
+  "int_min":{"status":"REAL","min_repro":"-(-2147483648)","source_check_rc":0,"source_run_rc":0,"fmt_rc":0,"formatted_check_rc":1,"code":4095,"repro":3,"trigger":"decimal INT_MIN nested unary minus"},
+  "variants":{"-(-(2147483647+1))":"fmt check 0","-(-0x80000000)":"fmt check 0","-(-9223372036854775808)":"source check 1","variable -x":"fmt check 0","-(-1)":"fmt check 0, semantics equal"},
+  "tokmerge":{"generated":200,"source_bad":0,"fmt_bad":0,"check_bad":0,"token_bad":0,"idem_bad":0,"stdout_bad":0,"violations":0},
+  "candidates":["F13 decimal INT_MIN -- merge"],
+  "second_root":null
+}
