@@ -142,11 +142,11 @@ native debug 下 `#valtype` 记录（标量 + 含 GC 引用的 enum）经 `Array
 `findings/coverage_depth_review.md`，独立 codex 复验见
 `findings/codex_open_ice_review.md`。
 
-2026-11-22 新增 formatter 候选 **F13**：`moonfmt` 把
-`-(-2147483648)` 打成 `--2147483648`，格式化后的文件因 `E4095` 字面量越界
-无法编译；原程序正常。3/3 复现，见 `poc/f13_fmt_nested_minus/` 与
-`findings/fmt_nested_minus.md`。它与 F5 的一元 `+` 缺陷可能同源，尚未证明，
-因此不计入上面的根因类，也未提交上游。
+2026-11-24 **确认 1 个新 formatter 缺陷 F13**：`moonfmt` 把
+`-(-2147483648)` 打成 `--2147483648`；原始文件 check/run rc0，格式化后
+`E4095` 无法编译。触发边界是十进制 INT_MIN 嵌套一元负号（不是普遍括号问题；
+`-(-1)` 及表达式/十六进制/变量版均正常）。3/3 复现，未提交上游。另有已知
+415 根因族。见 `findings/candidate_f13.md`。
 
 对外口径按证据强度分三档：
 
@@ -432,7 +432,7 @@ moon test --target native
 | `findings/python_inventory.md` | 20 个已跟踪 .py 的分类与更正后的不变量 |
 | `issues/triage_172.md` | 172 条粗筛 keep/drop 理由 |
 | `findings/issue_oracle_pilot.md` | issue→oracle pilot：F5 往返/幂等、F7 构造等价；60/60 + 25/25 负结果 |
-| `findings/fmt_nested_minus.md` | F13 候选：`moonfmt` 嵌套一元负号生成越界字面量 |
+| `findings/fmt_nested_minus.md`（历史） / `findings/candidate_f13.md` | F13 已确认：十进制 INT_MIN 嵌套一元负号→`--`，fmt 后 E4095 |
 | `findings/float32_nan_pilot.md` | Float32/qNaN 位型 pilot：API 更正、437 checks/后端、0 candidate、JS sNaN allowed |
 | `findings/oracle_expansion_2026-11-22.md` | F7 布局 174/174、Float32 0 candidate、async 38/38、F13 候选的合并结论 |
 | `findings/f8f9_trigger_surface.md` | F8/F9 的触发条件表（23 个用例）：哪些因素是必要的 |
