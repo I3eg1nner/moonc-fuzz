@@ -1,0 +1,7 @@
+{
+  "f13_contexts":{"trigger":["arg","field","return","closure","const","array-index"],"no_trigger":["match-pattern"],"still_one_candidate":true},
+  "literals":{"generated":300,"source_bad":0,"check_bad":30,"token_bad":60,"idem_bad":30,"violations":60,"new_root":false,"f13_family":true},
+  "comments":{"generated":200,"source_bad":0,"check_bad":0,"token_bad":60,"idem_bad":20,"stdout_bad":0,"violations":80,"classification":"formatter comment/doc-line normalization; no semantic/test failure; not candidate"},
+  "candidates":["F13 decimal INT_MIN -- merge"],
+  "second_root":null
+}
