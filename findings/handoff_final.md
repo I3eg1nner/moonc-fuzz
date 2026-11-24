@@ -234,3 +234,9 @@ P0 按“fail-closed + 限制已文档化”关闭，不按“能自动发现真
 
 - 合法语义生成 600：legal 550/550 valid（100%），identity 50/600 (8.3%) 单列；invalid 50 全为 identity；legal discordant 0；identity discordant 50 是已知 415/aitne 桶。
 - 无新 candidate；下一步扩语义族或停线。
+
+## Discovery M
+
+- F13 REAL：`moonfmt` 将 `-(-2147483648)` 变成 `--2147483648`，`moon check` 4095；负控正常。
+- formatter 检测器自检 token/parse 报红；10 文件扫描：fmt/parse 0，token 6 均为已知规范化（derive/Int32）；无新 candidate。
+- 400 文件扫描未完成（超大文件/`moon check` 慢）；是覆盖缺口。

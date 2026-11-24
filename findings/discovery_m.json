@@ -1,0 +1,13 @@
+{
+  "files_attempted": 10,
+  "fmt_rc_nonzero": 0,
+  "idempotence_violations": 0,
+  "token_violations": 6,
+  "unparseable": 0,
+  "test_regressions": 0,
+  "selftest": {
+    "broken_fmt_rc": 0,
+    "broken_check_rc": 1,
+    "token_diff": 1
+  }
+}
